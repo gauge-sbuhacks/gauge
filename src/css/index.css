@@ -1,0 +1,157 @@
+/* global styles + design tokens.
+   shadcn components read the plain variables (--background, --primary...), tailwind reads @theme.
+   kept deliberately plain: steel grays, a gunmetal sidebar, and a little brass. the full
+   steel-and-steam theme comes later and should only need to change values in this file. */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', system-ui, sans-serif;
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* "static" makes tailwind always output these variables, even when the code builds the name at
+   runtime (like var(--color-series-3) for a category), which its scanner can't see */
+@theme static {
+    /* chart colors (validated categorical palette, fixed order: slot 1 is always vehicles, etc.) */
+    --color-series-1: var(--series-1);
+    --color-series-2: var(--series-2);
+    --color-series-3: var(--series-3);
+    --color-series-4: var(--series-4);
+    --color-series-5: var(--series-5);
+    --color-series-6: var(--series-6);
+    --color-series-7: var(--series-7);
+    --color-series-8: var(--series-8);
+    --color-series-other: var(--series-other);
+    --color-chart-grid: var(--chart-grid);
+    --color-chart-axis: var(--chart-axis);
+
+    /* status colors are reserved for meaning (good / warning / serious / critical), never for series */
+    --color-good: var(--status-good);
+    --color-warning: var(--status-warning);
+    --color-serious: var(--status-serious);
+    --color-critical: var(--status-critical);
+    --color-gain: var(--gain-text);
+    --color-loss: var(--loss-text);
+
+    --color-brass: var(--brass);
+    --color-brass-soft: var(--brass-soft);
+}
+
+:root {
+    color-scheme: light;
+
+    --background: #f3f4f6;
+    --foreground: #14171c;
+    --card: #ffffff;
+    --card-foreground: #14171c;
+    --popover: #ffffff;
+    --popover-foreground: #14171c;
+    --primary: #1f2933;
+    --primary-foreground: #f8fafc;
+    --secondary: #eceef1;
+    --secondary-foreground: #1f2933;
+    --muted: #eceef1;
+    --muted-foreground: #59616c;
+    --accent: #eceef1;
+    --accent-foreground: #1f2933;
+    --destructive: #c2362f;
+    --border: #e0e3e8;
+    --input: #d3d8de;
+    --ring: #8a94a3;
+    --radius: 0.625rem;
+
+    /* gunmetal sidebar with a brass accent: the only real "steel" hint for now */
+    --sidebar: #161b22;
+    --sidebar-foreground: #c9d0d9;
+    --sidebar-primary: #c9a24a;
+    --sidebar-primary-foreground: #161b22;
+    --sidebar-accent: #222a35;
+    --sidebar-accent-foreground: #f1f4f7;
+    --sidebar-border: #2a323d;
+    --sidebar-ring: #c9a24a;
+
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #6250d6;
+    --series-8: #e34948;
+    --series-other: #a4a9b0;
+    --chart-grid: #e6e8eb;
+    --chart-axis: #7c8591;
+
+    --status-good: #0ca30c;
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
+    --status-critical: #d03b3b;
+    --gain-text: #006300;
+    --loss-text: #c0322f;
+
+    --brass: #b58a3c;
+    --brass-soft: #f4ead6;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    html {
+        @apply font-sans;
+        -webkit-font-smoothing: antialiased;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+}
+
+/* recharts draws its own focus outline on click; the hover layer already shows focus */
+.recharts-wrapper *:focus {
+    outline: none;
+}

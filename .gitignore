@@ -1,0 +1,27 @@
+# dependencies and builds
+node_modules
+dist
+dist-ssr
+.vercel
+
+# secrets. .env.example is the only env file that gets committed
+.env
+.env.*
+!.env.example
+*.local
+
+# logs
+logs
+*.log
+npm-debug.log*
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.sw?
+
+# others
+.claude/
