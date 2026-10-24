@@ -14,6 +14,15 @@ export function LoadingBlock({ label = 'Loading' }: { label?: string }) {
     );
 }
 
+// before the app frame exists (checking sign-in, loading the profile)
+export function FullPageLoading() {
+    return (
+        <div className="flex min-h-svh items-center justify-center">
+            <LoadingBlock />
+        </div>
+    );
+}
+
 export function ErrorPanel({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
     const apiError = error instanceof ApiError ? error : null;
     const message = error instanceof Error ? error.message : 'Something went wrong.';

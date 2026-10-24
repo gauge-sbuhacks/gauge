@@ -1,8 +1,8 @@
 // every page, in one place. pages load on demand (lazy), so opening the dashboard
 // doesn't download the asset form, the charts on other pages, and so on.
 
-import { createBrowserRouter } from 'react-router';
-import AppShell from '@/components/layout/AppShell.tsx';
+import { Outlet, ScrollRestoration, createBrowserRouter } from 'react-router';
+import AppGate from '@/components/layout/AppGate.tsx';
 import { LoadingBlock } from '@/components/common/QueryStates.tsx';
 import { RouteErrorView } from '@/views/NotFoundView.tsx';
 
@@ -11,30 +11,61 @@ const page = (load: () => Promise<{ default: React.ComponentType }>) => async ()
 
 export const router = createBrowserRouter([
     {
-        path: '/',
-        element: <AppShell />,
+        // new pages start at the top; back/forward returns to where you were
+        element: (
+            <>
+                <Outlet />
+                <ScrollRestoration />
+            </>
+        ),
         errorElement: <RouteErrorView />,
         hydrateFallbackElement: <LoadingBlock />,
         children: [
-            { index: true, lazy: page(() => import('@/views/DashboardView.tsx')) },
-            { path: 'assets', lazy: page(() => import('@/views/AssetsView.tsx')) },
+            // public. signed-out visitors also get the landing page at "/" (see AppGate)
+            { path: 'home', lazy: page(() => import('@/views/LandingView.tsx')) },
+            // the * lets clerk use sub-paths like /sign-in/factor-one and /sign-up/verify-email-address
             {
-                path: 'assets/new',
+                path: 'sign-in/*',
                 lazy: async () => {
-                    const { default: AssetFormView } = await import('@/views/AssetFormView.tsx');
-                    return { Component: () => <AssetFormView mode="create" /> };
+                    const { default: AuthView } = await import('@/views/AuthView.tsx');
+                    return { Component: () => <AuthView mode="sign-in" /> };
                 }
             },
-            { path: 'assets/:id', lazy: page(() => import('@/views/AssetDetailView.tsx')) },
             {
-                path: 'assets/:id/edit',
+                path: 'sign-up/*',
                 lazy: async () => {
-                    const { default: AssetFormView } = await import('@/views/AssetFormView.tsx');
-                    return { Component: () => <AssetFormView mode="edit" /> };
+                    const { default: AuthView } = await import('@/views/AuthView.tsx');
+                    return { Component: () => <AuthView mode="sign-up" /> };
                 }
             },
-            { path: 'settings', lazy: page(() => import('@/views/SettingsView.tsx')) },
-            { path: '*', lazy: page(() => import('@/views/NotFoundView.tsx')) }
+            { path: 'onboarding', lazy: page(() => import('@/views/OnboardingView.tsx')) },
+
+            // the app. AppGate handles signed-out visitors and unfinished onboarding
+            {
+                path: '/',
+                element: <AppGate />,
+                children: [
+                    { index: true, lazy: page(() => import('@/views/DashboardView.tsx')) },
+                    { path: 'assets', lazy: page(() => import('@/views/AssetsView.tsx')) },
+                    {
+                        path: 'assets/new',
+                        lazy: async () => {
+                            const { default: AssetFormView } = await import('@/views/AssetFormView.tsx');
+                            return { Component: () => <AssetFormView mode="create" /> };
+                        }
+                    },
+                    { path: 'assets/:id', lazy: page(() => import('@/views/AssetDetailView.tsx')) },
+                    {
+                        path: 'assets/:id/edit',
+                        lazy: async () => {
+                            const { default: AssetFormView } = await import('@/views/AssetFormView.tsx');
+                            return { Component: () => <AssetFormView mode="edit" /> };
+                        }
+                    },
+                    { path: 'settings', lazy: page(() => import('@/views/SettingsView.tsx')) },
+                    { path: '*', lazy: page(() => import('@/views/NotFoundView.tsx')) }
+                ]
+            }
         ]
     }
 ]);

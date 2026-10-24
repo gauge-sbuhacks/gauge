@@ -1,18 +1,24 @@
 // who is signed in. two modes:
-//   - clerk: VITE_CLERK_PUBLISHABLE_KEY is set, so signed-out visitors see the sign-in screen
+//   - clerk: VITE_CLERK_PUBLISHABLE_KEY is set. visitors start signed out and use /sign-in or /sign-up
 //   - dev: no key, so the app runs as the "local dev user" (the api does the same)
-// either way, components call useAuthInfo() and don't care which mode it is.
+// either way, components call useAuthInfo() and don't care which mode it is. the router decides
+// what a signed-out visitor sees (see AppGate), so this file never renders a page itself.
 
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { ClerkProvider, Show, useAuth, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { setTokenGetter } from '@/api/api.ts';
 import { CLERK_PUBLISHABLE_KEY } from '@/config.ts';
-import SignInView from '@/views/SignInView.tsx';
+import { clerkAppearance } from '@/lib/clerkAppearance.ts';
+
+export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 
 export interface AuthInfo {
     mode: 'clerk' | 'dev';
+    status: AuthStatus;
     displayName: string;
+    // used to prefill onboarding
+    suggestedName: string | null;
     email: string | null;
     signOut: (() => Promise<void>) | null;
 }
@@ -25,18 +31,38 @@ export function useAuthInfo(): AuthInfo {
     return ctx;
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// clerk's components navigate through these so moving between /sign-in and /sign-up doesn't reload the page
+export type Navigate = (to: string, opts?: { replace?: boolean }) => unknown;
+
+export function AuthProvider({ children, navigate }: { children: ReactNode; navigate: Navigate }) {
     if (!CLERK_PUBLISHABLE_KEY) return <DevAuth>{children}</DevAuth>;
     return (
-        <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
+        <ClerkProvider
+            publishableKey={CLERK_PUBLISHABLE_KEY}
+            appearance={clerkAppearance}
+            routerPush={(to) => navigate(sameOriginPath(to))}
+            routerReplace={(to) => navigate(sameOriginPath(to), { replace: true })}
+            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
+            signInFallbackRedirectUrl="/"
+            signUpFallbackRedirectUrl="/onboarding"
+            afterSignOutUrl="/"
+        >
             <ClerkAuth>{children}</ClerkAuth>
         </ClerkProvider>
     );
 }
 
+// clerk sometimes hands over a full url on our own origin; the router only wants the path
+function sameOriginPath(to: string): string {
+    if (!/^https?:\/\//.test(to)) return to;
+    const url = new URL(to);
+    return url.origin === window.location.origin ? url.pathname + url.search + url.hash : to;
+}
+
 // ---------- dev mode ----------
 
-const devInfo: AuthInfo = { mode: 'dev', displayName: 'Local dev user', email: null, signOut: null };
+const devInfo: AuthInfo = { mode: 'dev', status: 'signed-in', displayName: 'Local dev user', suggestedName: null, email: null, signOut: null };
 
 function DevAuth({ children }: { children: ReactNode }) {
     setTokenGetter(async () => null);
@@ -46,7 +72,7 @@ function DevAuth({ children }: { children: ReactNode }) {
 // ---------- clerk mode ----------
 
 function ClerkAuth({ children }: { children: ReactNode }) {
-    const { getToken, userId } = useAuth();
+    const { getToken, userId, isLoaded, isSignedIn } = useAuth();
     const { user } = useUser();
     const clerk = useClerk();
     const queryClient = useQueryClient();
@@ -61,24 +87,19 @@ function ClerkAuth({ children }: { children: ReactNode }) {
         lastUserId.current = userId;
     }, [userId, queryClient]);
 
+    const status: AuthStatus = !isLoaded ? 'loading' : isSignedIn ? 'signed-in' : 'signed-out';
+
     const info = useMemo<AuthInfo>(
         () => ({
             mode: 'clerk',
+            status,
             displayName: user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Signed in',
+            suggestedName: user?.fullName || user?.firstName || null,
             email: user?.primaryEmailAddress?.emailAddress ?? null,
             signOut: () => clerk.signOut()
         }),
-        [user, clerk]
+        [status, user, clerk]
     );
 
-    return (
-        <>
-            <Show when="signed-out">
-                <SignInView />
-            </Show>
-            <Show when="signed-in">
-                <AuthContext.Provider value={info}>{children}</AuthContext.Provider>
-            </Show>
-        </>
-    );
+    return <AuthContext.Provider value={info}>{children}</AuthContext.Provider>;
 }

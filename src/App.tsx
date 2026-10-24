@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 export default function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <AuthProvider>
+            <AuthProvider navigate={(to, opts) => router.navigate(to, opts)}>
                 <TooltipProvider delayDuration={200}>
                     <RouterProvider router={router} />
                 </TooltipProvider>

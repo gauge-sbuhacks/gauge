@@ -7,6 +7,8 @@ import type {
     AssetResponse,
     HealthResponse,
     PortfolioResponse,
+    ProfileInput,
+    ProfileResponse,
     PropertyValueResult,
     RecallLookupResult,
     ValuationCreateInput,
@@ -74,6 +76,9 @@ async function request<T>(method: string, path: string, body?: unknown, acceptSt
 
 export const api = {
     health: () => request<HealthResponse>('GET', '/health', undefined, [503]),
+
+    getProfile: () => request<ProfileResponse>('GET', '/profile'),
+    saveProfile: (input: ProfileInput) => request<ProfileResponse>('PUT', '/profile', input),
 
     listAssets: () => request<PortfolioResponse>('GET', '/assets'),
     getAsset: (id: string) => request<AssetResponse>('GET', `/assets/${id}`),

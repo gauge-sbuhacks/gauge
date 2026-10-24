@@ -8,6 +8,7 @@ import { HttpError, errorHandler } from './errors.js';
 import { assetsRouter } from './routes/assets.js';
 import { healthHandler } from './routes/health.js';
 import { lookupsRouter } from './routes/lookups.js';
+import { profileRouter } from './routes/profile.js';
 import { sampleRouter } from './routes/sample.js';
 
 const app = express();
@@ -27,6 +28,7 @@ app.get('/api/health', healthHandler);
 
 // everything below needs a user
 app.use('/api', ...authMiddleware(), requireUser);
+app.use('/api', profileRouter);
 app.use('/api', assetsRouter);
 app.use('/api', sampleRouter);
 app.use('/api', lookupsRouter);

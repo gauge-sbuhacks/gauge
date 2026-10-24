@@ -1,12 +1,13 @@
 // the frame around every page: gunmetal sidebar on desktop, a top bar + slide-out menu on phones
 
 import { useState } from 'react';
-import { NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router';
-import { Boxes, LayoutDashboard, LogOut, Menu, Plus, Settings2, UserRound } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router';
+import { Boxes, ClipboardList, LayoutDashboard, LogOut, Menu, Plus, Settings2, UserRound } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
+import { useProfile } from '@/hooks/useProfile.ts';
 import { cn } from '@/lib/utils.ts';
 
 const NAV = [
@@ -51,11 +52,12 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     const auth = useAuthInfo();
+    const { data } = useProfile();
     return (
         <div className="flex h-full flex-col gap-6 p-4">
-            <div className="px-2 pt-1">
+            <NavLink to="/home" onClick={onNavigate} className="w-fit px-2 pt-1" aria-label="Home page">
                 <Logo className="text-sidebar-accent-foreground" />
-            </div>
+            </NavLink>
 
             <Button asChild className="justify-start bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
                 <NavLink to="/assets/new" onClick={onNavigate}>
@@ -69,20 +71,27 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             <div className="mt-auto rounded-lg border border-sidebar-border p-3 text-sm">
                 <div className="flex items-center gap-2 text-sidebar-accent-foreground">
                     <UserRound className="size-4 shrink-0 opacity-70" />
-                    <span className="truncate">{auth.displayName}</span>
+                    <span className="truncate">{data?.profile?.name ?? auth.displayName}</span>
                 </div>
-                {auth.mode === 'dev' ? (
-                    <p className="mt-1.5 text-xs leading-relaxed text-sidebar-foreground/70">Sign-in is off until Clerk keys are added. See Setup.</p>
-                ) : (
-                    <button
-                        type="button"
-                        onClick={() => auth.signOut?.()}
-                        className="mt-2 inline-flex items-center gap-1.5 text-xs text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
-                    >
-                        <LogOut className="size-3.5" />
-                        Sign out
-                    </button>
-                )}
+                {auth.email && <p className="mt-0.5 truncate pl-6 text-xs text-sidebar-foreground/70">{auth.email}</p>}
+                <div className="mt-2.5 flex flex-col items-start gap-1.5 text-xs">
+                    <NavLink to="/onboarding?edit" onClick={onNavigate} className="inline-flex items-center gap-1.5 text-sidebar-foreground/80 hover:text-sidebar-accent-foreground">
+                        <ClipboardList className="size-3.5" />
+                        Edit your answers
+                    </NavLink>
+                    {auth.mode === 'dev' ? (
+                        <p className="leading-relaxed text-sidebar-foreground/70">Sign-in is off until Clerk keys are added. See Setup.</p>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => auth.signOut?.()}
+                            className="inline-flex items-center gap-1.5 text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
+                        >
+                            <LogOut className="size-3.5" />
+                            Sign out
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -126,9 +135,6 @@ export default function AppShell() {
                     <Outlet />
                 </div>
             </main>
-            {/* new pages start at the top; back/forward returns to where you were */}
-            <ScrollRestoration />
-
         </div>
     );
 }

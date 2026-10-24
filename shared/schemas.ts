@@ -289,6 +289,50 @@ export interface PropertyValueResult {
     notes: string[];
 }
 
+// ---------- profile (filled in during onboarding) ----------
+
+export const PURPOSES = ['insurance', 'net_worth', 'collecting', 'estate', 'moving', 'business', 'exploring'] as const;
+export type Purpose = (typeof PURPOSES)[number];
+
+export const PURPOSE_LABELS: Record<Purpose, string> = {
+    insurance: 'Insurance inventory and claims',
+    net_worth: 'Tracking what my things are worth',
+    collecting: 'Managing a collection',
+    estate: 'Estate or financial planning',
+    moving: 'Moving, or splitting a household',
+    business: 'Business equipment and assets',
+    exploring: 'Just looking around'
+};
+
+// what onboarding says Gauge will do for each purpose
+export const PURPOSE_HINTS: Record<Purpose, string> = {
+    insurance: 'Serial numbers, receipts, and replacement costs in one claim-ready export.',
+    net_worth: 'Fair market totals and value history, built from the values you record.',
+    collecting: 'Grades, reference numbers, and price history for each piece.',
+    estate: 'A dated inventory with values your family or advisor can actually use.',
+    moving: 'A room-by-room list of what you own and what each item is worth.',
+    business: 'Cost basis, condition, and service dates for tools and equipment.',
+    exploring: 'Load the test portfolio to see every chart with real-looking data.'
+};
+
+export const profileInputSchema = z.object({
+    name: z.string().trim().min(1, 'Tell us what to call you').max(80, 'Keep your name under 80 characters'),
+    occupation: text(80, 'Occupation'),
+    purpose: z.enum(PURPOSES, { error: 'Pick what brings you here' })
+});
+export type ProfileInput = z.input<typeof profileInputSchema>;
+
+export interface ProfileRecord {
+    name: string;
+    occupation: string | null;
+    purpose: Purpose;
+    onboardedAt: string;
+}
+
+export interface ProfileResponse {
+    profile: ProfileRecord | null;
+}
+
 // ---------- health / setup status ----------
 
 export type ProviderStatus = 'ready' | 'needs_key' | 'planned';

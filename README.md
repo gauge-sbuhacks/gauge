@@ -58,7 +58,11 @@ Only `VITE_` variables reach the browser. Everything else stays on the api side.
 2. Copy the **Publishable key** (`pk_test_...`) and **Secret key** (`sk_test_...`) from the API keys page
 3. Set `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_PUBLISHABLE_KEY` to the pk key, and `CLERK_SECRET_KEY` to the sk key
 
+4. **Configure, SSO connections**: turn on Google, GitHub, and Apple. The free plan allows 3 social connections. The sign-in and sign-up pages show whatever is switched on here, so there's no code change when you swap one
+
 The `test` keys are fine for the hackathon, locally and on the vercel.app URL. With Clerk on, each teammate signs up in the app with their own email and gets their own portfolio, even on the shared database.
+
+With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sign-in` or `/sign-up`, and answer three onboarding questions (`/onboarding`) the first time. Without Clerk keys, the local dev user goes straight to onboarding, and the landing page is still at `/home`. To see onboarding again locally, delete your profile: `mongosh gauge --eval 'db.profiles.deleteMany({})'`.
 
 ### RentCast (home values, optional)
 
@@ -107,8 +111,8 @@ server/         express api
   app.ts          the app (routes, auth, errors)
   dev.ts          local dev server for npm run dev
   auth.ts         clerk, or the local dev user
-  db/             mongoose connection + models (assets, valuationSnapshots)
-  routes/         assets, valuations, sample data, lookups, health
+  db/             mongoose connection + models (assets, valuationSnapshots, profiles)
+  routes/         assets, valuations, profile, sample data, lookups, health
   lookups/        nhtsa (vin + recalls, free) and rentcast (needs a key)
 api/index.ts    vercel entry point (just exports server/app.ts)
 src/            react site
@@ -117,8 +121,8 @@ src/            react site
   context/        AuthContext (clerk or dev user)
   hooks/          tanstack query hooks
   lib/            portfolio math, formatting, the asset form's logic, csv + pdf export
-  views/          one file per page
-  components/     charts, asset pieces, layout, shadcn ui
+  views/          one file per page (LandingView, AuthView, OnboardingView, then the app pages)
+  components/     charts, asset pieces, landing diagrams, onboarding, layout (AppGate decides who sees what), shadcn ui
   css/index.css   design tokens (colors live here for the steel and steam pass later)
 ```
 

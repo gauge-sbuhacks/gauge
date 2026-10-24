@@ -7,11 +7,14 @@ import {
     CONDITIONS,
     INSURANCE_STATUSES,
     OBSERVED_VALUE_TYPES,
+    PURPOSES,
     VALUATION_SOURCES,
     type AssetRecord,
     type Condition,
     type InsuranceStatus,
     type ObservedValueType,
+    type ProfileRecord,
+    type Purpose,
     type ValuationRecord,
     type ValuationSource
 } from '../../shared/schemas.js';
@@ -118,6 +121,31 @@ valuationSchema.index({ ownerId: 1, assetId: 1, observedAt: -1 });
 export const Valuation =
     (mongoose.models.Valuation as mongoose.Model<ValuationDoc>) ?? mongoose.model<ValuationDoc>('Valuation', valuationSchema);
 
+// ---------- profiles (one per owner, written by onboarding) ----------
+
+export interface ProfileDoc {
+    ownerId: string;
+    name: string;
+    occupation: string | null;
+    purpose: Purpose;
+    onboardedAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const profileSchema = new Schema<ProfileDoc>(
+    {
+        ownerId: { type: String, required: true, unique: true },
+        name: { type: String, required: true, trim: true, maxlength: 80 },
+        occupation: nullableString,
+        purpose: { type: String, required: true, enum: PURPOSES },
+        onboardedAt: { type: Date, required: true }
+    },
+    { timestamps: true }
+);
+
+export const Profile = (mongoose.models.Profile as mongoose.Model<ProfileDoc>) ?? mongoose.model<ProfileDoc>('Profile', profileSchema);
+
 // ---------- doc -> api record ----------
 
 export type WithId<T> = T & { _id: Types.ObjectId };
@@ -142,6 +170,15 @@ export function toAssetRecord(doc: WithId<AssetDoc>): AssetRecord {
         isSample: Boolean(doc.isSample),
         createdAt: new Date(doc.createdAt).toISOString(),
         updatedAt: new Date(doc.updatedAt).toISOString()
+    };
+}
+
+export function toProfileRecord(doc: ProfileDoc): ProfileRecord {
+    return {
+        name: doc.name,
+        occupation: doc.occupation ?? null,
+        purpose: doc.purpose,
+        onboardedAt: new Date(doc.onboardedAt).toISOString()
     };
 }
 
