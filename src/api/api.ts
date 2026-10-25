@@ -5,7 +5,11 @@ import type {
     AssetCreateInput,
     AssetPatchInput,
     AssetResponse,
+    CardPriceQuery,
+    CardPriceResult,
     HealthResponse,
+    MetalValueQuery,
+    MetalValueResult,
     PortfolioResponse,
     ProfileInput,
     ProfileResponse,
@@ -104,5 +108,7 @@ export const api = {
         bedrooms?: number | null;
         bathrooms?: number | null;
         squareFeet?: number | null;
-    }) => request<PropertyValueResult>('POST', '/lookups/property-value', q)
+    }) => request<PropertyValueResult>('POST', '/lookups/property-value', q),
+    cardPrices: (q: CardPriceQuery) => request<CardPriceResult>('POST', '/lookups/card-prices', q),
+    metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q)
 };

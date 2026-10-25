@@ -1,15 +1,42 @@
 // optional lookups for one asset. vehicles: vin decode + recalls (nhtsa, free). real estate: a
-// rentcast value estimate (needs a key). results are shown for review; nothing is saved until you
-// apply it or record it as a value.
+// rentcast value estimate (needs a key). trading cards: tcgdex / scryfall prices (free). metals:
+// melt value from the live spot price (free). results are shown for review; nothing is saved
+// until you apply it or record it as a value.
 
-import { useState, type ReactNode } from 'react';
-import { ExternalLink, House, LoaderCircle, ScanSearch, Siren } from 'lucide-react';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Coins, ExternalLink, House, Layers, LoaderCircle, ScanSearch, Siren } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Details } from '@shared/categories.ts';
+import { getCategory, type Details } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
-import type { LookupSuggestion, PropertyValueResult, RecallLookupResult, VinLookupResult } from '@shared/schemas.ts';
+import {
+    CARD_GAME_LABELS,
+    CARD_GAMES,
+    SPOT_METALS,
+    type CardGame,
+    type CardMatch,
+    type CardPrice,
+    type CardPriceResult,
+    type LookupSuggestion,
+    type MetalValueResult,
+    type PropertyValueResult,
+    type RecallLookupResult,
+    type SpotMetal,
+    type VinLookupResult
+} from '@shared/schemas.ts';
+import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
-import { useHealth, usePropertyValueLookup, useRecallLookup, useUpdateAsset, useVinLookup } from '@/hooks/usePortfolio.ts';
+import { Input } from '@/components/ui/input.tsx';
+import { Label } from '@/components/ui/label.tsx';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group.tsx';
+import {
+    useCardPriceLookup,
+    useHealth,
+    useMetalValueLookup,
+    usePropertyValueLookup,
+    useRecallLookup,
+    useUpdateAsset,
+    useVinLookup
+} from '@/hooks/usePortfolio.ts';
 import { formatDate, formatMoney, todayIso } from '@/lib/format.ts';
 import type { PortfolioItem } from '@/lib/portfolio.ts';
 import { SuggestionReview } from './SuggestionReview.tsx';
@@ -269,12 +296,242 @@ function PropertyLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (i
     );
 }
 
+// ---------- trading cards ----------
+
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+function guessGame(text: string): CardGame {
+    return /magic|mtg|gathering/i.test(text) && !/pok[eé]mon/i.test(text) ? 'magic' : 'pokemon';
+}
+
+// "Charizard Holo 4/102 (PSA 8)" -> "Charizard". the user can fix it before searching
+function guessCardName(name: string): string {
+    const cleaned = name
+        .replace(/\(.*?\)/g, ' ')
+        .replace(/\b\d+\s*\/\s*\d+\b/g, ' ')
+        .replace(/\b(1st edition|first edition|shadowless|unlimited|reverse holo|holofoil|holo|non-?foil|foil|graded|(psa|bgs|cgc|sgc)\s*[\d.]*)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return cleaned || name;
+}
+
+function graderLabel(value: string): string {
+    const field = getCategory('collectible').fields.find((f) => f.key === 'grader');
+    return field?.options?.find((o) => o.value === value)?.label ?? value.toUpperCase();
+}
+
+const eur = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const priceText = (p: CardPrice) => (p.marketCents == null ? 'No price' : p.currency === 'EUR' ? eur.format(p.marketCents / 100) : formatMoney(p.marketCents, { exact: true }));
+
+function CardLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
+    const { asset } = item;
+    const d = asset.details;
+    const lookup = useCardPriceLookup();
+    const [game, setGame] = useState<CardGame>(() => guessGame([asset.brand, asset.model, asset.name].join(' ')));
+    const [name, setName] = useState(() => guessCardName(asset.name));
+    const [setName_, setSetName] = useState(() => str(d.setName) || asset.model || '');
+    const [number, setNumber] = useState(() => str(d.cardNumber));
+    const [result, setResult] = useState<CardPriceResult | null>(null);
+
+    const graded = str(d.grader) && d.grader !== 'ungraded' ? [graderLabel(str(d.grader)), str(d.grade)].filter(Boolean).join(' ') : null;
+
+    const run = (e: FormEvent) => {
+        e.preventDefault();
+        lookup.mutate(
+            { game, name, setName: setName_.trim() || null, number: number.trim() || null },
+            { onSuccess: setResult, onError: (err) => toast.error('Card price lookup failed', { description: err.message }) }
+        );
+    };
+
+    const record = (r: CardPriceResult, m: CardMatch, p: CardPrice) =>
+        onRecord({
+            valueType: 'fair_market',
+            mode: 'amount',
+            amount: centsToInput(p.marketCents),
+            observedAt: todayIso(),
+            source: 'provider',
+            sourceName: `${p.source} via ${r.providerLabel}`,
+            method: 'Market price for an ungraded copy',
+            notes: `${m.name}, ${m.setName} #${m.number}, ${p.label.toLowerCase()}.${graded ? ` This copy is graded ${graded}, so the raw price is only a reference.` : ''}`
+        });
+
+    return (
+        <Section icon={<Layers className="size-4" />} title="Card prices" description="TCGplayer market prices. Pokémon from TCGdex, Magic from Scryfall. Free, no key.">
+            <form onSubmit={run} className="space-y-3">
+                <ToggleGroup type="single" variant="outline" size="sm" value={game} onValueChange={(v) => v && setGame(v as CardGame)} aria-label="Game">
+                    {CARD_GAMES.map((g) => (
+                        <ToggleGroupItem key={g} value={g}>
+                            {CARD_GAME_LABELS[g]}
+                        </ToggleGroupItem>
+                    ))}
+                </ToggleGroup>
+                <div className="space-y-1.5">
+                    <Label htmlFor="card-name">Card name</Label>
+                    <Input id="card-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="off" />
+                </div>
+                <div className="grid grid-cols-[1fr_6rem] gap-3">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="card-set">Set</Label>
+                        <Input id="card-set" value={setName_} onChange={(e) => setSetName(e.target.value)} maxLength={120} autoComplete="off" placeholder="Base Set" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="card-number">Number</Label>
+                        <Input id="card-number" value={number} onChange={(e) => setNumber(e.target.value)} maxLength={20} autoComplete="off" placeholder="4/102" className="font-mono" />
+                    </div>
+                </div>
+                <Button type="submit" size="sm" variant="outline" disabled={lookup.isPending || name.trim() === ''}>
+                    {lookup.isPending && <LoaderCircle className="animate-spin" data-icon="inline-start" />}
+                    Find prices
+                </Button>
+            </form>
+
+            {result && (
+                <div className="mt-4 space-y-2">
+                    {graded && (
+                        <p className="text-xs text-muted-foreground">
+                            This card is graded {graded}. Graded copies trade at very different prices than raw ones, so use these as a reference.
+                        </p>
+                    )}
+                    <ul className="space-y-2">
+                        {result.matches.map((m) => (
+                            <li key={m.id} className="flex gap-3 rounded-lg border p-3">
+                                {m.imageUrl && <img src={m.imageUrl} alt="" loading="lazy" className="h-20 w-auto shrink-0 self-start rounded-[3px] border bg-muted" />}
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="text-sm font-medium">{m.name}</span>
+                                        {m.exact && <Badge variant="secondary">Matches set and number</Badge>}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {m.setName} · #{m.number}
+                                        {m.rarity && ` · ${m.rarity}`}
+                                    </p>
+                                    {m.prices.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground">No recent sales price for this printing.</p>
+                                    ) : (
+                                        <ul className="space-y-1">
+                                            {m.prices.map((p) => (
+                                                <li key={`${p.source}-${p.label}`} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
+                                                    <span className="text-muted-foreground">
+                                                        {p.label} <span className="text-xs">({p.source})</span>
+                                                    </span>
+                                                    <span className="flex shrink-0 items-center gap-2">
+                                                        <span className="font-medium tabular-nums">{priceText(p)}</span>
+                                                        {p.currency === 'USD' && p.marketCents != null && (
+                                                            <Button size="xs" variant="outline" onClick={() => record(result, m, p)}>
+                                                                Record
+                                                            </Button>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {m.url && (
+                                        <a href={m.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium hover:underline">
+                                            {result.provider === 'scryfall' ? 'View on Scryfall' : 'View on TCGplayer'} <ExternalLink className="size-3" />
+                                        </a>
+                                    )}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                    {result.notes.map((n) => (
+                        <p key={n} className="text-xs text-muted-foreground">
+                            {n}
+                        </p>
+                    ))}
+                </div>
+            )}
+        </Section>
+    );
+}
+
+// ---------- gold, silver, platinum, palladium ----------
+
+const formatPurity = (p: number) => `${Number((p * 100).toFixed(2))}%`;
+
+function MetalLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
+    const d = item.asset.details;
+    const metal = str(d.metal);
+    const purity = str(d.purity);
+    const weightGrams = typeof d.weightGrams === 'number' ? d.weightGrams : null;
+    const quantity = typeof d.quantity === 'number' ? d.quantity : null;
+    const lookup = useMetalValueLookup();
+    const [result, setResult] = useState<MetalValueResult | null>(null);
+
+    const isSpotMetal = (SPOT_METALS as readonly string[]).includes(metal);
+    const missing = [!weightGrams && 'total metal weight', !purity && 'purity'].filter(Boolean) as string[];
+    // melt value is close to what bullion sells for; for jewelry it's the floor, so record it as liquidation
+    const asLiquidation = d.kind === 'jewelry' || d.kind === 'gemstone';
+
+    const run = () =>
+        lookup.mutate(
+            { metal: metal as SpotMetal, weightGrams: weightGrams!, purity },
+            { onSuccess: setResult, onError: (err) => toast.error('Melt value lookup failed', { description: err.message }) }
+        );
+
+    return (
+        <Section icon={<Coins className="size-4" />} title="Melt value" description="Live spot price x weight x purity, from gold-api.com. Free, no key.">
+            {!isSpotMetal ? (
+                <p className="text-sm text-muted-foreground">Set the metal to gold, silver, platinum, or palladium (Edit) to get a melt value.</p>
+            ) : missing.length > 0 ? (
+                <p className="text-sm text-muted-foreground">Add the {missing.join(' and ')} (Edit) to get a melt value.</p>
+            ) : (
+                <div className="space-y-3">
+                    <Button size="sm" variant="outline" onClick={run} disabled={lookup.isPending}>
+                        {lookup.isPending && <LoaderCircle className="animate-spin" data-icon="inline-start" />}
+                        Get the {metal} melt value
+                    </Button>
+                    {result && (
+                        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                            <div className="flex items-baseline justify-between">
+                                <span className="text-lg font-semibold">{formatMoney(result.meltValueCents)}</span>
+                                <span className="text-xs text-muted-foreground">{result.providerLabel}</span>
+                            </div>
+                            <p className="text-muted-foreground">
+                                {result.fineOunces.toFixed(3)} troy oz of pure {result.metal}: {result.weightGrams} g at {formatPurity(result.purity)}
+                                {quantity != null && quantity > 1 && `, all ${quantity} pieces`}
+                            </p>
+                            <p className="text-muted-foreground">
+                                Spot {formatMoney(result.spotCentsPerOunce, { exact: true })} per troy oz, as of{' '}
+                                {new Date(result.spotUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </p>
+                            {result.notes.map((n) => (
+                                <p key={n} className="mt-1 text-xs text-muted-foreground">
+                                    {n}
+                                </p>
+                            ))}
+                            <Button
+                                size="sm"
+                                className="mt-3"
+                                onClick={() =>
+                                    onRecord({
+                                        valueType: asLiquidation ? 'liquidation' : 'fair_market',
+                                        mode: 'amount',
+                                        amount: centsToInput(result.meltValueCents),
+                                        observedAt: todayIso(),
+                                        source: 'provider',
+                                        sourceName: 'gold-api.com spot price',
+                                        method: 'Spot price x weight x purity',
+                                        notes: `${result.fineOunces.toFixed(3)} troy oz of pure ${result.metal} at ${formatMoney(result.spotCentsPerOunce, { exact: true })}/oz spot`
+                                    })
+                                }
+                            >
+                                Record as {asLiquidation ? 'liquidation' : 'fair market'} value
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </Section>
+    );
+}
+
 // ---------- everything else ----------
 
 const PLANNED: Partial<Record<string, string>> = {
     watch: 'Watch market values (WatchCharts, paid) are on the list.',
-    jewelry: 'Gold and silver spot prices (value = spot x weight x purity) are next on the list.',
-    collectible: 'Card prices (Pokémon TCG API, Scryfall) and record prices (Discogs) are on the list.',
+    collectible: 'Card prices cover Pokémon and Magic: set the type to Trading card (Edit). Record prices (Discogs) are on the list.',
     electronics: 'Retail replacement prices (Best Buy) and barcode lookup are on the list.',
     household: 'Current listing prices (eBay Browse) are on the list.',
     equipment: 'Current listing prices (eBay Browse) are on the list.',
@@ -282,8 +539,11 @@ const PLANNED: Partial<Record<string, string>> = {
 };
 
 export function LookupPanel({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
-    if (item.asset.category === 'vehicle') return <VehicleLookups item={item} />;
-    if (item.asset.category === 'property') return <PropertyLookups item={item} onRecord={onRecord} />;
+    const { category, details } = item.asset;
+    if (category === 'vehicle') return <VehicleLookups item={item} />;
+    if (category === 'property') return <PropertyLookups item={item} onRecord={onRecord} />;
+    if (category === 'jewelry') return <MetalLookups item={item} onRecord={onRecord} />;
+    if (category === 'collectible' && details.kind === 'trading_card') return <CardLookups item={item} onRecord={onRecord} />;
     return (
         <p className="text-sm text-muted-foreground">
             No automatic lookups for this category yet. {PLANNED[item.asset.category]} For now, record values by hand.

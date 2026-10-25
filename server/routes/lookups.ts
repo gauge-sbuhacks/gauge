@@ -4,9 +4,12 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
+import { cardPriceQuerySchema, metalValueQuerySchema } from '../../shared/schemas.js';
 import { ownerIdOf } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { makeRateLimiter } from '../lookups/cache.js';
+import { lookupCardPrices } from '../lookups/cards.js';
+import { lookupMetalValue } from '../lookups/metals.js';
 import { decodeVin, lookupRecalls } from '../lookups/nhtsa.js';
 import { lookupPropertyValue } from '../lookups/rentcast.js';
 
@@ -51,4 +54,12 @@ const propertyBody = z.object({
 lookupsRouter.post('/lookups/property-value', async (req, res) => {
     const query = propertyBody.parse(req.body);
     res.json(await lookupPropertyValue(query));
+});
+
+lookupsRouter.post('/lookups/card-prices', async (req, res) => {
+    res.json(await lookupCardPrices(cardPriceQuerySchema.parse(req.body)));
+});
+
+lookupsRouter.post('/lookups/metal-value', async (req, res) => {
+    res.json(await lookupMetalValue(metalValueQuerySchema.parse(req.body)));
 });

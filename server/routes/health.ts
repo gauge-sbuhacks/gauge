@@ -91,19 +91,19 @@ export async function healthHandler(_req: Request, res: Response) {
         },
         {
             id: 'cards',
-            label: 'Pokémon TCG API / Scryfall',
-            covers: 'Trading card prices',
-            status: 'planned',
+            label: 'TCGdex / Scryfall',
+            covers: 'Pokémon and Magic card prices (TCGplayer market, ungraded)',
+            status: 'ready',
             envVar: null,
-            note: 'Both listed as free in the requirements doc. Not verified yet.'
+            note: 'Free, no key. TCGdex replaces the Pokémon TCG API, which was failing when tested.'
         },
         {
             id: 'metals',
-            label: 'Metals.dev / GoldAPI',
-            covers: 'Gold and silver spot prices (value = spot x weight x purity)',
-            status: 'planned',
+            label: 'gold-api.com',
+            covers: 'Gold, silver, platinum, and palladium melt value (spot x weight x purity)',
+            status: 'ready',
             envVar: null,
-            note: 'Free or trial tiers per the requirements doc. Not verified yet.'
+            note: 'Free, no key. Live spot prices.'
         },
         {
             id: 'claude_vision',

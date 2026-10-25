@@ -78,3 +78,11 @@ export function useRecallLookup() {
 export function usePropertyValueLookup() {
     return useMutation({ mutationFn: api.propertyValue });
 }
+
+export function useCardPriceLookup() {
+    return useMutation({ mutationFn: api.cardPrices });
+}
+
+export function useMetalValueLookup() {
+    return useMutation({ mutationFn: api.metalValue });
+}

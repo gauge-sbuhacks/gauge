@@ -220,7 +220,7 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 insurance: 'not_insured',
                 insuranceNote: 'Bank safe deposit boxes are not insured by the bank',
                 notes: null,
-                details: { kind: 'coin', metal: 'gold', purity: '22k (.9167)', weightGrams: 155.5, quantity: 5 }
+                details: { kind: 'coin', metal: 'gold', purity: '22k (.9167)', weightGrams: 169.65, quantity: 5 }
             },
             valuations: [
                 fmv(today, 30, 11_900),

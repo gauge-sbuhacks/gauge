@@ -71,6 +71,11 @@ With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sig
 3. **Create API Key** and set `RENTCAST_API_KEY`
 4. On a real estate asset, open **Lookups, Get an estimate**. Each lookup uses one request; the same address is cached for a day
 
+### Card prices and metal values (free, no keys)
+
+- **Trading cards**: on a collectible with type Trading card, **Lookups, Card prices** searches by name, set, and number. Pokémon comes from TCGdex (the Pokémon TCG API was failing when we tested it), Magic from Scryfall. Both return TCGplayer market prices for ungraded copies
+- **Gold, silver, platinum, palladium**: on a Jewelry & metals asset with the metal, total weight, and purity filled in, **Lookups, Melt value** multiplies the live spot price from gold-api.com by the weight and purity
+
 ## deploying (vercel)
 
 One Vercel project, same idea as GradientV: the vite site is static, and `api/index.ts` runs the express app as a function. `vercel.json` sends `/api/*` to that function and everything else to `index.html`.
@@ -113,7 +118,7 @@ server/         express api
   auth.ts         clerk, or the local dev user
   db/             mongoose connection + models (assets, valuationSnapshots, profiles)
   routes/         assets, valuations, profile, sample data, lookups, health
-  lookups/        nhtsa (vin + recalls, free) and rentcast (needs a key)
+  lookups/        nhtsa (vin + recalls), cards (tcgdex + scryfall), metals (gold-api.com), all free; rentcast (needs a key)
 api/index.ts    vercel entry point (just exports server/app.ts)
 src/            react site
   config.ts       app name and the clerk switch

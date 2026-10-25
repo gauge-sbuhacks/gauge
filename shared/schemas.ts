@@ -289,6 +289,76 @@ export interface PropertyValueResult {
     notes: string[];
 }
 
+export const CARD_GAMES = ['pokemon', 'magic'] as const;
+export type CardGame = (typeof CARD_GAMES)[number];
+export const CARD_GAME_LABELS: Record<CardGame, string> = { pokemon: 'Pokémon', magic: 'Magic: The Gathering' };
+
+export const cardPriceQuerySchema = z.object({
+    game: z.enum(CARD_GAMES, { error: 'Pick a game' }),
+    name: z.string().trim().min(1, 'Enter the card name').max(120, 'Keep the card name under 120 characters'),
+    setName: z.string().trim().max(120).nullish(),
+    number: z.string().trim().max(20).nullish()
+});
+export type CardPriceQuery = z.input<typeof cardPriceQuerySchema>;
+
+export interface CardPrice {
+    // which printing the price is for: "Holofoil", "1st Edition holofoil", "Foil"
+    label: string;
+    currency: 'USD' | 'EUR';
+    marketCents: number | null;
+    lowCents: number | null;
+    highCents: number | null;
+    // the marketplace the number comes from (TCGplayer, Cardmarket)
+    source: string;
+}
+
+export interface CardMatch {
+    id: string;
+    name: string;
+    setName: string;
+    number: string;
+    rarity: string | null;
+    imageUrl: string | null;
+    url: string | null;
+    // set and card number both match what the user entered
+    exact: boolean;
+    prices: CardPrice[];
+}
+
+export interface CardPriceResult {
+    provider: 'tcgdex' | 'scryfall';
+    providerLabel: string;
+    fetchedAt: string;
+    game: CardGame;
+    matches: CardMatch[];
+    notes: string[];
+}
+
+export const SPOT_METALS = ['gold', 'silver', 'platinum', 'palladium'] as const;
+export type SpotMetal = (typeof SPOT_METALS)[number];
+
+export const metalValueQuerySchema = z.object({
+    metal: z.enum(SPOT_METALS, { error: 'Spot prices cover gold, silver, platinum, and palladium' }),
+    weightGrams: z.number({ error: 'Add the total metal weight' }).positive('Add the total metal weight'),
+    purity: z.string().trim().min(1, 'Add the purity')
+});
+export type MetalValueQuery = z.input<typeof metalValueQuerySchema>;
+
+export interface MetalValueResult {
+    provider: 'gold_api';
+    providerLabel: string;
+    fetchedAt: string;
+    metal: SpotMetal;
+    spotCentsPerOunce: number;
+    spotUpdatedAt: string;
+    weightGrams: number;
+    purity: number;
+    // troy ounces of pure metal
+    fineOunces: number;
+    meltValueCents: number;
+    notes: string[];
+}
+
 // ---------- profile (filled in during onboarding) ----------
 
 export const PURPOSES = ['insurance', 'net_worth', 'collecting', 'estate', 'moving', 'business', 'exploring'] as const;

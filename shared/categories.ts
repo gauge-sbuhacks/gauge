@@ -212,7 +212,15 @@ export const CATEGORIES: CategoryDef[] = [
                 ]
             },
             { key: 'purity', label: 'Purity', type: 'text', placeholder: '.9999, 22k, 925' },
-            { key: 'weightGrams', label: 'Total metal weight', type: 'number', unit: 'g', min: 0, max: 10_000_000 },
+            {
+                key: 'weightGrams',
+                label: 'Total metal weight',
+                type: 'number',
+                unit: 'g',
+                min: 0,
+                max: 10_000_000,
+                help: 'All pieces together, as weighed. Purity is applied separately.'
+            },
             { key: 'quantity', label: 'Quantity', type: 'integer', min: 0, max: 1_000_000 },
             { key: 'gemstone', label: 'Gemstones', type: 'text', placeholder: '1.2ct diamond, VS1', showWhen: { key: 'kind', values: ['jewelry', 'gemstone'] } },
             { key: 'certificateNumber', label: 'Certificate or grading number', type: 'text', placeholder: 'GIA, NGC, PCGS', identifier: true, mono: true }
