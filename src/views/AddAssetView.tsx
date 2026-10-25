@@ -47,9 +47,17 @@ import {
 import { Input } from '@/components/ui/input.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
 import { WatchLookupCard } from '@/components/assets/WatchLookupCard.tsx';
-import { useCreateAsset, usePortfolio, useVinLookup, useWatchSearchLookup, useWatchValueLookup } from '@/hooks/usePortfolio.ts';
-import type { WatchSearchResult, WatchValueResult } from '@shared/schemas.ts';
+import {
+    useCreateAsset,
+    usePortfolio,
+    useSuggestValues,
+    useVinLookup,
+    useWatchSearchLookup,
+    useWatchValueLookup
+} from '@/hooks/usePortfolio.ts';
+import type { SuggestValuesResult, WatchSearchResult, WatchValueResult } from '@shared/schemas.ts';
 import { centsToInput } from '@shared/money.ts';
+import { suggestQueryFromForm } from '@/lib/suggestValues.ts';
 import { DEFAULT_LOCATIONS, assetFormSchema, emptyFormValues, formFieldForServerKey, suggestedName, toPayload, type AssetFormValues } from '@/lib/assetForm.ts';
 import {
     detailKeys,
@@ -94,6 +102,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const vinLookup = useVinLookup();
     const watchSearch = useWatchSearchLookup();
     const watchValue = useWatchValueLookup();
+    const suggestValues = useSuggestValues();
     const [vinResult, setVinResult] = useState<VinLookupResult | null>(null);
     const [watchSearchResult, setWatchSearchResult] = useState<WatchSearchResult | null>(null);
     const [watchPriceResult, setWatchPriceResult] = useState<WatchValueResult | null>(null);
@@ -116,7 +125,44 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const [leaving, setLeaving] = useState(false);
     const timer = useRef<number | undefined>(undefined);
     const stage = useRef<HTMLDivElement>(null);
+    const suggestSigRef = useRef('');
+    const suggestMetaRef = useRef<Pick<SuggestValuesResult, 'fairMarket' | 'quickSale'> | null>(null);
+    const [valueHint, setValueHint] = useState<string | null>(null);
     useEffect(() => () => window.clearTimeout(timer.current), []);
+
+    const applySuggestedValues = (result: SuggestValuesResult) => {
+        suggestMetaRef.current = { fairMarket: result.fairMarket, quickSale: result.quickSale };
+        let filled = false;
+        if (parseMoneyInput(getValues('estimateAmount')) == null && result.fairMarket) {
+            setValue('estimateType', 'fair_market', { shouldDirty: true });
+            setValue('estimateAmount', centsToInput(result.fairMarket.amountCents), { shouldDirty: true, shouldValidate: true });
+            setValue('estimateDate', todayIso(), { shouldDirty: true });
+            filled = true;
+        }
+        if (parseMoneyInput(getValues('quickSaleAmount')) == null && result.quickSale) {
+            setValue('quickSaleAmount', centsToInput(result.quickSale.amountCents), { shouldDirty: true, shouldValidate: true });
+            setValue('quickSaleDate', todayIso(), { shouldDirty: true });
+            filled = true;
+        }
+        if (filled) {
+            setValueHint(result.lookupMessage ?? 'Fair market and quick-sale filled from providers when available. Edit before saving.');
+        } else if (!result.fairMarket && !result.quickSale) {
+            setValueHint(result.lookupMessage ?? 'No automatic price yet. Enter values or save to retry on the server.');
+        }
+    };
+
+    useEffect(() => {
+        if (stepId !== 'money' || leaving || !category || category === 'property') return;
+        const q = suggestQueryFromForm(getValues());
+        if (!q) return;
+        const hasFair = parseMoneyInput(getValues('estimateAmount')) != null;
+        const hasQuick = parseMoneyInput(getValues('quickSaleAmount')) != null;
+        if (hasFair && hasQuick) return;
+        const sig = JSON.stringify(q);
+        if (sig === suggestSigRef.current) return;
+        suggestSigRef.current = sig;
+        suggestValues.mutate(q, { onSuccess: applySuggestedValues });
+    }, [stepId, leaving, category, values.name, values.brand, values.model, values.condition, values.details, values.estimateAmount, values.quickSaleAmount]);
 
     const index = Math.max(0, steps.indexOf(stepId));
     const isLast = index === steps.length - 1;
@@ -194,8 +240,24 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             return;
         }
         try {
-            const current = getValues();
-            const payload = toPayload(current);
+            let current = getValues();
+            if (current.category && current.category !== 'property') {
+                const needsFair = parseMoneyInput(current.estimateAmount) == null;
+                const needsQuick = parseMoneyInput(current.quickSaleAmount) == null;
+                if (needsFair || needsQuick) {
+                    const q = suggestQueryFromForm(current);
+                    if (q) {
+                        try {
+                            const suggested = await suggestValues.mutateAsync(q);
+                            applySuggestedValues(suggested);
+                            current = getValues();
+                        } catch {
+                            /* create route also fills missing estimates */
+                        }
+                    }
+                }
+            }
+            const payload = toPayload(current, suggestMetaRef.current);
             const selected = providerEstimate?.estimate;
             if (
                 current.category === 'vehicle' &&
@@ -520,7 +582,12 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 {category === 'vehicle' && <VehicleValueLookup query={vehicleQuery} onRecord={applyVehicleEstimate} actionLabel="Use estimate as" />}
                 <div className="rounded-xl border p-4">
                     <p className="text-sm font-medium">Current value</p>
-                    <p className="text-xs text-muted-foreground">Saved as the first point in its value history.</p>
+                    <p className="text-xs text-muted-foreground">
+                        {suggestValues.isPending
+                            ? 'Looking up melt, market, or price-check estimates from what you entered…'
+                            : 'Filled automatically when we can (metal melt, VinAudit, cards, watches, or a price check). Saved as the first point in its value history.'}
+                    </p>
+                    {valueHint && !suggestValues.isPending && <p className="mt-2 text-xs text-muted-foreground">{valueHint}</p>}
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                         <Field label="Value type" htmlFor="estimateType" help={VALUE_TYPE_HINTS[values.estimateType]}>
                             <Controller
@@ -542,6 +609,18 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                         </Field>
                         <Field label="As of" htmlFor="estimateDate" error={errors.estimateDate?.message}>
                             <Input id="estimateDate" type="date" max={todayIso()} {...register('estimateDate')} aria-invalid={Boolean(errors.estimateDate) || undefined} />
+                        </Field>
+                    </div>
+                </div>
+                <div className="rounded-xl border p-4">
+                    <p className="text-sm font-medium">Quick-sale value</p>
+                    <p className="text-xs text-muted-foreground">What you could get in a fast sale (dealer, pawn, or melt).</p>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <Field label="Amount" htmlFor="quickSaleAmount" error={errors.quickSaleAmount?.message}>
+                            <MoneyInput id="quickSaleAmount" {...register('quickSaleAmount')} aria-invalid={Boolean(errors.quickSaleAmount) || undefined} />
+                        </Field>
+                        <Field label="As of" htmlFor="quickSaleDate" error={errors.quickSaleDate?.message}>
+                            <Input id="quickSaleDate" type="date" max={todayIso()} {...register('quickSaleDate')} aria-invalid={Boolean(errors.quickSaleDate) || undefined} />
                         </Field>
                     </div>
                 </div>

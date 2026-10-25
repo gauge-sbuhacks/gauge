@@ -4,6 +4,7 @@ import { captureStatus, captureTtlMs, reviewSteps, type IdentifiedItem } from '.
 import { coerceFilledDetails, parseIdentifyJson, questionPrompt } from '../server/capture/identify.ts';
 import { parsePriceJson } from '../server/capture/estimate.ts';
 import { latestReferencePriceCents, mapWatchSearchRow } from '../server/lookups/watches.ts';
+import { suggestValuesForAsset } from '../server/capture/suggest.ts';
 import { enrichIdentification, type LookupDeps } from '../server/capture/pipeline.ts';
 import { hashCaptureToken, newCaptureToken } from '../server/capture/token.ts';
 
@@ -196,11 +197,48 @@ test('the second identification pass asks a car for make, model, and year', () =
 });
 
 test('a price check and The Watch API responses parse without inventing a purchase price', () => {
-    assert.deepEqual(parsePriceJson('{"fairMarketCents":150000,"quickSaleCents":110000}'), { fairMarketCents: 150000, quickSaleCents: 110000 });
+    assert.deepEqual(parsePriceJson('{"fairMarketCents":150000,"quickSaleCents":110000}'), { fairMarketCents: 150000, quickSaleCents: null });
     assert.equal(latestReferencePriceCents({ data: [{ date: '2026-01-01', price: 24653.12 }] }), 2_465_312);
     const row = mapWatchSearchRow({ brand: 'Rolex', reference_number: '116520', model: 'Rolex Daytona', movement: 'Automatic', case_diameter: '40 mm' });
     assert.equal(row?.referenceNumber, '116520');
     assert.equal(row?.model, 'Daytona');
+});
+
+test('jewelry melt from the metal API is fair market and gemini is not used', async () => {
+    let geminiCalled = false;
+    const ring = await enrichIdentification(
+        item({ category: 'jewelry', name: 'Gold necklace', details: { kind: 'jewelry', metal: 'gold', weightGrams: 10, purity: '14k' } }),
+        deps({
+            metal: async () => ({
+                provider: 'gold-api',
+                providerLabel: 'gold-api.com',
+                fetchedAt: '2026-10-25T00:00:00Z',
+                metal: 'gold',
+                purity: '14k',
+                weightGrams: 10,
+                fineOunces: 0.2,
+                spotCentsPerOunce: 250_000,
+                meltValueCents: 50_000,
+                notes: []
+            }),
+            estimatePrices: async () => {
+                geminiCalled = true;
+                return { fairMarketCents: 1, quickSaleCents: null };
+            }
+        })
+    );
+    assert.equal(ring.suggestedValue?.amountCents, 50_000);
+    assert.equal(ring.suggestedValue?.sourceName, 'gold-api.com');
+    assert.equal(geminiCalled, false);
+});
+
+test('suggest-values uses the same enrichIdentification path as capture', async () => {
+    const suggested = await suggestValuesForAsset({
+        category: 'other',
+        name: 'Thing',
+        details: {}
+    });
+    assert.equal(suggested.fairMarket, null);
 });
 
 test('a trading card uses the matched market price', async () => {

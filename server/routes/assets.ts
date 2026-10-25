@@ -19,8 +19,45 @@ import { ownerIdOf } from '../auth.js';
 import { withDb } from '../db/connect.js';
 import { Asset, Valuation, toAssetRecord, toValuationRecord, type AssetDoc, type ValuationDoc, type WithId } from '../db/models.js';
 import { HttpError, notFound, zodFieldErrors } from '../errors.js';
+import { suggestValuesForAsset } from '../capture/suggest.js';
 import { settingsAfterVehicleValue } from '../vehicles/monthly.js';
 import { vehicleValueQueryFor } from '../../shared/vehicleValue.js';
+
+function todayUtc(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function estimateFromSuggestedPart(
+    valueType: EstimateInput['valueType'],
+    part: { amountCents: number; sourceName: string; notes: string }
+): EstimateInput {
+    const fromProvider = part.sourceName !== 'Price check';
+    return {
+        valueType,
+        amountCents: part.amountCents,
+        observedAt: todayUtc(),
+        source: 'provider',
+        sourceName: part.sourceName,
+        method: fromProvider ? part.sourceName : 'Price check',
+        notes: part.notes,
+        vehicleTrim: null
+    };
+}
+
+async function estimatesFromSuggestion(input: {
+    category: CategoryId;
+    name: string;
+    brand?: string | null;
+    model?: string | null;
+    condition?: EstimateInput['conditionAssumption'];
+    details: Details;
+}): Promise<{ fair: EstimateInput | null; liquidation: EstimateInput | null }> {
+    const suggested = await suggestValuesForAsset(input);
+    return {
+        fair: suggested.fairMarket ? estimateFromSuggestedPart('fair_market', suggested.fairMarket) : null,
+        liquidation: suggested.quickSale ? estimateFromSuggestedPart('liquidation', suggested.quickSale) : null
+    };
+}
 
 export const assetsRouter = Router();
 assetsRouter.use(withDb);
@@ -44,10 +81,6 @@ const SIMPLE_FIELDS = [
 // mongo ids are 24 hex characters. anything else can't be one of ours, so it's a 404 (not a crash)
 function checkId(id: string, what: string) {
     if (!/^[a-f0-9]{24}$/i.test(id)) throw notFound(what);
-}
-
-function todayUtc(): string {
-    return new Date().toISOString().slice(0, 10);
 }
 
 export function cleanDetails(category: CategoryId, raw: unknown): Details {
@@ -146,10 +179,24 @@ assetsRouter.post('/assets', async (req, res) => {
     const ownerId = ownerIdOf(res);
     const input = parseOrThrow(assetCreateSchema, req.body, categoryFromBody);
     const details = cleanDetails(input.category, input.details);
-    const tracking = input.estimate ? settingsAfterVehicleValue({
+    let estimate = input.estimate ?? null;
+    let liquidation = input.liquidationEstimate ?? null;
+    if (input.category !== 'property' && (!estimate || !liquidation)) {
+        const suggested = await estimatesFromSuggestion({
+            category: input.category,
+            name: input.name,
+            brand: input.brand,
+            model: input.model,
+            condition: input.condition,
+            details
+        });
+        if (!estimate) estimate = suggested.fair;
+        if (!liquidation) liquidation = suggested.liquidation;
+    }
+    const tracking = estimate ? settingsAfterVehicleValue({
         category: input.category, currency: input.currency ?? 'USD', isSample: false,
         brand: input.brand ?? null, model: input.model ?? null, condition: input.condition ?? null, details
-    }, input.estimate, new Date()) : null;
+    }, estimate, new Date()) : null;
 
     const created = await Asset.create({
         ownerId,
@@ -168,7 +215,8 @@ assetsRouter.post('/assets', async (req, res) => {
         isSample: false,
         vehicleValueUpdates: tracking
     });
-    if (input.estimate) await addEstimate(ownerId, created._id, input.estimate, false);
+    if (estimate) await addEstimate(ownerId, created._id, estimate, false);
+    if (liquidation) await addEstimate(ownerId, created._id, liquidation, false);
 
     res.status(201).json(await assetResponse(ownerId, created.toObject() as WithId<AssetDoc>));
 });

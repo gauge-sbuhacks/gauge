@@ -18,6 +18,8 @@ import type {
     ProfileResponse,
     PropertyValueResult,
     RecallLookupResult,
+    SuggestValuesQuery,
+    SuggestValuesResult,
     ValuationCreateInput,
     ValuationRecord,
     VehicleValueQuery,
@@ -129,6 +131,7 @@ export const api = {
     vehicleValue: (q: VehicleValueQuery) => request<VehicleValueResult>('POST', '/lookups/vehicle-value', q),
     cardPrices: (q: CardPriceQuery) => request<CardPriceResult>('POST', '/lookups/card-prices', q),
     metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q),
+    suggestValues: (q: SuggestValuesQuery) => request<SuggestValuesResult>('POST', '/lookups/suggest-values', q),
     watchSearch: (q: WatchSearchQuery) => request<WatchSearchResult>('POST', '/lookups/watch-search', q),
     watchValue: (q: WatchValueQuery) => request<WatchValueResult>('POST', '/lookups/watch-value', q),
 

@@ -119,7 +119,8 @@ const assetFields = {
     serialNumber: text(80, 'Serial number'),
     notes: text(4000, 'Notes'),
     details: detailsInput.optional(),
-    estimate: estimateInputSchema.nullable().optional()
+    estimate: estimateInputSchema.nullable().optional(),
+    liquidationEstimate: estimateInputSchema.nullable().optional()
 };
 
 export const assetCreateSchema = z.object({
@@ -377,6 +378,22 @@ export const watchValueQuerySchema = z
         });
     });
 export type WatchValueQuery = z.input<typeof watchValueQuerySchema>;
+
+export const suggestValuesQuerySchema = z.object({
+    category: z.enum(CATEGORY_IDS, { error: 'Pick a category' }),
+    name: z.string().trim().min(1, 'Give it a name'),
+    brand: text(80, 'Brand'),
+    model: text(120, 'Model'),
+    condition: z.enum(CONDITIONS).nullable().optional(),
+    details: detailsInput.optional()
+});
+export type SuggestValuesQuery = z.input<typeof suggestValuesQuerySchema>;
+
+export interface SuggestValuesResult {
+    fairMarket: { amountCents: number; sourceName: string; notes: string } | null;
+    quickSale: { amountCents: number; sourceName: string; notes: string } | null;
+    lookupMessage: string | null;
+}
 
 export interface WatchValueResult {
     provider: 'thewatchapi';

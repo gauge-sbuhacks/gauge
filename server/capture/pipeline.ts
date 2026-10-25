@@ -212,14 +212,27 @@ export async function enrichIdentification(input: IdentifiedItem, deps: LookupDe
             if (metal === 'gold' || metal === 'silver' || metal === 'platinum' || metal === 'palladium') {
                 if (weight != null && weight > 0 && purity) {
                     const melt = await deps.metal({ metal, weightGrams: weight, purity });
-                    const meltValue: SuggestedValue = { amountCents: melt.meltValueCents, lowCents: null, highCents: null, sourceName: melt.providerLabel, notes: 'Metal value only. Confirm before it is saved.' };
-                    const bullion = item.details.kind === 'bullion' || item.details.kind === 'coin' || item.details.kind == null;
+                    const meltValue: SuggestedValue = {
+                        amountCents: melt.meltValueCents,
+                        lowCents: null,
+                        highCents: null,
+                        sourceName: melt.providerLabel,
+                        notes: 'Live spot melt value (metal content only). Confirm before it is saved.'
+                    };
+                    const quickCents = Math.max(1, Math.round(melt.meltValueCents * 0.85));
+                    const quickValue: SuggestedValue = {
+                        amountCents: quickCents,
+                        lowCents: null,
+                        highCents: null,
+                        sourceName: melt.providerLabel,
+                        notes: 'Typical quick-sale estimate (~85% of melt). Confirm before it is saved.'
+                    };
                     return finish(item, deps, {
                         ...base(),
                         lookupStatus: 'ready',
                         lookupMessage: 'Melt value from the live spot price.',
-                        suggestedValue: bullion ? meltValue : null,
-                        quickSale: meltValue
+                        suggestedValue: meltValue,
+                        quickSale: quickValue
                     });
                 }
             }

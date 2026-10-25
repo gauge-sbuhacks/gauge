@@ -25,6 +25,8 @@ export interface AssetFormValues {
     estimateType: ObservedValueType;
     estimateAmount: string;
     estimateDate: string;
+    quickSaleAmount: string;
+    quickSaleDate: string;
 }
 
 export const DEFAULT_LOCATIONS = ['Home', 'Home office', 'Living room', 'Bedroom', 'Garage', 'Home safe', 'Storage unit', 'Office', 'Safe deposit box', 'Vehicle'];
@@ -44,7 +46,9 @@ export function emptyFormValues(): AssetFormValues {
         details: {},
         estimateType: 'fair_market',
         estimateAmount: '',
-        estimateDate: todayIso()
+        estimateDate: todayIso(),
+        quickSaleAmount: '',
+        quickSaleDate: todayIso()
     };
 }
 
@@ -73,7 +77,28 @@ export function formValuesFromItem(item: PortfolioItem): AssetFormValues {
         details,
         estimateType: 'fair_market',
         estimateAmount: latest?.amountCents != null ? centsToInput(latest.amountCents) : '',
-        estimateDate: todayIso()
+        estimateDate: todayIso(),
+        quickSaleAmount: item.latest.liquidation?.amountCents != null ? centsToInput(item.latest.liquidation.amountCents) : '',
+        quickSaleDate: todayIso()
+    };
+}
+
+function estimateFromSuggest(
+    valueType: ObservedValueType,
+    amountCents: number,
+    observedAt: string,
+    from: { sourceName: string; notes: string } | null | undefined
+): AssetCreateInput['estimate'] {
+    const fromProvider = from?.sourceName && from.sourceName !== 'Price check';
+    return {
+        valueType,
+        amountCents,
+        observedAt,
+        source: fromProvider ? 'provider' : 'provider',
+        sourceName: from?.sourceName ?? (valueType === 'fair_market' ? 'Entered during add' : 'Entered during add'),
+        method: fromProvider ? from!.sourceName : 'Price check',
+        notes: from?.notes ?? null,
+        vehicleTrim: null
     };
 }
 
@@ -106,9 +131,15 @@ export function toDetails(category: CategoryId, raw: Record<string, string>): Re
     return out;
 }
 
-export function toPayload(values: AssetFormValues): AssetCreateInput {
+export function toPayload(
+    values: AssetFormValues,
+    suggest?: { fairMarket?: { sourceName: string; notes: string } | null; quickSale?: { sourceName: string; notes: string } | null } | null
+): AssetCreateInput {
     const category = values.category as CategoryId;
     const amount = parseMoneyInput(values.estimateAmount);
+    const quick = parseMoneyInput(values.quickSaleAmount);
+    const observedAt = values.estimateDate || todayIso();
+    const quickObserved = values.quickSaleDate || observedAt;
     const def = getCategory(category);
     return {
         name: values.name.trim(),
@@ -124,7 +155,8 @@ export function toPayload(values: AssetFormValues): AssetCreateInput {
         serialNumber: usesCommonField(category, 'serialNumber') ? values.serialNumber.trim() || null : null,
         notes: values.notes.trim() || null,
         details: toDetails(category, values.details) as Details,
-        estimate: amount != null ? { valueType: values.estimateType, amountCents: amount, observedAt: values.estimateDate || todayIso() } : null
+        estimate: amount != null ? estimateFromSuggest(values.estimateType, amount, observedAt, suggest?.fairMarket) : null,
+        liquidationEstimate: quick != null ? estimateFromSuggest('liquidation', quick, quickObserved, suggest?.quickSale) : null
     };
 }
 
@@ -148,6 +180,11 @@ export const assetFormSchema = z.custom<AssetFormValues>().superRefine((v, ctx) 
     if (est === undefined) issue('estimateAmount', 'Enter a dollar amount, like 1250 or 1,250.00');
     if (est != null && (!v.estimateDate || !isDate(v.estimateDate))) issue('estimateDate', 'Add the date this value is from');
     else if (est != null && v.estimateDate > todayIso()) issue('estimateDate', "A value can't be dated in the future");
+
+    const qs = parseMoneyInput(v.quickSaleAmount);
+    if (qs === undefined) issue('quickSaleAmount', 'Enter a dollar amount, like 1250 or 1,250.00');
+    if (qs != null && (!v.quickSaleDate || !isDate(v.quickSaleDate))) issue('quickSaleDate', 'Add the date this value is from');
+    else if (qs != null && v.quickSaleDate > todayIso()) issue('quickSaleDate', "A value can't be dated in the future");
 
     if (v.category && isCategoryId(v.category)) {
         const result = detailsSchemaFor(v.category).safeParse(toDetails(v.category, v.details));

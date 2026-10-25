@@ -4,7 +4,16 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { cardPriceQuerySchema, metalValueQuerySchema, vehicleValueQuerySchema, watchSearchQuerySchema, watchValueQuerySchema } from '../../shared/schemas.js';
+import {
+    cardPriceQuerySchema,
+    metalValueQuerySchema,
+    suggestValuesQuerySchema,
+    vehicleValueQuerySchema,
+    watchSearchQuerySchema,
+    watchValueQuerySchema
+} from '../../shared/schemas.js';
+import { suggestValuesForAsset } from '../capture/suggest.js';
+import { cleanDetails } from './assets.js';
 import { ownerIdOf } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { makeRateLimiter } from '../lookups/cache.js';
@@ -68,6 +77,21 @@ lookupsRouter.post('/lookups/card-prices', async (req, res) => {
 
 lookupsRouter.post('/lookups/metal-value', async (req, res) => {
     res.json(await lookupMetalValue(metalValueQuerySchema.parse(req.body)));
+});
+
+lookupsRouter.post('/lookups/suggest-values', async (req, res) => {
+    const q = suggestValuesQuerySchema.parse(req.body);
+    const details = cleanDetails(q.category, q.details ?? {});
+    res.json(
+        await suggestValuesForAsset({
+            category: q.category,
+            name: q.name,
+            brand: q.brand,
+            model: q.model,
+            condition: q.condition ?? null,
+            details
+        })
+    );
 });
 
 lookupsRouter.post('/lookups/watch-search', async (req, res) => {

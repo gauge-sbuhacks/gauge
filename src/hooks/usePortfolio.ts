@@ -98,6 +98,10 @@ export function useMetalValueLookup() {
     return useMutation({ mutationFn: api.metalValue });
 }
 
+export function useSuggestValues() {
+    return useMutation({ mutationFn: api.suggestValues });
+}
+
 export function useWatchSearchLookup() {
     return useMutation({ mutationFn: api.watchSearch });
 }
