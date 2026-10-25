@@ -15,7 +15,7 @@ test('a category with no extra fields skips the details step', () => {
 });
 
 test('identity asks the right things for each category', () => {
-    assert.deepEqual(identityFields('vehicle'), ['details.vin', 'details.year', 'brand', 'model', 'details.trim']);
+    assert.deepEqual(identityFields('vehicle'), ['details.year', 'brand', 'model', 'details.trim', 'details.vin']);
     assert.deepEqual(identityFields('property'), ['details.addressLine1', 'details.city', 'details.state', 'details.postalCode']);
     // fields asked on the identity step are not asked again on the details step
     assert.equal(fieldsForStep('details', base('vehicle')).includes('details.vin'), false);

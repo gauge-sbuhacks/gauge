@@ -96,10 +96,10 @@ export const CATEGORIES: CategoryDef[] = [
         fields: [
             {
                 key: 'vin',
-                label: 'VIN',
+                label: 'VIN (optional)',
                 type: 'text',
                 placeholder: '17 characters',
-                help: 'Decode fills in year, make, model, and trim from NHTSA (free, no key).',
+                help: 'Have your VIN? Decode it to autofill details. You can get an estimate without it.',
                 identifier: true,
                 mono: true,
                 uppercase: true,
@@ -107,7 +107,7 @@ export const CATEGORIES: CategoryDef[] = [
                 pattern: { regex: '^[A-HJ-NPR-Z0-9]{5,17}$', message: 'VINs use letters and numbers only (no I, O, or Q)' }
             },
             { key: 'year', label: 'Year', type: 'integer', min: 1886, max: thisYear + 2, placeholder: String(thisYear) },
-            { key: 'trim', label: 'Trim', type: 'text', placeholder: 'Premium Luxury' },
+            { key: 'trim', label: 'Trim', type: 'text', placeholder: 'Leave blank if unsure', help: 'Optional, like SE or Premium Luxury. Unknown trims use a clearly labeled reference trim.' },
             { key: 'mileage', label: 'Mileage', type: 'integer', unit: 'mi', min: 0, max: 2_000_000, help: 'Current odometer reading. Market values depend on it.' },
             { key: 'purchaseMileage', label: 'Mileage when bought', type: 'integer', unit: 'mi', min: 0, max: 2_000_000, help: 'Used to work out what each mile has cost you.' },
             { key: 'exteriorColor', label: 'Color', type: 'text' },

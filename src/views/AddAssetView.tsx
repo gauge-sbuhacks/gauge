@@ -10,6 +10,7 @@ import { Link, useBlocker, useNavigate } from 'react-router';
 import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
+import { parseMoneyInput } from '@shared/money.ts';
 import {
     CONDITION_HINTS,
     CONDITION_LABELS,
@@ -17,6 +18,7 @@ import {
     OBSERVED_VALUE_TYPES,
     VALUE_TYPE_HINTS,
     VALUE_TYPE_LABELS,
+    type EstimateInput,
     type LookupSuggestion,
     type ObservedValueType,
     type VinLookupResult
@@ -26,6 +28,8 @@ import { CategoryFields } from '@/components/assets/CategoryFields.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
 import { Field, MoneyInput, OptionalSelect } from '@/components/assets/FormBits.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
+import { VehicleValueLookup } from '@/components/assets/VehicleValueLookup.tsx';
+import type { ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import {
@@ -56,6 +60,7 @@ import {
 import { todayIso } from '@/lib/format.ts';
 import { distinctLocations } from '@/lib/portfolio.ts';
 import { cn } from '@/lib/utils.ts';
+import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
 
 const LEAVE_MS = 220;
 
@@ -79,6 +84,9 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const { errors, isDirty } = formState;
     const values = useWatch({ control }) as AssetFormValues;
     const category = values.category as CategoryId | '';
+    const vehicleQuery = vehicleValueQueryFor(values);
+    const vehicleSignature = JSON.stringify(vehicleQuery);
+    const [providerEstimate, setProviderEstimate] = useState<{ signature: string; estimate: EstimateInput } | null>(null);
     const def = category ? getCategory(category) : null;
 
     // ---------- steps and transitions (same feel as onboarding) ----------
@@ -166,7 +174,20 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             return;
         }
         try {
-            const res = await create.mutateAsync(toPayload(getValues()));
+            const current = getValues();
+            const payload = toPayload(current);
+            const selected = providerEstimate?.estimate;
+            if (
+                current.category === 'vehicle' &&
+                providerEstimate?.signature === JSON.stringify(vehicleValueQueryFor(current)) &&
+                selected &&
+                payload.estimate?.amountCents === selected.amountCents &&
+                payload.estimate.valueType === selected.valueType &&
+                payload.estimate.observedAt === selected.observedAt
+            ) {
+                payload.estimate = selected;
+            }
+            const res = await create.mutateAsync(payload);
             saved.current = true;
             toast.success(`${res.asset.name} added`);
             navigate(`/assets/${res.asset.id}`);
@@ -214,6 +235,30 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     };
 
     const busy = create.isPending;
+    const applyVehicleEstimate = (initial: Partial<ValuationFormValues>) => {
+        if (!initial.amount || !initial.valueType || !initial.observedAt) return;
+        const amountCents = parseMoneyInput(initial.amount);
+        if (amountCents == null) return;
+        setValue('estimateAmount', initial.amount, { shouldDirty: true, shouldValidate: true });
+        setValue('estimateType', initial.valueType, { shouldDirty: true });
+        setValue('estimateDate', initial.observedAt, { shouldDirty: true });
+        setProviderEstimate({
+            signature: vehicleSignature,
+            estimate: {
+                valueType: initial.valueType,
+                amountCents,
+                observedAt: initial.observedAt,
+                source: 'provider',
+                sourceName: initial.sourceName,
+                monthlyVehicleUpdates: initial.monthlyVehicleUpdates,
+                vehicleTrim: initial.vehicleTrim,
+                method: initial.method,
+                conditionAssumption: values.condition || null,
+                notes: initial.notes
+            }
+        });
+        toast.success('Estimate filled in. Save the vehicle to record it.');
+    };
     const canSaveEarly = index >= 2 && Boolean(values.name?.trim());
 
     // ---------- the questions ----------
@@ -339,6 +384,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                         <Input id="purchaseDate" type="date" max={todayIso()} {...register('purchaseDate')} aria-invalid={Boolean(errors.purchaseDate) || undefined} />
                     </Field>
                 </div>
+                {category === 'vehicle' && <VehicleValueLookup query={vehicleQuery} onRecord={applyVehicleEstimate} actionLabel="Use estimate as" />}
                 <div className="rounded-xl border p-4">
                     <p className="text-sm font-medium">Current value</p>
                     <p className="text-xs text-muted-foreground">Saved as the first point in its value history.</p>

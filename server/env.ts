@@ -10,6 +10,7 @@ export interface Env {
     allowDevAuth: boolean;
     rentcastKey: string | null;
     vinauditKey: string | null;
+    cronSecret: string | null;
 }
 
 const LOCAL_MONGO = 'mongodb://127.0.0.1:27017/gauge';
@@ -35,7 +36,8 @@ export function getEnv(): Env {
         // the "local dev user" only works on your own machine, unless you opt in on a preview deploy
         allowDevAuth: !onVercel || read('GAUGE_ALLOW_DEV_AUTH') === 'true',
         rentcastKey: read('RENTCAST_API_KEY'),
-        vinauditKey: read('VINAUDIT_API_KEY')
+        vinauditKey: read('VINAUDIT_API_KEY'),
+        cronSecret: read('CRON_SECRET')
     };
 }
 

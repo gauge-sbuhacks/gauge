@@ -7,6 +7,7 @@ import type { AssetPhoto } from './capture.js';
 import { marketLocationSchema, type MarketLocation } from './marketplace.js';
 import { CATEGORY_IDS, type CategoryId, type Details } from './categories.js';
 import { MAX_CENTS, SUPPORTED_CURRENCIES, type Currency } from './money.js';
+import type { VehicleValueUpdates } from './vehicleUpdates.js';
 
 // ---------- enums ----------
 
@@ -94,7 +95,14 @@ const detailsInput = z.record(z.string(), z.union([z.string(), z.number(), z.boo
 export const estimateInputSchema = z.object({
     valueType: z.enum(OBSERVED_VALUE_TYPES),
     amountCents: z.number().int().min(0).max(MAX_CENTS),
-    observedAt: isoDate('Estimate date').optional()
+    observedAt: isoDate('Estimate date').optional(),
+    source: z.enum(['user', 'provider']).optional(),
+    sourceName: text(80, 'Source name'),
+    method: text(160, 'Method'),
+    conditionAssumption: z.enum(CONDITIONS).nullish(),
+    notes: text(1000, 'Notes'),
+    monthlyVehicleUpdates: z.boolean().optional(),
+    vehicleTrim: text(200, 'Vehicle trim')
 });
 export type EstimateInput = z.infer<typeof estimateInputSchema>;
 
@@ -142,7 +150,9 @@ export const valuationCreateSchema = z
         sourceName: text(80, 'Source name'),
         method: text(160, 'Method'),
         conditionAssumption: z.enum(CONDITIONS).nullable().optional(),
-        notes: text(1000, 'Notes')
+        notes: text(1000, 'Notes'),
+        monthlyVehicleUpdates: z.boolean().optional(),
+        vehicleTrim: text(200, 'Vehicle trim')
     })
     .superRefine((v, ctx) => {
         const hasAmount = v.amountCents != null;
@@ -178,6 +188,7 @@ export interface AssetRecord {
     details: Details;
     photos?: AssetPhoto[];
     isSample: boolean;
+    vehicleValueUpdates?: VehicleValueUpdates | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -275,10 +286,20 @@ export const vehicleValueQuerySchema = z.object({
         .string()
         .trim()
         .toUpperCase()
-        .regex(/^[A-HJ-NPR-Z0-9]{17}$/, 'Market values need the full 17-character VIN'),
+        .regex(/^$|^[A-HJ-NPR-Z0-9]{17}$/, 'Use a full 17-character VIN, or leave it blank and enter year, make, and model')
+        .nullish(),
+    year: z.number().int().min(1886).max(new Date().getFullYear() + 2).nullish(),
+    make: z.string().trim().max(80).nullish(),
+    model: z.string().trim().max(120).nullish(),
+    trim: z.string().trim().max(200).nullish(),
     mileage: z.number().int().min(0).max(2_000_000).nullish(),
     condition: z.enum(CONDITIONS).nullish(),
     titleStatus: z.string().nullish()
+}).superRefine((q, ctx) => {
+    if (q.vin) return;
+    for (const field of ['year', 'make', 'model'] as const) {
+        if (!q[field]) ctx.addIssue({ code: 'custom', path: [field], message: `Add the ${field}, or use a full VIN` });
+    }
 });
 export type VehicleValueQuery = z.input<typeof vehicleValueQuerySchema>;
 
@@ -305,6 +326,8 @@ export interface VehicleValueResult {
     // what the provider added or took off for mileage, condition, and title problems (retail)
     adjustments: { label: string; cents: number }[];
     notes: string[];
+    // Only present for a lookup by year/make/model. IDs come from VinAudit, never synthesized.
+    trimSelection?: { name: string; assumed: boolean; options: { id: string; name: string }[] };
 }
 
 export const CARD_GAMES = ['pokemon', 'magic'] as const;
