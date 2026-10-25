@@ -15,6 +15,7 @@
         "typecheck": "tsc -b",
         "test": "tsx --tsconfig tsconfig.app.json --test tests/*.test.ts",
         "sync:mtg-history": "tsx scripts/sync-mtg-history.ts",
+        "refresh:vehicle-values": "tsx scripts/refresh-vehicle-values.ts",
         "preview": "vite preview",
         "lint": "oxlint"
     },

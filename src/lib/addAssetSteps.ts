@@ -21,7 +21,7 @@ const COPY: Record<CategoryId, CategoryCopy> = {
     vehicle: {
         identity: {
             question: 'Tell us about the vehicle.',
-            help: 'Have the VIN? Decode it and we fill in the year, make, and model. Otherwise just type them in.',
+            help: 'Enter the year, make, and model for a market estimate. Trim is optional. Have your VIN? Decode it to autofill the details.',
             fields: IDENTITY_FIELDS.vehicle
         },
         details: { question: 'Mileage, color, and title.', help: 'Mileage matters most for market value.' }

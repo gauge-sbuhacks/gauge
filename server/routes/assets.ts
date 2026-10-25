@@ -19,6 +19,8 @@ import { ownerIdOf } from '../auth.js';
 import { withDb } from '../db/connect.js';
 import { Asset, Valuation, toAssetRecord, toValuationRecord, type AssetDoc, type ValuationDoc, type WithId } from '../db/models.js';
 import { HttpError, notFound, zodFieldErrors } from '../errors.js';
+import { settingsAfterVehicleValue } from '../vehicles/monthly.js';
+import { vehicleValueQueryFor } from '../../shared/vehicleValue.js';
 
 export const assetsRouter = Router();
 assetsRouter.use(withDb);
@@ -103,7 +105,11 @@ async function addEstimate(ownerId: string, assetId: WithId<AssetDoc>['_id'], es
         valueType: estimate.valueType,
         amountCents: estimate.amountCents,
         observedAt: estimate.observedAt ?? todayUtc(),
-        source: 'user'
+        source: estimate.source ?? 'user',
+        sourceName: estimate.sourceName ?? null,
+        method: estimate.method ?? null,
+        conditionAssumption: estimate.conditionAssumption ?? null,
+        notes: estimate.notes ?? null
     });
 }
 
@@ -140,6 +146,10 @@ assetsRouter.post('/assets', async (req, res) => {
     const ownerId = ownerIdOf(res);
     const input = parseOrThrow(assetCreateSchema, req.body, categoryFromBody);
     const details = cleanDetails(input.category, input.details);
+    const tracking = input.estimate ? settingsAfterVehicleValue({
+        category: input.category, currency: input.currency ?? 'USD', isSample: false,
+        brand: input.brand ?? null, model: input.model ?? null, condition: input.condition ?? null, details
+    }, input.estimate, new Date()) : null;
 
     const created = await Asset.create({
         ownerId,
@@ -155,7 +165,8 @@ assetsRouter.post('/assets', async (req, res) => {
         serialNumber: input.serialNumber ?? null,
         notes: input.notes ?? null,
         details,
-        isSample: false
+        isSample: false,
+        vehicleValueUpdates: tracking
     });
     if (input.estimate) await addEstimate(ownerId, created._id, input.estimate, false);
 
@@ -173,6 +184,7 @@ assetsRouter.patch('/assets/:id', async (req, res) => {
 
     const previousCategory = doc.category;
     const nextCategory = input.category ?? previousCategory;
+    const previousVehicle = vehicleValueQueryFor(doc);
 
     for (const key of SIMPLE_FIELDS) {
         const value = input[key];
@@ -183,6 +195,22 @@ assetsRouter.patch('/assets/:id', async (req, res) => {
         doc.set('details', cleanDetails(nextCategory, input.details));
     } else if (nextCategory !== previousCategory) {
         doc.set('details', carryOverDetails(nextCategory, doc.details ?? {}));
+    }
+    if (nextCategory !== 'vehicle') doc.set('vehicleValueUpdates', null);
+    else if (doc.vehicleValueUpdates && (input.details !== undefined || input.brand !== undefined || input.model !== undefined || input.condition !== undefined)) {
+        // Invalidate a running lookup when the vehicle changes; use the edited trim thereafter.
+        doc.set('vehicleValueUpdates.leaseToken', null);
+        doc.set('vehicleValueUpdates.leaseUntil', null);
+        const nextVehicle = vehicleValueQueryFor(doc);
+        if (['vin', 'year', 'make', 'model', 'trim'].some((key) => previousVehicle[key as keyof typeof previousVehicle] !== nextVehicle[key as keyof typeof nextVehicle])) doc.set('vehicleValueUpdates.trim', null);
+    }
+    if (input.estimate) {
+        // The edit form submits its existing amount even for a mileage/name-only edit.
+        // Preserve its schedule unless the amount changed or the user explicitly changed tracking.
+        const latest = await Valuation.findOne({ ownerId, assetId: doc._id, valueType: input.estimate.valueType }).sort({ observedAt: -1, createdAt: -1 }).lean<WithId<ValuationDoc>>();
+        if (input.estimate.monthlyVehicleUpdates !== undefined || latest?.amountCents !== input.estimate.amountCents) {
+            doc.set('vehicleValueUpdates', settingsAfterVehicleValue(doc, input.estimate, new Date()));
+        }
     }
     doc.markModified('details');
     await doc.save();
@@ -211,8 +239,10 @@ assetsRouter.post('/assets/:id/valuations', async (req, res) => {
     checkId(req.params.id, 'That asset');
     const input = valuationCreateSchema.parse(req.body);
 
-    const owned = await Asset.exists({ _id: req.params.id, ownerId });
+    const owned = await Asset.findOne({ _id: req.params.id, ownerId }).lean<WithId<AssetDoc>>();
     if (!owned) throw notFound('That asset');
+    if (input.monthlyVehicleUpdates && input.currency && input.currency !== owned.currency) throw new HttpError(400, 'validation', 'Monthly updates must use the vehicle currency.');
+    const tracking = settingsAfterVehicleValue(owned, input, new Date());
 
     const created = await Valuation.create({
         ownerId,
@@ -230,7 +260,7 @@ assetsRouter.post('/assets/:id/valuations', async (req, res) => {
         notes: input.notes ?? null
     });
     // touch the asset so "recently updated" sorting notices the new value
-    await Asset.updateOne({ _id: req.params.id, ownerId }, { $set: { updatedAt: new Date() } });
+    await Asset.updateOne({ _id: req.params.id, ownerId }, { $set: { updatedAt: new Date(), ...(owned.category === 'vehicle' ? { vehicleValueUpdates: tracking } : {}) } });
 
     res.status(201).json({ valuation: toValuationRecord(created.toObject() as WithId<ValuationDoc>) });
 });

@@ -3,7 +3,7 @@
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AssetCreateInput, AssetPatchInput, ValuationCreateInput } from '@shared/schemas.ts';
+import type { AssetCreateInput, AssetPatchInput, ObservedValueType, ValuationCreateInput } from '@shared/schemas.ts';
 import { api } from '@/api/api.ts';
 import { buildPortfolio, type PortfolioItem } from '@/lib/portfolio.ts';
 
@@ -44,6 +44,13 @@ export function useUpdateAsset(id: string) {
 export function useDeleteAsset() {
     const refresh = useRefresh();
     return useMutation({ mutationFn: (id: string) => api.deleteAsset(id), onSuccess: refresh });
+}
+
+export function useVehicleUpdates(assetId: string) {
+    const refresh = useRefresh();
+    const settings = useMutation({ mutationFn: (types: ObservedValueType[]) => api.setVehicleUpdates(assetId, types), onSuccess: refresh });
+    const updateNow = useMutation({ mutationFn: () => api.refreshVehicleValues(assetId), onSettled: refresh });
+    return { settings, updateNow };
 }
 
 export function useAddValuation(assetId: string) {

@@ -4,7 +4,7 @@
 // until you apply it or record it as a value.
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Coins, ExternalLink, Gauge, House, Layers, LoaderCircle, ScanSearch, Siren, Watch } from 'lucide-react';
+import { Coins, ExternalLink, House, Layers, LoaderCircle, ScanSearch, Siren, Watch } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, type Details } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
@@ -21,7 +21,6 @@ import {
     type PropertyValueResult,
     type RecallLookupResult,
     type SpotMetal,
-    type VehicleValueResult,
     type VinLookupResult,
     type WatchValueResult
 } from '@shared/schemas.ts';
@@ -37,12 +36,13 @@ import {
     usePropertyValueLookup,
     useRecallLookup,
     useUpdateAsset,
-    useVehicleValueLookup,
     useVinLookup,
     useWatchValueLookup
 } from '@/hooks/usePortfolio.ts';
 import { formatDate, formatMoney, todayIso } from '@/lib/format.ts';
 import type { PortfolioItem } from '@/lib/portfolio.ts';
+import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
+import { VehicleValueLookup } from './VehicleValueLookup.tsx';
 import { SuggestionReview } from './SuggestionReview.tsx';
 import type { ValuationFormValues } from './ValuationDialog.tsx';
 
@@ -139,7 +139,7 @@ function VehicleLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (in
                 )}
             </Section>
 
-            <VehicleValueSection item={item} onRecord={onRecord} />
+            <VehicleValueLookup query={vehicleValueQueryFor(asset)} onRecord={onRecord} allowMonthlyUpdates={!asset.isSample && asset.currency === 'USD'} />
 
             <Section icon={<Siren className="size-4" />} title="Safety recalls" description="NHTSA recalls for this make, model, and year. Free, no key needed.">
                 {canRecall ? (
@@ -165,129 +165,6 @@ function VehicleLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (in
                 )}
             </Section>
         </div>
-    );
-}
-
-const signedMoney = (cents: number) => `${cents > 0 ? '+' : '−'}${formatMoney(Math.abs(cents))}`;
-
-function VehicleValueSection({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
-    const { asset } = item;
-    const vin = typeof asset.details.vin === 'string' ? asset.details.vin : '';
-    const mileage = typeof asset.details.mileage === 'number' ? asset.details.mileage : null;
-    const titleStatus = typeof asset.details.titleStatus === 'string' ? asset.details.titleStatus : null;
-    const health = useHealth();
-    const lookup = useVehicleValueLookup();
-    const [result, setResult] = useState<VehicleValueResult | null>(null);
-
-    const ready = health.data?.providers.find((p) => p.id === 'vinaudit')?.status === 'ready';
-
-    const run = () =>
-        lookup.mutate(
-            { vin, mileage, condition: asset.condition, titleStatus },
-            { onSuccess: setResult, onError: (err) => toast.error('Market value lookup failed', { description: err.message }) }
-        );
-
-    const record = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'liquidation') => {
-        const v = r[kind]!;
-        const what = kind === 'retail' ? 'Retail' : 'Trade-in';
-        onRecord({
-            valueType,
-            mode: 'amount',
-            amount: centsToInput(v.valueCents),
-            observedAt: todayIso(),
-            source: 'provider',
-            sourceName: `VinAudit ${what.toLowerCase()}`,
-            method: 'Market value from recent listings, adjusted for mileage, condition, and title',
-            conditionAssumption: asset.condition ?? '',
-            notes: [
-                `${what} estimate`,
-                v.lowCents != null && v.highCents != null && `range ${formatMoney(v.lowCents)} to ${formatMoney(v.highCents)}`,
-                r.mileage != null && `at ${r.mileage.toLocaleString('en-US')} miles`,
-                v.sampleCount != null && `from ${v.sampleCount} listings`
-            ]
-                .filter(Boolean)
-                .join(', ')
-        });
-    };
-
-    return (
-        <Section icon={<Gauge className="size-4" />} title="Market value" description="Retail and trade-in values from VinAudit, adjusted for mileage, condition, and title.">
-            {!ready ? (
-                <p className="text-sm text-muted-foreground">
-                    Needs a VinAudit API key (<code className="text-xs">VINAUDIT_API_KEY</code>). The trial allows 100 queries, and each lookup uses 2. See Setup.
-                </p>
-            ) : vin.length !== 17 ? (
-                <p className="text-sm text-muted-foreground">Needs the full 17-character VIN (Edit).</p>
-            ) : (
-                <div className="space-y-3">
-                    {mileage == null && <p className="text-xs text-muted-foreground">No mileage entered, so the estimate will assume average mileage.</p>}
-                    <Button size="sm" variant="outline" onClick={run} disabled={lookup.isPending}>
-                        {lookup.isPending && <LoaderCircle className="animate-spin" data-icon="inline-start" />}
-                        Get market value
-                    </Button>
-                    {result && (
-                        <div className="space-y-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                            <div className="flex items-baseline justify-between gap-2">
-                                <span className="font-medium">{result.vehicle ?? 'This vehicle'}</span>
-                                <span className="shrink-0 text-xs text-muted-foreground">{result.providerLabel}</span>
-                            </div>
-                            {[
-                                { kind: 'retail' as const, label: 'Retail', value: result.retail, actions: [['Fair market', 'fair_market']] as const },
-                                { kind: 'tradeIn' as const, label: 'Trade-in', value: result.tradeIn, actions: [['Liquidation', 'liquidation']] as const }
-                            ].map(({ kind, label, value, actions }) => (
-                                <div key={kind} className="space-y-1.5 border-t pt-3 first-of-type:border-t-0 first-of-type:pt-0">
-                                    <div className="flex items-baseline justify-between gap-2">
-                                        <span className="text-muted-foreground">{label}</span>
-                                        <span className="text-lg font-semibold tabular-nums">{value ? formatMoney(value.valueCents) : 'No estimate'}</span>
-                                    </div>
-                                    {value && (
-                                        <>
-                                            {value.lowCents != null && value.highCents != null && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    Most between {formatMoney(value.lowCents)} and {formatMoney(value.highCents)}
-                                                    {value.sampleCount != null && `, from ${value.sampleCount} listings`}
-                                                    {value.certainty != null && `, ${value.certainty}% certainty`}
-                                                </p>
-                                            )}
-                                            <div className="flex flex-wrap items-center gap-1.5">
-                                                <span className="text-xs text-muted-foreground">Record as</span>
-                                                {actions.map(([text, valueType]) => (
-                                                    <Button key={valueType} size="xs" variant="outline" onClick={() => record(result, kind, valueType)}>
-                                                        {text}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-                            {result.adjustments.length > 0 && (
-                                <ul className="space-y-0.5 border-t pt-2 text-xs">
-                                    {result.adjustments.map((a) => (
-                                        <li key={a.label} className="flex justify-between gap-2">
-                                            <span className="text-muted-foreground">{a.label} adjustment</span>
-                                            <span className="tabular-nums">{signedMoney(a.cents)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            <div className="space-y-1 border-t pt-2">
-                                {result.mileage != null && result.period && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Priced at {result.mileage.toLocaleString('en-US')} miles, from listings {formatDate(result.period.from)} to {formatDate(result.period.to)}.
-                                    </p>
-                                )}
-                                {result.notes.map((n) => (
-                                    <p key={n} className="text-xs text-muted-foreground">
-                                        {n}
-                                    </p>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-        </Section>
     );
 }
 

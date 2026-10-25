@@ -38,8 +38,21 @@ export interface AssetDoc {
     details: Details;
     photos: AssetPhoto[];
     isSample: boolean;
+    vehicleValueUpdates?: VehicleValueUpdateDoc | null;
     createdAt: Date;
     updatedAt: Date;
+}
+
+export interface VehicleValueUpdateDoc {
+    valueTypes: ObservedValueType[];
+    trim: string | null;
+    nextRefreshAt: Date | null;
+    cycleAt: Date | null;
+    lastRefreshedAt: Date | null;
+    lastAttemptAt: Date | null;
+    lastError: string | null;
+    leaseUntil: Date | null;
+    leaseToken: string | null;
 }
 
 const nullableString = { type: String, default: null };
@@ -65,13 +78,28 @@ const assetSchema = new Schema<AssetDoc>(
         notes: nullableString,
         details: { type: Schema.Types.Mixed, default: {} },
         photos: { type: [new Schema({ photoId: String, kind: String, capturedAt: String }, { _id: false })], default: [] },
-        isSample: { type: Boolean, default: false }
+        isSample: { type: Boolean, default: false },
+        vehicleValueUpdates: {
+            type: new Schema<VehicleValueUpdateDoc>({
+                valueTypes: { type: [String], enum: OBSERVED_VALUE_TYPES, default: [] },
+                trim: nullableString,
+                nextRefreshAt: { type: Date, default: null },
+                cycleAt: { type: Date, default: null },
+                lastRefreshedAt: { type: Date, default: null },
+                lastAttemptAt: { type: Date, default: null },
+                lastError: nullableString,
+                leaseUntil: { type: Date, default: null },
+                leaseToken: nullableString
+            }, { _id: false }),
+            default: null
+        }
     },
     // minimize: false keeps an empty details object instead of dropping it
     { timestamps: true, minimize: false }
 );
 
 assetSchema.index({ ownerId: 1, updatedAt: -1 });
+assetSchema.index({ category: 1, 'vehicleValueUpdates.nextRefreshAt': 1 });
 
 export const Asset = (mongoose.models.Asset as mongoose.Model<AssetDoc>) ?? mongoose.model<AssetDoc>('Asset', assetSchema);
 
@@ -91,6 +119,7 @@ export interface ValuationDoc {
     method: string | null;
     conditionAssumption: Condition | null;
     notes: string | null;
+    automaticRefreshKey?: string;
     createdAt: Date;
 }
 
@@ -108,13 +137,15 @@ const valuationSchema = new Schema<ValuationDoc>(
         sourceName: nullableString,
         method: nullableString,
         conditionAssumption: { type: String, enum: [...CONDITIONS, null], default: null },
-        notes: nullableString
+        notes: nullableString,
+        automaticRefreshKey: { type: String }
     },
     // observations are append-only, so only createdAt matters
     { timestamps: { createdAt: true, updatedAt: false }, collection: 'valuationSnapshots' }
 );
 
 valuationSchema.index({ ownerId: 1, assetId: 1, observedAt: -1 });
+valuationSchema.index({ automaticRefreshKey: 1 }, { unique: true, sparse: true });
 
 export const Valuation =
     (mongoose.models.Valuation as mongoose.Model<ValuationDoc>) ?? mongoose.model<ValuationDoc>('Valuation', valuationSchema);
@@ -167,6 +198,13 @@ export function toAssetRecord(doc: WithId<AssetDoc>): AssetRecord {
         details: doc.details ?? {},
         photos: doc.photos ?? [],
         isSample: Boolean(doc.isSample),
+        vehicleValueUpdates: doc.vehicleValueUpdates ? {
+            valueTypes: doc.vehicleValueUpdates.valueTypes,
+            nextRefreshAt: doc.vehicleValueUpdates.nextRefreshAt?.toISOString() ?? null,
+            lastRefreshedAt: doc.vehicleValueUpdates.lastRefreshedAt?.toISOString() ?? null,
+            lastAttemptAt: doc.vehicleValueUpdates.lastAttemptAt?.toISOString() ?? null,
+            lastError: doc.vehicleValueUpdates.lastError ?? null
+        } : null,
         createdAt: new Date(doc.createdAt).toISOString(),
         updatedAt: new Date(doc.updatedAt).toISOString()
     };

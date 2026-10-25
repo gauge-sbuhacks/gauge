@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
+import { Label } from '@/components/ui/label.tsx';
+import { Switch } from '@/components/ui/switch.tsx';
 import { useAddValuation } from '@/hooks/usePortfolio.ts';
 import { todayIso } from '@/lib/format.ts';
 import { Field, MoneyInput, OptionalSelect } from './FormBits.tsx';
@@ -31,6 +33,8 @@ export interface ValuationFormValues {
     method: string;
     conditionAssumption: string;
     notes: string;
+    monthlyVehicleUpdates?: boolean;
+    vehicleTrim?: string | null;
 }
 
 const blank = (): ValuationFormValues => ({
@@ -93,6 +97,7 @@ export function ValuationDialog({
     const { register, control, handleSubmit, reset, setError, watch, formState } = form;
     const mode = watch('mode');
     const valueType = watch('valueType');
+    const unchangedVehicleEstimate = initial?.monthlyVehicleUpdates !== undefined && watch('source') === 'provider' && watch('sourceName') === initial.sourceName && watch('amount') === initial.amount && valueType === initial.valueType && mode === 'amount';
 
     // fresh values every time it opens
     useEffect(() => {
@@ -111,7 +116,9 @@ export function ValuationDialog({
                 sourceName: v.sourceName.trim() || null,
                 method: v.method.trim() || null,
                 conditionAssumption: (v.conditionAssumption || null) as (typeof CONDITIONS)[number] | null,
-                notes: v.notes.trim() || null
+                notes: v.notes.trim() || null,
+                monthlyVehicleUpdates: unchangedVehicleEstimate ? v.monthlyVehicleUpdates : false,
+                vehicleTrim: v.vehicleTrim
             });
             toast.success(`${VALUE_TYPE_LABELS[v.valueType]} recorded`);
             onOpenChange(false);
@@ -218,6 +225,12 @@ export function ValuationDialog({
                     <Field label="Notes" htmlFor="v-notes">
                         <Textarea id="v-notes" rows={2} {...register('notes')} maxLength={1000} placeholder="Comparable sales, mileage at the time, anything that explains the number" />
                     </Field>
+                    {unchangedVehicleEstimate && (
+                        <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                            <div><Label htmlFor="v-monthly">Update this value monthly</Label><p className="mt-1 text-xs text-muted-foreground">Uses your recorded mileage and adds each update to the history.</p></div>
+                            <Controller control={control} name="monthlyVehicleUpdates" render={({ field }) => <Switch id="v-monthly" checked={Boolean(field.value)} onCheckedChange={field.onChange} />} />
+                        </div>
+                    )}
 
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

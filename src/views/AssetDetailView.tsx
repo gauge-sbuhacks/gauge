@@ -9,6 +9,7 @@ import { AuthImage } from '@/components/assets/AuthImage.tsx';
 import { CapturePairing } from '@/components/assets/CapturePairing.tsx';
 import { DepreciationCard } from '@/components/assets/DepreciationCard.tsx';
 import { LookupPanel } from '@/components/assets/LookupPanel.tsx';
+import { VehicleMonthlyUpdates } from '@/components/assets/VehicleMonthlyUpdates.tsx';
 import { SellingPanel } from '@/components/assets/SellingPanel.tsx';
 import { ValuationDialog, type ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
@@ -115,6 +116,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
             actions={<><Button asChild variant="outline"><Link to={`/assets/${asset.id}/edit`}><Pencil/>Edit</Link></Button><Button asChild><a href="#sell">Sell this item<ArrowUpRight/></a></Button></>}/>
         {asset.isSample && <Badge variant="outline">Test data</Badge>}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">{VALUE_TYPES.map(type => <ValueCard key={type} item={item} type={type} onAdd={() => openRecord({valueType:type==='cost_basis'?'fair_market':type})}/>)}</div>
+        {asset.category === 'vehicle' && <VehicleMonthlyUpdates asset={asset} />}
         <AssetHistory item={item} onRecord={() => openRecord()}/>
         <SellingPanel item={item}/>
         {supportsLookup && <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer text-sm font-semibold">Find a current value</summary><div className="mt-5 max-w-2xl"><LookupPanel item={item} onRecord={openRecord}/></div></details>}

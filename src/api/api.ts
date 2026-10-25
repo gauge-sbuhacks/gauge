@@ -22,6 +22,8 @@ import type {
     ValuationRecord,
     VehicleValueQuery,
     VehicleValueResult,
+    ObservedValueType,
+    AssetRecord,
     VinLookupResult,
     WatchSearchQuery,
     WatchSearchResult,
@@ -102,6 +104,8 @@ export const api = {
     createAsset: (input: AssetCreateInput) => request<AssetResponse>('POST', '/assets', input),
     updateAsset: (id: string, input: AssetPatchInput) => request<AssetResponse>('PATCH', `/assets/${id}`, input),
     deleteAsset: (id: string) => request<void>('DELETE', `/assets/${id}`),
+    setVehicleUpdates: (id: string, valueTypes: ObservedValueType[]) => request<{ asset: AssetRecord }>('PATCH', `/assets/${id}/vehicle-updates`, { valueTypes }),
+    refreshVehicleValues: (id: string) => request<{ status: string }>('POST', `/assets/${id}/vehicle-updates/refresh`),
 
     addValuation: (assetId: string, input: ValuationCreateInput) =>
         request<{ valuation: ValuationRecord }>('POST', `/assets/${assetId}/valuations`, input),

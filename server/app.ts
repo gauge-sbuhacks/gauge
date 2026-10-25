@@ -13,6 +13,7 @@ import { healthHandler } from './routes/health.js';
 import { lookupsRouter } from './routes/lookups.js';
 import { profileRouter } from './routes/profile.js';
 import { sampleRouter } from './routes/sample.js';
+import { vehicleCronRouter, vehicleUpdatesRouter } from './routes/vehicle-updates.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -33,6 +34,7 @@ app.use('/api', (_req, res, next) => {
 
 // public: tells the Setup page what is configured (names and booleans only)
 app.get('/api/health', healthHandler);
+app.use('/api/cron', vehicleCronRouter);
 
 // the QR token is the phone's credential. it belongs to the desktop user's session.
 app.use('/api', capturePublicRouter);
@@ -42,6 +44,7 @@ app.use('/api', ...authMiddleware(), requireUser);
 app.use('/api', captureRouter);
 app.use('/api', profileRouter);
 app.use('/api', assetsRouter);
+app.use('/api', vehicleUpdatesRouter);
 app.use('/api', marketplaceRouter);
 app.use('/api', historyRouter);
 app.use('/api', sampleRouter);

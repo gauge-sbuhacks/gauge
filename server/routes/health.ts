@@ -54,6 +54,7 @@ export async function healthHandler(_req: Request, res: Response) {
 
     // ---------- data providers ----------
     const providers: HealthResponse['providers'] = [
+        { id: 'vehicle_monthly', label: 'Monthly vehicle updates', covers: 'Scheduled VinAudit value snapshots for opted-in vehicles', status: env.vinauditKey && (!env.onVercel || env.cronSecret) ? 'ready' : 'needs_key', envVar: env.onVercel ? 'CRON_SECRET + VINAUDIT_API_KEY' : 'VINAUDIT_API_KEY', note: env.onVercel ? 'Requires the daily cron configuration deployed to Production and CRON_SECRET set there. Credentials present does not verify an active Vercel schedule.' : 'Checks due vehicles at API startup and daily while the local API is running.' },
         { id:'gold_history', label:'Gold API history', covers:'Daily historical metal benchmarks', status:goldHistoryConfigured()?'ready':'needs_key', envVar:'GOLD_API_KEY', note:'Free: 10 history requests/hour, cached per metal for 24 hours. Load on demand.' },
         { id:'magic_history', label:'MTGJSON history', covers:'Magic card prices by exact printing and finish', status:'ready', envVar:null, note:'Free download; no key. Run the separate history import after adding matching cards.' },
         { id: 'ebay', label: 'eBay', covers: 'Comparable active listings for US items in USD', status: ebayConfigured() ? 'ready' : 'needs_key', envVar: 'EBAY_CLIENT_ID + EBAY_CLIENT_SECRET', note: 'Production Browse API access required. Asking prices, not completed sales.' },
@@ -87,10 +88,10 @@ export async function healthHandler(_req: Request, res: Response) {
         {
             id: 'vinaudit',
             label: 'VinAudit',
-            covers: 'Vehicle retail and trade-in values, adjusted for mileage, condition, and title',
+            covers: 'Vehicle retail and trade-in values by VIN or year, make, model, and optional trim',
             status: vinauditConfigured() ? 'ready' : 'needs_key',
             envVar: 'VINAUDIT_API_KEY',
-            note: 'Trial is 100 queries, and each lookup uses 2. Market Values must be enabled on the key.'
+            note: 'Enable Market Values. VIN-free estimates also need Specifications / Vehicle Selections. Two price requests plus one cached selections request without a VIN.'
         },
         {
             id: 'cards',

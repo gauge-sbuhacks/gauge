@@ -42,7 +42,7 @@ Copy `.env.example` to `.env.local`, fill in what you have, and restart `npm run
 | `RENTCAST_API_KEY` | home value estimates on real estate assets (free plan: 50 a month) |
 | `GOLD_API_KEY` | historical daily metal benchmarks; free plan, 10 history/OHLC requests per hour |
 | `EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET` | comparable active listings; no historical sold-price access |
-| `VINAUDIT_API_KEY` | retail and trade-in values on vehicles (trial: 100 queries, 2 per lookup) |
+| `VINAUDIT_API_KEY` | vehicle retail/trade-in values; VIN-free estimates also need Specifications / Vehicle Selections access |
 | `GAUGE_ALLOW_DEV_AUTH` | `true` skips sign-in on a Vercel deploy. Everyone shares one account, so test data only |
 
 Only `VITE_` variables reach the browser. Everything else stays on the api side.
@@ -78,9 +78,24 @@ With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sig
 
 ### VinAudit (vehicle market values, optional)
 
-1. Request a trial at https://data.vinaudit.com/pricing (up to 100 queries). Make sure the key has **Market Values** enabled; the demo key does not
+1. Request a trial at https://data.vinaudit.com/pricing (up to 100 queries). Enable **Market Values** and, for estimates without a VIN, **Specifications / Vehicle Selections** on the key
 2. Set `VINAUDIT_API_KEY`
-3. On a vehicle with the full 17-character VIN, open **Lookups, Market value**. It sends the mileage, condition (mapped to like new, average, or not great), and a salvage or rebuilt title, and returns retail and trade-in values. Each lookup uses 2 queries; the same car is cached for a day
+3. Enter **year, make, model, and mileage** when adding a vehicle. On the value step, choose **Get market value**, then use the retail or trade-in estimate. The same lookup is available on a saved vehicle's **Lookups** panel. A full 17-character VIN remains an optional shortcut and takes precedence when provided
+4. Trim is optional. Without it, Gauge chooses a provider-listed reference trim (Base when available), prominently labels the assumption, and offers trim choices to refine the estimate. It does not infer individual vehicle history or save the assumed trim as an actual vehicle detail. The source and assumptions are kept with an estimate the user applies
+5. A lookup uses two price requests, plus a selections request when no VIN is supplied. Both selections and results are cached for a day. A key with only Market Values access can still price a VIN; selections access failures show a setup message
+
+Run `npm exec -- tsx scripts/check-vehicle-value.ts` for a live VIN-free smoke test, or `npm exec -- tsx scripts/check-vehicle-value.ts --vin` for the VIN path. These use your locally configured key and provider quota; output contains only the result summary, never credentials. If VIN pricing works but Vehicle Selections returns HTTP 401, ask VinAudit to enable Specifications / Vehicle Selections for that key.
+
+#### Monthly vehicle updates
+
+- When applying a VinAudit estimate, **Update this value monthly** is on by default. Saving the estimate schedules the next refresh one calendar month later. For an existing vehicle, use **Monthly vehicle updates** on its detail page to select fair-market and/or quick-sale values. Existing records remain unchanged until enabled.
+- **Refresh now** records the selected estimates immediately (provider results may be cached for 24 hours). The panel shows the last successful update, next due date, and any retry message. A manually recorded value stops automatic updates for that value type; other selected types continue.
+- Updates use the last recorded mileage, condition, title, and selected trim. They append dated observations, retain the original source/assumptions, and never fabricate past prices after downtime. Unavailable provider data leaves the previous values in place and schedules a retry the next day. Sample data and non-USD vehicles are excluded.
+- **Local development:** `npm run dev` checks due vehicles at API startup and every 24 hours while it remains running. You can also run `npm run refresh:vehicle-values` from any scheduled server process. A computer that is off cannot run local updates; due vehicles are caught up on the next check.
+- **Vercel production:** set a server-only random `CRON_SECRET` in the project's **Production** environment, keep `MONGODB_URI` and `VINAUDIT_API_KEY` configured, then deploy this version. `vercel.json` schedules `GET /api/cron/vehicle-values` daily at 12:00 UTC; only vehicles with a monthly refresh due make provider requests. The endpoint checks the `Authorization: Bearer <CRON_SECRET>` header before accessing data. Vercel injects that header automatically. Cron jobs run against production deployments; a local environment file does not configure Vercel.
+- The worker uses database leases to prevent overlapping jobs and a unique snapshot key per vehicle, value type, and refresh cycle to make retries idempotent. It processes bounded batches within a four-minute budget; any backlog remains due for the next daily check. An account authentication/quota failure stops further batches.
+
+`npm exec -- tsx scripts/check-monthly-vehicle-values.ts` performs an optional **live** integration check. It creates one isolated temporary vehicle, calls VinAudit, verifies its saved snapshot and next monthly date, and removes only that test's records. It consumes provider quota; the regular `npm test` suite uses mocks and does not call VinAudit.
 
 The **Depreciation** card on vehicles needs no key. It uses the purchase price and date, the latest fair market value, and the mileage now and when bought. The five-year projection extends the car's own yearly rate (or a rule of thumb when its history is under a year) and is labeled as a projection.
 
