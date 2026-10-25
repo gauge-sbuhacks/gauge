@@ -262,15 +262,29 @@ function priced(cents: number | null, sourceName: string, notes: string): Sugges
     return { amountCents: cents, lowCents: null, highCents: null, sourceName, notes };
 }
 
-// property stays manual. when no provider returned a fair market value, one deterministic Gemini pass fills FMV only.
+// property stays manual. providers fill fair market first. Gemini runs only when fair market is still empty.
+// quick-sale is always paired with fair market (provider value, or 85% of fair market).
 async function finish(item: IdentifiedItem, deps: LookupDeps, result: Enrichment): Promise<Enrichment> {
     if (result.category === 'property') return result;
-    if (result.suggestedValue?.amountCents) return result;
-    const guess = await deps.estimatePrices({ ...item, category: result.category, name: result.name, brand: result.brand, model: result.model, condition: result.condition, details: result.details });
-    const fair = guess?.fairMarketCents ? priced(guess.fairMarketCents, 'Price check', 'A light fair-market estimate from the details already filled in. Confirm before it is saved.') : null;
-    if (!fair) return result;
-    const note = result.lookupMessage ? `${result.lookupMessage} A price check estimated fair market value.` : 'Fair market value estimated from the details with a price check.';
-    return { ...result, suggestedValue: fair, lookupStatus: 'ready', lookupMessage: note };
+    let next = result;
+    if (!next.suggestedValue?.amountCents) {
+        const guess = await deps.estimatePrices({ ...item, category: next.category, name: next.name, brand: next.brand, model: next.model, condition: next.condition, details: next.details });
+        const fair = guess?.fairMarketCents
+            ? priced(guess.fairMarketCents, 'Price check', 'Deterministic fair-market estimate from the saved details. Confirm before it is saved.')
+            : null;
+        if (fair) {
+            const note = next.lookupMessage ? `${next.lookupMessage} A price check estimated fair market value.` : 'Fair market value estimated from the details with a price check.';
+            next = { ...next, suggestedValue: fair, lookupStatus: 'ready', lookupMessage: note };
+        }
+    }
+    if (next.suggestedValue?.amountCents && !next.quickSale?.amountCents) {
+        const quickCents = Math.max(1, Math.round(next.suggestedValue.amountCents * 0.85));
+        next = {
+            ...next,
+            quickSale: priced(quickCents, next.suggestedValue.sourceName, 'Typical quick-sale estimate (~85% of fair market). Confirm before it is saved.')
+        };
+    }
+    return next;
 }
 
 function valueName(item: IdentifiedItem): string | null {
