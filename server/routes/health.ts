@@ -80,7 +80,7 @@ export async function healthHandler(_req: Request, res: Response) {
             covers: 'Vehicle retail and trade-in values, adjusted for mileage, condition, and title',
             status: vinauditConfigured() ? 'ready' : 'needs_key',
             envVar: 'VINAUDIT_API_KEY',
-            note: 'Trial is 100 queries, and each lookup uses 2. Built, but untested until a key is added.'
+            note: 'Trial is 100 queries, and each lookup uses 2. Market Values must be enabled on the key.'
         },
         {
             id: 'ebay',
