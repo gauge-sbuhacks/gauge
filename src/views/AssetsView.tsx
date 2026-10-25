@@ -3,7 +3,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, FileSpreadsheet, FileText, Plus, Search, ShieldCheck, ShieldOff, ShieldQuestion, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, FileSpreadsheet, FileText, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CATEGORIES } from '@shared/categories.ts';
 import { CONDITION_LABELS, VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
@@ -20,20 +20,20 @@ import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
+import { SellAssetButton } from '@/components/assets/SellAssetButton.tsx';
 import { usePortfolio } from '@/hooks/usePortfolio.ts';
 import { downloadCsv } from '@/lib/export/csv.ts';
 import { formatAge, formatPercent } from '@/lib/format.ts';
-import { distinctLocations, itemGain, latestOf, searchTextOf, totalsFor, valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
+import { distinctLocations, itemGain, latestOf, searchTextOf, totalsFor, valueOf } from '@/lib/portfolio.ts';
 import { cn } from '@/lib/utils.ts';
 
 type SortKey = 'name' | 'category' | 'location' | 'value' | 'cost' | 'gain' | 'record' | 'updated';
-type Status = 'all' | 'incomplete' | 'missing_value' | 'uninsured' | 'sample';
+type Status = 'all' | 'incomplete' | 'missing_value' | 'sample';
 
 const STATUS_LABELS: Record<Status, string> = {
     all: 'Any status',
     incomplete: 'Incomplete records',
     missing_value: 'No current value',
-    uninsured: 'Not insured / not entered',
     sample: 'Test data only'
 };
 
@@ -77,14 +77,6 @@ function SortHead({
     );
 }
 
-export function InsuranceIcon({ item }: { item: PortfolioItem }) {
-    const status = item.asset.insurance;
-    if (status === 'insured' || status === 'scheduled') {
-        return <ShieldCheck className="size-4 text-gain" aria-label={status === 'scheduled' ? 'Scheduled on policy' : 'Insured'} />;
-    }
-    if (status === 'not_insured') return <ShieldOff className="size-4 text-loss" aria-label="Not insured" />;
-    return <ShieldQuestion className="size-4 text-muted-foreground" aria-label="Insurance not entered" />;
-}
 
 export default function AssetsView() {
     const { items, isLoading, error, refetch } = usePortfolio();
@@ -134,9 +126,7 @@ export default function AssetsView() {
                 case 'incomplete':
                     return i.done < i.total;
                 case 'missing_value':
-                    return !i.latest.fair_market && !i.latest.replacement;
-                case 'uninsured':
-                    return !i.covered;
+                    return !i.latest.fair_market && !i.latest.liquidation;
                 case 'sample':
                     return i.asset.isSample;
                 default:
@@ -349,9 +339,7 @@ export default function AssetsView() {
                                     <SortHead {...sortProps} k="gain" className="text-right">Gain / loss</SortHead>
                                     <TableHead className="hidden text-right lg:table-cell">Share</TableHead>
                                     <SortHead {...sortProps} k="record">Record</SortHead>
-                                    <TableHead className="w-8 pr-4">
-                                        <span className="sr-only">Insurance</span>
-                                    </TableHead>
+                                    <TableHead className="pr-4 text-right">Sell</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -406,9 +394,7 @@ export default function AssetsView() {
                                             <TableCell>
                                                 <CompletenessRing done={item.done} total={item.total} />
                                             </TableCell>
-                                            <TableCell className="pr-4">
-                                                <InsuranceIcon item={item} />
-                                            </TableCell>
+                                            <TableCell className="pr-4 text-right"><SellAssetButton id={asset.id}/></TableCell>
                                         </TableRow>
                                     );
                                 })}
@@ -466,6 +452,7 @@ export default function AssetsView() {
                                             {gain && <GainLoss cents={gain.gainCents} className="text-xs" showIcon={false} />}
                                         </div>
                                     </Link>
+                                    <div className="mt-2 flex justify-end px-1"><SellAssetButton id={item.asset.id}/></div>
                                 </li>
                             );
                         })}

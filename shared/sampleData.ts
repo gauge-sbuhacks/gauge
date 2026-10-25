@@ -44,9 +44,6 @@ function fmv(today: Date, months: number, amount: number, extra: Partial<SampleV
     return { valueType: 'fair_market', amountCents: dollars(amount), observedAt: monthsAgo(today, months), source: 'sample', ...extra };
 }
 
-function repl(today: Date, months: number, amount: number, extra: Partial<SampleValuation> = {}): SampleValuation {
-    return { valueType: 'replacement', amountCents: dollars(amount), observedAt: monthsAgo(today, months), source: 'sample', ...extra };
-}
 
 function liq(today: Date, months: number, amount: number, extra: Partial<SampleValuation> = {}): SampleValuation {
     return { valueType: 'liquidation', amountCents: dollars(amount), observedAt: monthsAgo(today, months), source: 'sample', ...extra };
@@ -67,8 +64,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2020-09-12',
                 purchasePriceCents: dollars(57_890),
                 serialNumber: null,
-                insurance: 'insured',
-                insuranceNote: 'Auto policy',
                 notes: 'VIN left blank on purpose. Add it (Edit) to try the free NHTSA decoder.',
                 details: { year: 2020, trim: 'Premium Luxury', mileage: 61_240, purchaseMileage: 18, exteriorColor: 'Stellar Black Metallic', titleStatus: 'clean' }
             },
@@ -77,7 +72,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 fmv(today, 24, 34_600),
                 fmv(today, 12, 31_200),
                 fmv(today, 1, 28_400, { conditionAssumption: 'good', notes: 'Private party, about 61k miles' }),
-                repl(today, 1, 31_900, { notes: 'Dealer retail for a similar 2020 XT6' }),
                 liq(today, 1, 25_500, { notes: 'Dealer trade-in offer' })
             ]
         },
@@ -92,8 +86,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2019-06-28',
                 purchasePriceCents: dollars(540_000),
                 serialNumber: null,
-                insurance: 'insured',
-                insuranceNote: 'Homeowners HO-3',
                 notes: 'Values here are made up. With a RentCast key, use "Get an estimate" under Lookups for a live one.',
                 details: {
                     addressLine1: '89 Carnation Road',
@@ -113,7 +105,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 fmv(today, 23, 651_000),
                 fmv(today, 11, 668_000),
                 fmv(today, 1, 684_000),
-                repl(today, 1, 455_000, { notes: 'Dwelling rebuild cost from the policy declarations page (excludes land)' })
             ]
         },
         {
@@ -127,8 +118,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2022-03-15',
                 purchasePriceCents: dollars(10_250),
                 serialNumber: null,
-                insurance: 'scheduled',
-                insuranceNote: 'Scheduled on the homeowners rider',
                 notes: null,
                 details: { referenceNumber: '126610LN', year: 2022, caseSizeMm: 41, movement: 'automatic', hasBox: true, hasPapers: true }
             },
@@ -137,7 +126,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 fmv(today, 28, 13_100),
                 fmv(today, 16, 12_800),
                 fmv(today, 2, 12_900, { conditionAssumption: 'excellent', notes: 'Full set, box and papers' }),
-                repl(today, 2, 13_500, { notes: 'Dealer price for the same reference' }),
                 liq(today, 2, 11_600, { notes: 'Quick-sale offer' })
             ]
         },
@@ -152,8 +140,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2021-02-20',
                 purchasePriceCents: dollars(2_850),
                 serialNumber: null,
-                insurance: null,
-                insuranceNote: null,
                 notes: 'Bought near the 2021 peak.',
                 details: { kind: 'trading_card', setName: 'Base Set', cardNumber: '4/102', edition: 'Unlimited', grader: 'psa', grade: '8', year: 1999 }
             },
@@ -176,8 +162,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2023-11-14',
                 purchasePriceCents: dollars(2_399),
                 serialNumber: 'SAMPLE-MBP-0423',
-                insurance: 'insured',
-                insuranceNote: 'Covered under homeowners',
                 notes: null,
                 details: { specs: '18GB memory, 512GB SSD', warrantyExpires: daysFromNow(today, 21) }
             },
@@ -185,7 +169,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 fmv(today, 23, 1_700),
                 fmv(today, 11, 1_350),
                 fmv(today, 1, 1_150),
-                repl(today, 1, 1_999, { notes: 'Current equivalent model at retail' })
             ]
         },
         {
@@ -199,12 +182,10 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2022-07-09',
                 purchasePriceCents: dollars(1_699),
                 serialNumber: 'SAMPLE-US22-0915',
-                insurance: null,
-                insuranceNote: null,
                 notes: null,
                 details: { kind: 'instrument', material: 'Alder body, maple neck', year: 2022 }
             },
-            valuations: [fmv(today, 33, 1_250), fmv(today, 4, 1_200), repl(today, 4, 1_749)]
+            valuations: [fmv(today, 33, 1_250), fmv(today, 4, 1_200)]
         },
         {
             asset: {
@@ -217,8 +198,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2020-04-08',
                 purchasePriceCents: dollars(8_900),
                 serialNumber: null,
-                insurance: 'not_insured',
-                insuranceNote: 'Bank safe deposit boxes are not insured by the bank',
                 notes: null,
                 details: { kind: 'coin', metal: 'gold', purity: '22k (.9167)', weightGrams: 169.65, quantity: 5 }
             },
@@ -241,12 +220,10 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2021-01-18',
                 purchasePriceCents: dollars(1_395),
                 serialNumber: null,
-                insurance: 'insured',
-                insuranceNote: null,
                 notes: null,
                 details: { kind: 'furniture', material: 'Mesh, graphite frame' }
             },
-            valuations: [fmv(today, 7, 650), repl(today, 7, 1_805)]
+            valuations: [fmv(today, 7, 650)]
         },
         {
             asset: {
@@ -259,8 +236,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2023-05-27',
                 purchasePriceCents: dollars(599),
                 serialNumber: null,
-                insurance: null,
-                insuranceNote: null,
                 notes: 'No estimate yet, so it shows as Not entered.',
                 details: { warrantyExpires: '2026-05-27' }
             },
@@ -277,8 +252,6 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: null,
                 purchasePriceCents: null,
                 serialNumber: null,
-                insurance: null,
-                insuranceNote: null,
                 notes: 'Inherited, so there is no purchase record.',
                 details: { kind: 'rug', material: 'Hand-knotted wool', dimensions: '8 x 11 ft', year: 1950 }
             },

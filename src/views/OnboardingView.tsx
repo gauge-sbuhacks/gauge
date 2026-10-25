@@ -1,10 +1,11 @@
-// first-run questions, one per screen: name, occupation, and what brings you here. the answers are
+// first-run questions: name, marketplace location, and what brings you here. the answers are
 // saved as the profile, then WelcomeIntro introduces the app. people who already have a profile
 // are sent straight to the dashboard, unless they came to edit it (/onboarding?edit).
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ArrowLeft, ArrowRight, CornerDownLeft, LoaderCircle } from 'lucide-react';
+import { marketLocationSchema, type MarketLocation } from '@shared/marketplace.ts';
 import { PURPOSES, PURPOSE_HINTS, PURPOSE_LABELS, type ProfileRecord, type Purpose } from '@shared/schemas.ts';
 import { Logo } from '@/components/common/Logo.tsx';
 import { FullPageLoading } from '@/components/common/QueryStates.tsx';
@@ -45,7 +46,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     const save = useSaveProfile();
 
     const [name, setName] = useState(initial?.name ?? suggestedName);
-    const [occupation, setOccupation] = useState(initial?.occupation ?? '');
+    const [marketLocation, setMarketLocation] = useState<MarketLocation>(initial?.marketLocation ?? { city: '', region: '', postalCode: '', country: 'US' });
     const [purpose, setPurpose] = useState<Purpose | ''>(initial?.purpose ?? '');
     const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +74,6 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
         }, LEAVE_MS);
     };
 
-    const firstName = name.trim().split(/\s+/)[0] || 'there';
 
     const submitName = (e: FormEvent) => {
         e.preventDefault();
@@ -81,8 +81,11 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
         go(1);
     };
 
-    const submitOccupation = (e: FormEvent) => {
+    const submitLocation = (e: FormEvent) => {
         e.preventDefault();
+        const parsed = marketLocationSchema.safeParse(marketLocation);
+        if (!parsed.success) return setError(parsed.error.issues[0].message);
+        setMarketLocation(parsed.data);
         go(2);
     };
 
@@ -90,7 +93,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
         e.preventDefault();
         if (!purpose) return setError('Pick the closest one.');
         save.mutate(
-            { name: name.trim(), occupation: occupation.trim() || null, purpose },
+            { name: name.trim(), occupation: initial?.occupation ?? null, marketLocation, purpose },
             { onSuccess: () => go(INTRO), onError: (err) => setError(err.message) }
         );
     };
@@ -99,6 +102,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
         ? cn('animate-out fade-out duration-200 ease-in fill-mode-forwards', dir === 1 ? 'slide-out-to-top-4' : 'slide-out-to-bottom-4')
         : cn('animate-in fade-in duration-500 ease-out fill-mode-both', dir === 1 ? 'slide-in-from-bottom-6' : 'slide-in-from-top-6');
 
+    const firstName = name.trim().split(/\s+/)[0] || 'there';
     let stage: ReactNode;
     if (step === 0) {
         stage = (
@@ -128,27 +132,35 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     } else if (step === 1) {
         stage = (
             <Question
-                id="occupation"
-                question={`Nice to meet you, ${firstName}. What do you do?`}
-                help="It helps us understand who uses the app. Skip it if you'd rather not say."
+                id="city"
+                question="Where will you be selling from?"
+                help="Your city and postal code help us research relevant markets. You can update this later. No street address needed."
                 error={error}
-                onSubmit={submitOccupation}
+                onSubmit={submitLocation}
                 onBack={() => go(0)}
-                onSkip={() => {
-                    setOccupation('');
-                    go(2);
-                }}
+                enterHint={false}
             >
-                <Input
-                    id="occupation"
-                    autoFocus
-                    autoComplete="organization-title"
-                    value={occupation}
-                    onChange={(e) => setOccupation(e.target.value)}
-                    placeholder="Nurse, software engineer, student..."
-                    maxLength={80}
-                    className="h-12 px-3.5 text-lg md:text-lg"
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {([
+                        ['city', 'City', 'address-level2', 'New York'],
+                        ['region', 'State / region', 'address-level1', 'NY'],
+                        ['postalCode', 'ZIP / postal code', 'postal-code', '10001'],
+                        ['country', 'Country', 'country', 'United States']
+                    ] as const).map(([key, label, complete, placeholder]) => (
+                        <label key={key} className="space-y-2 text-sm font-medium">
+                            <span>{label}</span>
+                            {key === 'country' ? <Select value={marketLocation.country} onValueChange={country => { setMarketLocation(v => ({ ...v, country })); setError(null); }}>
+                                <SelectTrigger id="country" className="w-full" aria-label="Country"><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {[['US','United States'],['CA','Canada'],['GB','United Kingdom'],['AU','Australia'],['DE','Germany'],['FR','France'],['JP','Japan'],['NL','Netherlands'],['CH','Switzerland']].map(([code,name]) => <SelectItem key={code} value={code}>{name}</SelectItem>)}
+                                    {!['US','CA','GB','AU','DE','FR','JP','NL','CH'].includes(marketLocation.country) && <SelectItem value={marketLocation.country}>{marketLocation.country}</SelectItem>}
+                                </SelectContent>
+                            </Select> : <Input id={key} autoFocus={key === 'city'} autoComplete={complete} placeholder={placeholder}
+                                maxLength={key === 'postalCode' ? 16 : 100}
+                                value={marketLocation[key]} onChange={e => { setMarketLocation(v => ({ ...v, [key]: e.target.value })); setError(null); }} />}
+                        </label>
+                    ))}
+                </div>
             </Question>
         );
     } else if (step === 2) {

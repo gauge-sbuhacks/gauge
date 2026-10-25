@@ -1,6 +1,8 @@
 // setup: what's configured (sign-in, database, data providers), which keys are missing,
 // and the test data controls. reads /api/health, which only reports names and yes/no, never secrets.
 
+import { Link } from 'react-router';
+import { useProfile } from '@/hooks/useProfile.ts';
 import { CircleCheck, CircleDashed, CircleX, Clock, Database, FlaskConical, KeyRound, LoaderCircle, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import type { HealthResponse, ProviderStatus } from '@shared/schemas.ts';
 import { useTestData } from '@/components/common/TestDataControls.tsx';
@@ -33,6 +35,8 @@ function StatusLine({ ok, warn, title, message }: { ok: boolean; warn?: boolean;
 }
 
 const ENV_VARS: { name: string; where: 'server' | 'browser'; needed: string; what: string }[] = [
+    { name: 'EBAY_CLIENT_ID', where: 'server', needed: 'For live market research', what: 'eBay production application ID for active comparable listings.' },
+    { name: 'EBAY_CLIENT_SECRET', where: 'server', needed: 'For live market research', what: 'eBay production secret. Keep it on the API only.' },
     { name: 'MONGODB_URI', where: 'server', needed: 'For deploys', what: 'MongoDB Atlas connection string. Locally it falls back to MongoDB on this computer.' },
     { name: 'VITE_CLERK_PUBLISHABLE_KEY', where: 'browser', needed: 'For sign-in', what: 'Clerk publishable key (pk_...). Turns on the sign-in screen.' },
     { name: 'CLERK_PUBLISHABLE_KEY', where: 'server', needed: 'For sign-in', what: 'The same pk_... key, for the API.' },
@@ -70,6 +74,8 @@ function HealthCards({ health }: { health: HealthResponse }) {
 }
 
 export default function SettingsView() {
+    const profile=useProfile();
+    const sellingLocation=profile.data?.profile?.marketLocation;
     const health = useHealth();
     const { sampleCount, loadSample, removeSample, busy } = useTestData();
 
@@ -77,12 +83,17 @@ export default function SettingsView() {
         <div className="space-y-6">
             <PageHeader title="Setup" description={`What ${APP_NAME} is connected to, and what still needs a key.`} />
 
+                <Card>
+                <CardHeader><CardTitle>Selling location</CardTitle><CardDescription>Used for marketplace research and relevant platform searches.</CardDescription></CardHeader>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">{sellingLocation ? `${sellingLocation.city}, ${sellingLocation.region} · ${sellingLocation.postalCode} · ${sellingLocation.country}` : 'No selling location set yet'}</p><Button variant="outline" asChild><Link to="/onboarding?edit">Update location</Link></Button></CardContent>
+            </Card>
+
             {health.isLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <LoaderCircle className="size-4 animate-spin" /> Checking...
                 </div>
             ) : health.error ? (
-                <Card>
+            <Card>
                     <CardContent>
                         <StatusLine ok={false} title="Can't reach the API" message={`${health.error.message} Locally, npm run dev starts both the site and the API.`} />
                     </CardContent>

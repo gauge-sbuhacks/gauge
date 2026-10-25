@@ -1,4 +1,4 @@
-// a labeled headline number with a line of context underneath (coverage, delta...)
+// a labeled headline number with a line of context underneath (asset count, change...)
 
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils.ts';

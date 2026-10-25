@@ -3,6 +3,7 @@
 // because a half-finished edit and an uncertain suggestion have different rules than a saved record.
 
 import { z } from 'zod';
+import { marketLocationSchema, type MarketLocation } from './marketplace.js';
 import { CATEGORY_IDS, type CategoryId, type Details } from './categories.js';
 import { MAX_CENTS, SUPPORTED_CURRENCIES, type Currency } from './money.js';
 
@@ -27,46 +28,28 @@ export const CONDITION_HINTS: Record<Condition, string> = {
     poor: 'Damaged or needs repair'
 };
 
-export const INSURANCE_STATUSES = ['insured', 'scheduled', 'not_insured'] as const;
-export type InsuranceStatus = (typeof INSURANCE_STATUSES)[number];
-
-export const INSURANCE_LABELS: Record<InsuranceStatus, string> = {
-    insured: 'Insured',
-    scheduled: 'Scheduled on policy',
-    not_insured: 'Not insured'
-};
-
-export const INSURANCE_HINTS: Record<InsuranceStatus, string> = {
-    insured: 'Covered by a homeowners, renters, or auto policy',
-    scheduled: 'Listed individually on a policy (common for jewelry, watches, art)',
-    not_insured: 'No coverage for this item'
-};
-
 // value types we record as dated observations. cost basis comes from purchase info instead
-export const OBSERVED_VALUE_TYPES = ['fair_market', 'replacement', 'liquidation'] as const;
+export const OBSERVED_VALUE_TYPES = ['fair_market', 'liquidation'] as const;
 export type ObservedValueType = (typeof OBSERVED_VALUE_TYPES)[number];
 
-export const VALUE_TYPES = ['fair_market', 'replacement', 'liquidation', 'cost_basis'] as const;
+export const VALUE_TYPES = ['fair_market', 'liquidation', 'cost_basis'] as const;
 export type ValueType = (typeof VALUE_TYPES)[number];
 
 export const VALUE_TYPE_LABELS: Record<ValueType, string> = {
     fair_market: 'Fair market value',
-    replacement: 'Replacement cost',
-    liquidation: 'Liquidation value',
+    liquidation: 'Quick-sale value',
     cost_basis: 'Cost basis'
 };
 
 export const VALUE_TYPE_SHORT: Record<ValueType, string> = {
     fair_market: 'Fair market',
-    replacement: 'Replacement',
-    liquidation: 'Liquidation',
+    liquidation: 'Quick sale',
     cost_basis: 'Cost basis'
 };
 
 export const VALUE_TYPE_HINTS: Record<ValueType, string> = {
     fair_market: 'What it would sell for between a willing buyer and seller',
-    replacement: 'What it would cost to replace today (what insurers care about)',
-    liquidation: 'What you would get selling it quickly',
+    liquidation: 'Your recorded estimate for selling quickly',
     cost_basis: 'What you paid, from the purchase info'
 };
 
@@ -125,8 +108,6 @@ const assetFields = {
     purchasePriceCents: cents('Purchase price'),
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     serialNumber: text(80, 'Serial number'),
-    insurance: z.enum(INSURANCE_STATUSES).nullable().optional(),
-    insuranceNote: text(160, 'Insurance note'),
     notes: text(4000, 'Notes'),
     details: detailsInput.optional(),
     estimate: estimateInputSchema.nullable().optional()
@@ -192,8 +173,6 @@ export interface AssetRecord {
     purchasePriceCents: number | null;
     currency: Currency;
     serialNumber: string | null;
-    insurance: InsuranceStatus | null;
-    insuranceNote: string | null;
     notes: string | null;
     details: Details;
     isSample: boolean;
@@ -398,11 +377,11 @@ export interface MetalValueResult {
 
 // ---------- profile (filled in during onboarding) ----------
 
-export const PURPOSES = ['insurance', 'net_worth', 'collecting', 'estate', 'moving', 'business', 'exploring'] as const;
+export const PURPOSES = ['selling', 'net_worth', 'collecting', 'estate', 'moving', 'business', 'exploring'] as const;
 export type Purpose = (typeof PURPOSES)[number];
 
 export const PURPOSE_LABELS: Record<Purpose, string> = {
-    insurance: 'Insurance inventory and claims',
+    selling: 'Selling at a fair price',
     net_worth: 'Tracking what my things are worth',
     collecting: 'Managing a collection',
     estate: 'Estate or financial planning',
@@ -413,7 +392,7 @@ export const PURPOSE_LABELS: Record<Purpose, string> = {
 
 // what onboarding says Gauge will do for each purpose
 export const PURPOSE_HINTS: Record<Purpose, string> = {
-    insurance: 'Serial numbers, receipts, and replacement costs in one claim-ready export.',
+    selling: 'Compare market evidence and prepare your items for sale.',
     net_worth: 'Fair market totals and value history, built from the values you record.',
     collecting: 'Grades, reference numbers, and price history for each piece.',
     estate: 'A dated inventory with values your family or advisor can actually use.',
@@ -425,11 +404,13 @@ export const PURPOSE_HINTS: Record<Purpose, string> = {
 export const profileInputSchema = z.object({
     name: z.string().trim().min(1, 'Tell us what to call you').max(80, 'Keep your name under 80 characters'),
     occupation: text(80, 'Occupation'),
+    marketLocation: marketLocationSchema.nullable().optional(),
     purpose: z.enum(PURPOSES, { error: 'Pick what brings you here' })
 });
 export type ProfileInput = z.input<typeof profileInputSchema>;
 
 export interface ProfileRecord {
+    marketLocation: MarketLocation | null;
     name: string;
     occupation: string | null;
     purpose: Purpose;

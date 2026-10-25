@@ -7,7 +7,6 @@ import { getCategory, isFieldVisible } from '@shared/categories.ts';
 import { representativeCents } from '@shared/money.ts';
 import {
     CONDITION_LABELS,
-    INSURANCE_LABELS,
     OBSERVED_VALUE_TYPES,
     VALUATION_SOURCE_LABELS,
     VALUE_TYPE_LABELS,
@@ -134,13 +133,13 @@ export function InventoryDoc({ items, ownerName, filtered }: { items: PortfolioI
                     <Text style={s.cId}>Identifier</Text>
                     <Text style={s.cMoney}>Cost basis</Text>
                     <Text style={s.cMoney}>Fair market</Text>
-                    <Text style={s.cMoney}>Replacement</Text>
+                    <Text style={s.cMoney}>Quick sale</Text>
                     <Text style={s.cDate}>Value as of</Text>
                 </View>
                 {items.map((item) => {
                     const fm = item.latest.fair_market;
-                    const rp = item.latest.replacement;
-                    const asOf = [fm?.observedAt, rp?.observedAt].filter(Boolean).sort().pop();
+                    const quick = item.latest.liquidation;
+                    const asOf = [fm?.observedAt, quick?.observedAt].filter(Boolean).sort().pop();
                     return (
                         <View key={item.asset.id} style={s.tableRow} wrap={false}>
                             <Text style={s.cName}>{plain(item.asset.name)}</Text>
@@ -148,7 +147,7 @@ export function InventoryDoc({ items, ownerName, filtered }: { items: PortfolioI
                             <Text style={s.cId}>{item.identifier ? plain(item.identifier.value) : 'Not entered'}</Text>
                             <Text style={s.cMoney}>{money(item.asset.purchasePriceCents)}</Text>
                             <Text style={s.cMoney}>{money(fm ? representativeCents(fm) : null)}</Text>
-                            <Text style={s.cMoney}>{money(rp ? representativeCents(rp) : null)}</Text>
+                            <Text style={s.cMoney}>{money(quick ? representativeCents(quick) : null)}</Text>
                             <Text style={s.cDate}>{asOf ? formatDate(asOf) : ''}</Text>
                         </View>
                     );
@@ -174,7 +173,6 @@ export function InventoryDoc({ items, ownerName, filtered }: { items: PortfolioI
                                 <KV k="Serial number" v={a.serialNumber} />
                                 <KV k="Purchase date" v={a.purchaseDate ? formatDate(a.purchaseDate) : null} />
                                 <KV k="Purchase price" v={a.purchasePriceCents != null ? money(a.purchasePriceCents) : null} />
-                                <KV k="Insurance" v={a.insurance ? `${INSURANCE_LABELS[a.insurance]}${a.insuranceNote ? ` (${a.insuranceNote})` : ''}` : null} />
                                 {detailPairs(item).map((d) => (
                                     <KV key={d.k} k={d.k} v={d.v} />
                                 ))}

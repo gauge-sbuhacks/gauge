@@ -1,6 +1,7 @@
 // the only file that calls fetch. every request goes through request(), which adds the
 // clerk session token (when sign-in is on) and turns error responses into ApiError.
 
+import type { MarketResearch } from '@shared/marketplace.ts';
 import type {
     AssetCreateInput,
     AssetPatchInput,
@@ -81,6 +82,8 @@ async function request<T>(method: string, path: string, body?: unknown, acceptSt
 // ---------- endpoints ----------
 
 export const api = {
+    getMarketResearch: (id: string) => request<{ report: MarketResearch | null }>('GET', `/assets/${id}/market-research`),
+    researchMarket: (id: string) => request<{ report: MarketResearch }>('POST', `/assets/${id}/market-research`),
     health: () => request<HealthResponse>('GET', '/health', undefined, [503]),
 
     getProfile: () => request<ProfileResponse>('GET', '/profile'),

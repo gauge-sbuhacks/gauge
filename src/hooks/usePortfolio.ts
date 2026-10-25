@@ -28,7 +28,7 @@ export function useHealth() {
 
 function useRefresh() {
     const qc = useQueryClient();
-    return () => qc.invalidateQueries({ queryKey: portfolioKey });
+    return () => Promise.all([qc.invalidateQueries({ queryKey: portfolioKey }),qc.invalidateQueries({ queryKey: ['market-research'] })]);
 }
 
 export function useCreateAsset() {

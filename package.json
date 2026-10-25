@@ -13,6 +13,7 @@
         "dev:api": "tsx watch --clear-screen=false server/dev.ts",
         "build": "tsc -b && vite build",
         "typecheck": "tsc -b",
+        "test": "tsx --tsconfig tsconfig.app.json --test tests/*.test.ts",
         "preview": "vite preview",
         "lint": "oxlint"
     },

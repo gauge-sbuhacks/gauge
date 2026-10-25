@@ -1,4 +1,4 @@
-// one asset: its four value types, value history, details, record checklist, and lookups
+// one asset: its three value types, value history, details, record checklist, and lookups
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { getCategory, isFieldVisible, type CategoryField } from '@shared/categories.ts';
 import {
     CONDITION_LABELS,
-    INSURANCE_LABELS,
     VALUATION_SOURCE_LABELS,
     VALUE_TYPE_HINTS,
     VALUE_TYPE_LABELS,
@@ -39,6 +38,7 @@ import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
+import { SellingPanel } from '@/components/assets/SellingPanel.tsx';
 import { useAssetItem, useDeleteAsset } from '@/hooks/usePortfolio.ts';
 import { formatAge, formatDate, formatNumber } from '@/lib/format.ts';
 import { attentionFor, itemGain, latestOf, valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
@@ -198,7 +198,6 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                 )}
                 {asset.condition && <Badge variant="secondary">{CONDITION_LABELS[asset.condition]} condition</Badge>}
                 {asset.location && asset.category !== 'property' && <Badge variant="secondary">{asset.location}</Badge>}
-                <Badge variant="secondary">{asset.insurance ? INSURANCE_LABELS[asset.insurance] : 'Insurance not entered'}</Badge>
                 {gain && (
                     <span className="ml-1 inline-flex items-center gap-1 text-sm">
                         <GainLoss cents={gain.gainCents} ratio={gain.ratio} />
@@ -207,12 +206,14 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                 )}
             </div>
 
-            {/* the four value types, side by side, never summed */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {/* the three value types, side by side, never summed */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {VALUE_TYPES.map((t) => (
                     <ValueCard key={t} item={item} type={t} onAdd={() => openRecord({ valueType: t === 'cost_basis' ? 'fair_market' : t })} />
                 ))}
             </div>
+
+            <SellingPanel item={item} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
                 <div className="space-y-6">
@@ -262,10 +263,6 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                                 <DetailRow label="Purchase price">
                                     <MoneyValue cents={asset.purchasePriceCents} />
                                 </DetailRow>
-                                <DetailRow label="Insurance">
-                                    {asset.insurance ? INSURANCE_LABELS[asset.insurance] : <NotEntered />}
-                                    {asset.insuranceNote && <span className="text-muted-foreground"> ({asset.insuranceNote})</span>}
-                                </DetailRow>
                                 {asset.notes && <DetailRow label="Notes">{asset.notes}</DetailRow>}
                                 <DetailRow label="Added">{formatDate(asset.createdAt.slice(0, 10))}</DetailRow>
                                 <DetailRow label="Last updated">{formatAge(asset.updatedAt.slice(0, 10))}</DetailRow>
@@ -281,7 +278,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                                 <CompletenessRing done={item.done} total={item.total} size={24} showLabel={false} />
                                 Record {item.done} of {item.total}
                             </CardTitle>
-                            <CardDescription>{item.documented ? 'Documented well enough for a claim.' : 'Missing proof for an insurance claim.'}</CardDescription>
+                            <CardDescription>{item.documented ? 'Key details are ready for pricing and selling.' : 'Add details to help buyers understand your item.'}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ul className="space-y-2.5 text-sm">
@@ -309,13 +306,6 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                                         </div>
                                     </li>
                                 ))}
-                                <li className="flex items-start gap-2 text-muted-foreground">
-                                    <Circle className="mt-0.5 size-4 opacity-40" />
-                                    <div>
-                                        Photos
-                                        <div className="text-xs">Coming in the photo phase</div>
-                                    </div>
-                                </li>
                             </ul>
                         </CardContent>
                     </Card>
@@ -331,6 +321,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                         </Card>
                     )}
 
+                    {(['vehicle', 'property', 'jewelry'].includes(asset.category) || (asset.category === 'collectible' && asset.details.kind === 'trading_card')) && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Lookups</CardTitle>
@@ -340,6 +331,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                             <LookupPanel item={item} onRecord={(initial) => openRecord(initial)} />
                         </CardContent>
                     </Card>
+                    )}
 
                     <AlertDialog>
                         <AlertDialogTrigger asChild>

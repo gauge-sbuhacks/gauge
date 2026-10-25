@@ -1,4 +1,4 @@
-// placeholder mark: a little pressure gauge. swap for the real logo during the theme pass
+// placeholder mark: a small value gauge. swap for the real logo during the theme pass
 
 import { APP_NAME } from '@/config.ts';
 import { cn } from '@/lib/utils.ts';

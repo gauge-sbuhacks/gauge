@@ -14,6 +14,9 @@ export function useSaveProfile() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (input: ProfileInput) => api.saveProfile(input),
-        onSuccess: (data) => qc.setQueryData(profileKey, data)
+        onSuccess: (data) => {
+            qc.setQueryData(profileKey, data);
+            void qc.invalidateQueries({ queryKey: ['market-research'] });
+        }
     });
 }

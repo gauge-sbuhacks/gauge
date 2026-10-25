@@ -14,13 +14,9 @@ import {
     CONDITION_HINTS,
     CONDITION_LABELS,
     CONDITIONS,
-    INSURANCE_HINTS,
-    INSURANCE_LABELS,
-    INSURANCE_STATUSES,
     OBSERVED_VALUE_TYPES,
     VALUE_TYPE_HINTS,
     VALUE_TYPE_LABELS,
-    type InsuranceStatus,
     type LookupSuggestion,
     type ObservedValueType,
     type VinLookupResult
@@ -62,7 +58,6 @@ import { todayIso } from '@/lib/format.ts';
 import { distinctLocations, type PortfolioItem } from '@/lib/portfolio.ts';
 import NotFoundView from './NotFoundView.tsx';
 
-const INSURANCE_CHOICES: (InsuranceStatus | '')[] = [...INSURANCE_STATUSES, ''];
 
 export default function AssetFormView({ mode }: { mode: 'create' | 'edit' }) {
     const { id } = useParams();
@@ -78,7 +73,7 @@ export default function AssetFormView({ mode }: { mode: 'create' | 'edit' }) {
 
 // what the live "record completeness" meter counts while you type (mirrors lib/portfolio.ts)
 function liveChecks(v: AssetFormValues) {
-    if (!v.category) return { done: 0, total: 6, items: [] as { label: string; done: boolean }[] };
+    if (!v.category) return { done: 0, total: 5, items: [] as { label: string; done: boolean }[] };
     const def = getCategory(v.category);
     const idFields = def.fields.filter((f) => f.identifier).map((f) => f.key);
     const items = [
@@ -87,7 +82,6 @@ function liveChecks(v: AssetFormValues) {
         { label: 'Current value', done: v.estimateAmount.trim() !== '' },
         { label: 'Condition', done: v.condition !== '' },
         ...(v.category === 'property' ? [] : [{ label: 'Location', done: v.location.trim() !== '' }]),
-        { label: 'Insurance status', done: v.insurance !== '' }
     ];
     return { done: items.filter((i) => i.done).length, total: items.length, items };
 }
@@ -372,11 +366,11 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                         </CardContent>
                     </Card>
 
-                    {/* ---------- identification + coverage ---------- */}
+                    {/* ---------- identification ---------- */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Proof and coverage</CardTitle>
-                            <CardDescription>What an insurer would ask for after a loss.</CardDescription>
+                            <CardTitle>Identification</CardTitle>
+                            <CardDescription>Details that help identify your item and verify its model.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-5">
                             <Field
@@ -388,43 +382,6 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                 <Input id="serialNumber" {...register('serialNumber')} maxLength={80} autoComplete="off" spellCheck={false} className="font-mono" />
                             </Field>
 
-                            <Field label="Insurance" error={errors.insurance?.message}>
-                                <Controller
-                                    control={control}
-                                    name="insurance"
-                                    render={({ field }) => (
-                                        <div role="radiogroup" aria-label="Insurance" className="grid gap-2 sm:grid-cols-2">
-                                            {INSURANCE_CHOICES.map((s) => {
-                                                const active = field.value === s;
-                                                return (
-                                                    <button
-                                                        key={s || 'unknown'}
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={active}
-                                                        onClick={() => field.onChange(s)}
-                                                        className={`flex items-start gap-2 rounded-lg border p-2.5 text-left ${active ? 'border-foreground/60 bg-muted ring-1 ring-foreground/30' : 'hover:bg-muted/60'}`}
-                                                    >
-                                                        <span className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border ${active ? 'border-primary bg-primary text-primary-foreground' : ''}`}>
-                                                            {active && <Check className="size-3" />}
-                                                        </span>
-                                                        <span>
-                                                            <span className="block text-sm font-medium">{s ? INSURANCE_LABELS[s] : 'Not sure yet'}</span>
-                                                            <span className="block text-xs text-muted-foreground">{s ? INSURANCE_HINTS[s] : 'Shows as not entered'}</span>
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                />
-                            </Field>
-
-                            {(values.insurance === 'insured' || values.insurance === 'scheduled') && (
-                                <Field label="Policy note" htmlFor="insuranceNote" help='Like "Homeowners HO-3" or "Jewelry rider"'>
-                                    <Input id="insuranceNote" {...register('insuranceNote')} maxLength={160} autoComplete="off" />
-                                </Field>
-                            )}
                         </CardContent>
                     </Card>
 
@@ -448,7 +405,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                     <CompletenessRing done={checks.done} total={checks.total} size={26} showLabel={false} />
                                     Record {checks.done} of {checks.total}
                                 </CardTitle>
-                                <CardDescription>Complete records are easier to insure and claim.</CardDescription>
+                                <CardDescription>Complete records make pricing and selling easier.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {checks.items.length === 0 ? (

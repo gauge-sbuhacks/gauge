@@ -25,8 +25,6 @@ export function samplePortfolioItems(today = new Date()): PortfolioItem[] {
             purchasePriceCents: a.purchasePriceCents ?? null,
             currency: 'USD',
             serialNumber: a.serialNumber ?? null,
-            insurance: a.insurance ?? null,
-            insuranceNote: a.insuranceNote ?? null,
             notes: a.notes ?? null,
             details: a.details,
             isSample: true,

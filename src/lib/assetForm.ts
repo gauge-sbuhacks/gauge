@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { detailsSchemaFor, getCategory, isCategoryId, isFieldVisible, type CategoryId, type Details } from '@shared/categories.ts';
 import { centsToInput, parseMoneyInput } from '@shared/money.ts';
-import type { AssetCreateInput, Condition, InsuranceStatus, ObservedValueType } from '@shared/schemas.ts';
+import type { AssetCreateInput, Condition, ObservedValueType } from '@shared/schemas.ts';
 import { todayIso } from './format.ts';
 import type { PortfolioItem } from './portfolio.ts';
 
@@ -19,8 +19,6 @@ export interface AssetFormValues {
     purchaseDate: string;
     purchasePrice: string;
     serialNumber: string;
-    insurance: InsuranceStatus | '';
-    insuranceNote: string;
     notes: string;
     // every category field as a string; booleans are 'true' / 'false' / ''
     details: Record<string, string>;
@@ -42,8 +40,6 @@ export function emptyFormValues(): AssetFormValues {
         purchaseDate: '',
         purchasePrice: '',
         serialNumber: '',
-        insurance: '',
-        insuranceNote: '',
         notes: '',
         details: {},
         estimateType: 'fair_market',
@@ -73,8 +69,6 @@ export function formValuesFromItem(item: PortfolioItem): AssetFormValues {
         purchaseDate: a.purchaseDate ?? '',
         purchasePrice: centsToInput(a.purchasePriceCents),
         serialNumber: a.serialNumber ?? '',
-        insurance: a.insurance ?? '',
-        insuranceNote: a.insuranceNote ?? '',
         notes: a.notes ?? '',
         details,
         estimateType: 'fair_market',
@@ -127,8 +121,6 @@ export function toPayload(values: AssetFormValues): AssetCreateInput {
         purchaseDate: values.purchaseDate || null,
         purchasePriceCents: parseMoneyInput(values.purchasePrice) ?? null,
         serialNumber: values.serialNumber.trim() || null,
-        insurance: values.insurance || null,
-        insuranceNote: values.insuranceNote.trim() || null,
         notes: values.notes.trim() || null,
         details: toDetails(category, values.details) as Details,
         estimate: amount != null ? { valueType: values.estimateType, amountCents: amount, observedAt: values.estimateDate || todayIso() } : null

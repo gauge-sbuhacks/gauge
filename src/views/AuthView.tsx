@@ -11,7 +11,7 @@ import { APP_NAME } from '@/config.ts';
 const POINTS = [
     { icon: PackagePlus, text: 'Record what you own, with serials, receipts, and where it is kept.' },
     { icon: History, text: 'Keep every value with its date, so history builds up on its own.' },
-    { icon: FileDown, text: 'Export a claim-ready inventory the day you need it.' }
+    { icon: FileDown, text: 'Export an inventory with current values and purchase records.' }
 ];
 
 export default function AuthView({ mode }: { mode: 'sign-in' | 'sign-up' }) {

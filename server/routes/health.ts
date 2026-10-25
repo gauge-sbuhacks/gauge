@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import type { HealthResponse } from '../../shared/schemas.js';
 import { connectDb } from '../db/connect.js';
 import { clerkConfigured, getEnv } from '../env.js';
+import { ebayConfigured } from '../marketplace/ebay.js';
 import { rentcastConfigured } from '../lookups/rentcast.js';
 import { vinauditConfigured } from '../lookups/vinaudit.js';
 
@@ -50,6 +51,7 @@ export async function healthHandler(_req: Request, res: Response) {
 
     // ---------- data providers ----------
     const providers: HealthResponse['providers'] = [
+        { id: 'ebay', label: 'eBay', covers: 'Comparable active listings for US items in USD', status: ebayConfigured() ? 'ready' : 'needs_key', envVar: 'EBAY_CLIENT_ID + EBAY_CLIENT_SECRET', note: 'Production Browse API access required. Asking prices, not completed sales.' },
         {
             id: 'nhtsa_vpic',
             label: 'NHTSA vPIC',
@@ -83,14 +85,6 @@ export async function healthHandler(_req: Request, res: Response) {
             note: 'Trial is 100 queries, and each lookup uses 2. Market Values must be enabled on the key.'
         },
         {
-            id: 'ebay',
-            label: 'eBay Browse',
-            covers: 'Current listing prices for general goods',
-            status: 'planned',
-            envVar: null,
-            note: 'Asking prices only. Sold prices (Marketplace Insights) need eBay approval.'
-        },
-        {
             id: 'cards',
             label: 'TCGdex / Scryfall',
             covers: 'Pokémon and Magic card prices (TCGplayer market, ungraded)',
@@ -106,14 +100,6 @@ export async function healthHandler(_req: Request, res: Response) {
             envVar: null,
             note: 'Free, no key. Live spot prices.'
         },
-        {
-            id: 'claude_vision',
-            label: 'Claude vision',
-            covers: 'Photo-based identification (last phase)',
-            status: 'planned',
-            envVar: null,
-            note: 'Waits until photo uploads exist.'
-        }
     ];
 
     const ok = auth.mode !== 'misconfigured' && database.connected;

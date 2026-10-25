@@ -656,14 +656,6 @@ function MetalLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (init
 
 // ---------- everything else ----------
 
-const PLANNED: Partial<Record<string, string>> = {
-    watch: 'Watch market values (WatchCharts, paid) are on the list.',
-    collectible: 'Card prices cover Pokémon and Magic: set the type to Trading card (Edit). Record prices (Discogs) are on the list.',
-    electronics: 'Retail replacement prices (Best Buy) and barcode lookup are on the list.',
-    household: 'Current listing prices (eBay Browse) are on the list.',
-    equipment: 'Current listing prices (eBay Browse) are on the list.',
-    other: 'Current listing prices (eBay Browse) are on the list.'
-};
 
 export function LookupPanel({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
     const { category, details } = item.asset;
@@ -673,7 +665,7 @@ export function LookupPanel({ item, onRecord }: { item: PortfolioItem; onRecord:
     if (category === 'collectible' && details.kind === 'trading_card') return <CardLookups item={item} onRecord={onRecord} />;
     return (
         <p className="text-sm text-muted-foreground">
-            No automatic lookups for this category yet. {PLANNED[item.asset.category]} For now, record values by hand.
+            Use the market research panel above to compare current listings.
         </p>
     );
 }

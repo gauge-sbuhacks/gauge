@@ -1,10 +1,12 @@
 // asset + valuation routes. the rule for every query here: filter by ownerId, never by id alone,
 // so one user can never read or change another user's things (a wrong owner just looks like "not found").
 
+import { MarketReport } from './marketplace.js';
 import { Router } from 'express';
 import type { z } from 'zod';
 import { detailsSchemaFor, getCategory, isCategoryId, type CategoryId, type Details } from '../../shared/categories.js';
 import {
+    OBSERVED_VALUE_TYPES,
     assetCreateSchema,
     assetPatchSchema,
     valuationCreateSchema,
@@ -33,8 +35,6 @@ const SIMPLE_FIELDS = [
     'purchasePriceCents',
     'currency',
     'serialNumber',
-    'insurance',
-    'insuranceNote',
     'notes'
 ] as const;
 
@@ -107,7 +107,7 @@ async function addEstimate(ownerId: string, assetId: WithId<AssetDoc>['_id'], es
 }
 
 async function assetResponse(ownerId: string, doc: WithId<AssetDoc>): Promise<AssetResponse> {
-    const valuations = await Valuation.find({ ownerId, assetId: doc._id })
+    const valuations = await Valuation.find({ ownerId, assetId: doc._id, valueType: { $in: OBSERVED_VALUE_TYPES } })
         .sort({ observedAt: 1, createdAt: 1 })
         .lean<WithId<ValuationDoc>[]>();
     return { asset: toAssetRecord(doc), valuations: valuations.map(toValuationRecord) };
@@ -119,7 +119,7 @@ assetsRouter.get('/assets', async (_req, res) => {
     const ownerId = ownerIdOf(res);
     const [assets, valuations] = await Promise.all([
         Asset.find({ ownerId }).sort({ updatedAt: -1 }).lean<WithId<AssetDoc>[]>(),
-        Valuation.find({ ownerId }).sort({ observedAt: 1, createdAt: 1 }).lean<WithId<ValuationDoc>[]>()
+        Valuation.find({ ownerId, valueType: { $in: OBSERVED_VALUE_TYPES } }).sort({ observedAt: 1, createdAt: 1 }).lean<WithId<ValuationDoc>[]>()
     ]);
     const body: PortfolioResponse = { assets: assets.map(toAssetRecord), valuations: valuations.map(toValuationRecord) };
     res.json(body);
@@ -152,8 +152,6 @@ assetsRouter.post('/assets', async (req, res) => {
         purchasePriceCents: input.purchasePriceCents ?? null,
         currency: input.currency ?? 'USD',
         serialNumber: input.serialNumber ?? null,
-        insurance: input.insurance ?? null,
-        insuranceNote: input.insuranceNote ?? null,
         notes: input.notes ?? null,
         details,
         isSample: false
@@ -200,6 +198,7 @@ assetsRouter.delete('/assets/:id', async (req, res) => {
     const result = await Asset.deleteOne({ _id: req.params.id, ownerId });
     if (result.deletedCount === 0) throw notFound('That asset');
     await Valuation.deleteMany({ ownerId, assetId: req.params.id });
+    await MarketReport.deleteMany({ ownerId, assetId: req.params.id });
     res.status(204).end();
 });
 

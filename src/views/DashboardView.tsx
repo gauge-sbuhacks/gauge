@@ -3,12 +3,11 @@
 
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Boxes, FlaskConical, Plus, Scale, ShieldAlert, Wallet } from 'lucide-react';
+import { Boxes, FlaskConical, Plus, Scale, Wallet } from 'lucide-react';
 import { VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { AllocationDonut } from '@/components/charts/AllocationDonut.tsx';
-import { BarList } from '@/components/charts/BarList.tsx';
+import { LiquidityDashboard } from '@/components/charts/LiquidityDashboard.tsx';
 import { HistoryChart, clipHistory } from '@/components/charts/HistoryChart.tsx';
-import { PressureBreakdown, PressureGauge } from '@/components/charts/PressureGauge.tsx';
 import { AttentionList } from '@/components/common/AttentionList.tsx';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
@@ -25,12 +24,10 @@ import { usePortfolio } from '@/hooks/usePortfolio.ts';
 import { formatDate, formatMoney, formatPercent, todayIso } from '@/lib/format.ts';
 import {
     allocationByCategory,
-    allocationByLocation,
     attentionFor,
     foldSlices,
     gainLossFor,
     portfolioHistory,
-    pressureFor,
     totalsFor,
     valueOf
 } from '@/lib/portfolio.ts';
@@ -70,19 +67,16 @@ export default function DashboardView() {
         const totals = totalsFor(scoped, valueType);
         const cost = totalsFor(scoped, 'cost_basis');
         const gain = gainLossFor(scoped);
-        const pressure = pressureFor(scoped);
         const slices = foldSlices(allocationByCategory(scoped, valueType));
-        const locations = allocationByLocation(scoped, valueType).slice(0, 6);
         const history = portfolioHistory(scoped, valueType);
         const attention = attentionFor(scoped);
-        const byType = VALUE_TYPES.map((t) => ({ type: t, ...totalsFor(scoped, t) }));
         const top = scoped
             .map((i) => ({ item: i, cents: valueOf(i, valueType) }))
             .filter((x): x is { item: typeof x.item; cents: number } => x.cents != null)
             .sort((a, b) => b.cents - a.cents)
             .slice(0, 6);
         const incomplete = scoped.filter((i) => i.done < i.total).length;
-        return { totals, cost, gain, pressure, slices, locations, history, attention, byType, top, incomplete };
+        return { totals, cost, gain, slices, history, attention, top, incomplete };
     }, [scoped, valueType]);
 
     if (isLoading) return <LoadingBlock label="Loading your portfolio" />;
@@ -115,11 +109,10 @@ export default function DashboardView() {
         );
     }
 
-    const { totals, cost, gain, pressure, slices, locations, history, attention, byType, top, incomplete } = model;
+    const { totals, cost, gain, slices, history, attention, top, incomplete } = model;
     const typeLabel = VALUE_TYPE_LABELS[valueType];
     const typeShort = VALUE_TYPE_SHORT[valueType].toLowerCase();
     const shown = clipHistory(history, rangeStart(range));
-    const atRisk = pressure.undocumentedCents + pressure.uncoveredCents;
 
     const rangePicker = (
         <Segmented
@@ -211,7 +204,7 @@ export default function DashboardView() {
             </Card>
 
             {/* kpi row */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <StatTile
                     label="Cost basis"
                     icon={<Wallet className="size-4" />}
@@ -238,16 +231,12 @@ export default function DashboardView() {
                         )
                     }
                 />
-                <StatTile
-                    label="Value at risk"
-                    icon={<ShieldAlert className="size-4" />}
-                    value={formatMoney(atRisk)}
-                    sub={pressure.totalCents ? `${formatPercent(pressure.ratio ?? 0)} of value is uninsured or missing proof` : 'Add values to measure'}
-                />
             </div>
 
-            {/* allocation + pressure */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <LiquidityDashboard items={scoped} />
+
+            {/* allocation */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                 <Card>
                     <CardHeader>
                         <CardTitle>Allocation by category</CardTitle>
@@ -261,64 +250,6 @@ export default function DashboardView() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Pressure</CardTitle>
-                        <CardDescription>How much of your value would be hard to prove or recover after a fire or flood.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                        <PressureGauge pressure={pressure} />
-                        <PressureBreakdown pressure={pressure} />
-                        <p className="text-xs text-muted-foreground">Weighted by replacement cost, or fair market value when replacement isn't entered.</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* value types + locations */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Four ways to value it</CardTitle>
-                        <CardDescription>Each value type is totaled separately. They are never added together.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <BarList
-                            rows={byType.map((t) => ({
-                                key: t.type,
-                                label: (
-                                    <span className={t.type === valueType ? 'font-medium' : ''}>
-                                        {VALUE_TYPE_LABELS[t.type]}
-                                        {t.type === valueType && <span className="ml-1.5 text-xs text-muted-foreground">(showing)</span>}
-                                    </span>
-                                ),
-                                valueCents: t.counted ? t.totalCents : null,
-                                sub: `${VALUE_TYPE_HINTS[t.type]}. On ${t.counted} of ${t.of}.`
-                            }))}
-                        />
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Where it's kept</CardTitle>
-                        <CardDescription>{typeLabel} by location</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <BarList
-                            rows={locations.map((l) => ({
-                                key: l.key,
-                                label: (
-                                    <span>
-                                        {l.label} <span className="text-xs text-muted-foreground">{l.count}</span>
-                                    </span>
-                                ),
-                                valueCents: l.valueCents,
-                                title: `${formatPercent(l.share)} of the total`
-                            }))}
-                            emptyText="No locations with values yet"
-                        />
-                    </CardContent>
-                </Card>
             </div>
 
             {/* top holdings + attention */}

@@ -13,9 +13,9 @@ import { APP_NAME } from '@/config.ts';
 import { cn } from '@/lib/utils.ts';
 
 const STEPS = [
-    { title: 'Add what you own', text: 'Start with something valuable: a car, a watch, a laptop. A serial number and a receipt make it claim-ready.' },
-    { title: 'Record what it is worth', text: 'Fair market, replacement, and liquidation values are kept with their dates, so history builds up on its own.' },
-    { title: 'Keep the pressure low', text: 'The gauge shows how much of your value is uninsured or missing proof, and which items to fix first.' }
+    { title: 'Add what you own', text: 'Start with something valuable: a car, a watch, a laptop. Record the model, condition, and purchase details.' },
+    { title: 'Record what it is worth', text: 'Fair market and quick-sale values are kept with their dates, so history builds up on its own.' },
+    { title: 'Understand your resale value', text: 'Compare what you paid with current values and see which items need fresh pricing.' }
 ];
 
 function Arrive({ at, children, className, as: Tag = 'div' }: { at: number; children: ReactNode; className?: string; as?: 'div' | 'li' }) {
@@ -29,7 +29,7 @@ function Arrive({ at, children, className, as: Tag = 'div' }: { at: number; chil
     );
 }
 
-// a large version of the logo mark. the needle comes to rest in the "low pressure" zone
+// a large version of the logo mark. the needle comes to rest in the welcome position
 function WelcomeGauge() {
     const ticks = Array.from({ length: 11 }, (_, i) => {
         const a = Math.PI - (i / 10) * Math.PI;

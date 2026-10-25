@@ -3,7 +3,7 @@
 
 import { getCategory, isFieldVisible } from '@shared/categories.ts';
 import { centsToInput, representativeCents } from '@shared/money.ts';
-import { CONDITION_LABELS, INSURANCE_LABELS, VALUATION_SOURCE_LABELS, type ValuationRecord } from '@shared/schemas.ts';
+import { CONDITION_LABELS, VALUATION_SOURCE_LABELS, type ValuationRecord } from '@shared/schemas.ts';
 import type { PortfolioItem } from '@/lib/portfolio.ts';
 import { downloadBlob, exportFilename } from './download.ts';
 
@@ -57,14 +57,9 @@ export function buildCsv(items: PortfolioItem[]): string {
         'Fair market value (USD)',
         'Fair market as of',
         'Fair market source',
-        'Replacement cost (USD)',
-        'Replacement as of',
-        'Replacement source',
-        'Liquidation value (USD)',
-        'Liquidation as of',
-        'Liquidation source',
-        'Insurance',
-        'Insurance note',
+        'Quick-sale value (USD)',
+        'Quick sale as of',
+        'Quick sale source',
         'Record completeness',
         'Details',
         'Notes',
@@ -85,10 +80,7 @@ export function buildCsv(items: PortfolioItem[]): string {
             asset.purchaseDate,
             dollars(asset.purchasePriceCents),
             ...valueCells(item.latest.fair_market),
-            ...valueCells(item.latest.replacement),
             ...valueCells(item.latest.liquidation),
-            asset.insurance ? INSURANCE_LABELS[asset.insurance] : null,
-            asset.insuranceNote,
             `${item.done} of ${item.total}`,
             detailsText(item),
             asset.notes,

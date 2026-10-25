@@ -37,9 +37,12 @@ export function parseIsoDate(iso: string): Date {
     return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
 
-export function todayIso(): string {
-    const d = new Date();
+export function localDateIso(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function todayIso(): string {
+    return localDateIso(new Date());
 }
 
 const dateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

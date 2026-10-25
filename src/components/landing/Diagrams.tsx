@@ -3,18 +3,17 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronRight, FileDown, Gauge, History, PackagePlus, type LucideIcon } from 'lucide-react';
-import { INSURANCE_LABELS, VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, type ValueType } from '@shared/schemas.ts';
+import { VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, type ValueType } from '@shared/schemas.ts';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { formatAge, formatMoney, formatMonth } from '@/lib/format.ts';
 import { totalsFor, valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
 import { cn } from '@/lib/utils.ts';
 
-// ---------- one asset, four values ----------
+// ---------- one asset, three values ----------
 
 // short versions of VALUE_TYPE_HINTS that fit beside a bar (the full one is the tooltip)
 const VALUE_ROWS: { type: ValueType; hint: string; bar: string }[] = [
     { type: 'cost_basis', hint: 'What you paid', bar: 'border border-dashed border-foreground/40' },
-    { type: 'replacement', hint: 'To replace it today', bar: 'bg-brass' },
     { type: 'fair_market', hint: 'A fair private sale', bar: 'bg-primary' },
     { type: 'liquidation', hint: 'Selling it quickly', bar: 'bg-muted-foreground/45' }
 ];
@@ -31,7 +30,7 @@ export function AssetValuesDiagram({ item }: { item: PortfolioItem }) {
     const values = VALUE_ROWS.map((r) => valueOf(item, r.type));
     const max = Math.max(...values.map((v) => v ?? 0), 1);
     const history = item.valuations.filter((v) => v.valueType === 'fair_market' && v.amountCents != null);
-    const meta = [item.category.label, asset.location, asset.insurance ? INSURANCE_LABELS[asset.insurance] : null].filter(Boolean).join(' · ');
+    const meta = [item.category.label, asset.location].filter(Boolean).join(' · ');
 
     return (
         <figure className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
@@ -82,7 +81,7 @@ export function AssetValuesDiagram({ item }: { item: PortfolioItem }) {
                 </div>
             )}
 
-            <figcaption className="mt-6 text-xs text-muted-foreground">Four kinds of value, each kept separately and never added together.</figcaption>
+            <figcaption className="mt-6 text-xs text-muted-foreground">Three kinds of value, each kept separately and never added together.</figcaption>
         </figure>
     );
 }
@@ -106,13 +105,13 @@ export function FlowDiagram({ items }: { items: PortfolioItem[] }) {
         {
             icon: PackagePlus,
             title: 'Record',
-            text: 'Add an item with its serial or VIN, purchase date and price, where it is kept, and whether it is insured.',
+            text: 'Add an item with its serial or VIN, purchase date and price, where it is kept and its condition.',
             example: car ? `${car.asset.name}, ${car.asset.location ?? 'no location'}` : 'Your first item'
         },
         {
             icon: History,
             title: 'Value',
-            text: 'Log fair market, replacement, or liquidation values. Each one is dated and kept, so history builds up on its own.',
+            text: 'Log fair market or quick-sale values. Each one is dated and kept, so history builds up on its own.',
             example: carValue != null && carValuedAt ? `Fair market ${formatMoney(carValue)}, ${formatAge(carValuedAt)}` : 'Fair market, dated today'
         },
         {
@@ -124,7 +123,7 @@ export function FlowDiagram({ items }: { items: PortfolioItem[] }) {
         {
             icon: FileDown,
             title: 'Export',
-            text: 'Download a CSV, or a claim-ready PDF inventory with identifiers, purchase records, and current values.',
+            text: 'Download a CSV, or a PDF inventory with identifiers, purchase records, and current values.',
             example: `inventory.pdf, ${items.length} items`
         }
     ];

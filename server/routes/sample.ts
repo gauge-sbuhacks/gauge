@@ -6,6 +6,7 @@ import { buildSamplePortfolio } from '../../shared/sampleData.js';
 import { ownerIdOf } from '../auth.js';
 import { withDb } from '../db/connect.js';
 import { Asset, Valuation } from '../db/models.js';
+import { MarketReport } from './marketplace.js';
 import { cleanDetails } from './assets.js';
 
 export const sampleRouter = Router();
@@ -15,6 +16,7 @@ async function removeSample(ownerId: string): Promise<number> {
     const ids = await Asset.find({ ownerId, isSample: true }).distinct('_id');
     if (ids.length === 0) return 0;
     await Valuation.deleteMany({ ownerId, assetId: { $in: ids } });
+    await MarketReport.deleteMany({ ownerId, assetId: { $in: ids.map(String) } });
     const result = await Asset.deleteMany({ ownerId, isSample: true });
     return result.deletedCount;
 }

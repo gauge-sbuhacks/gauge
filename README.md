@@ -1,6 +1,6 @@
 # Gauge
 
-A net-worth tracker for the things you can touch. You record what you own, what you paid, and what it's worth now, and it turns that into a portfolio: totals per value type, allocation charts, value history, a "pressure" reading for uninsured or undocumented value, and claim-ready exports.
+Understand the value of what you own and prepare to sell it. Gauge combines a physical-asset portfolio, location-aware marketplace searches, comparable asking-price research, and practical selling tools. Track purchase cost, fair market estimates, and quick-sale estimates, with value history and inventory exports.
 
 This is the manual-first version from the plan: everything works by typing things in. Photos, AI identification, and QR phone capture come later.
 
@@ -142,9 +142,21 @@ src/            react site
 
 ## how the numbers work
 
-- Four value types, never added together: fair market, replacement, liquidation (all recorded as dated observations), and cost basis (from the purchase price).
+- Three value types, never added together: fair market, liquidation (all recorded as dated observations), and cost basis (from the purchase price).
 - Every value you record is kept with its date and source, so history builds up. Editing an asset's value adds a new observation instead of overwriting the old one. The newest value of each type is the current one.
 - Values only change when someone records one, by typing it in or saving a lookup result. Nothing fetches prices in the background yet.
 - Totals always say how many assets they cover ("on 9 of 10"). Missing values are "Not entered", never $0.
 - Charts only show recorded values. Nothing is projected.
-- Pressure = share of value (replacement cost, or fair market when replacement is missing) that is uninsured, or insured but missing proof (no current value, or no serial and no purchase record).
+
+
+## Marketplace research and selling
+
+Onboarding collects city, region, postal code, and country for marketplace research. Edit the selling location in Setup or through onboarding. Existing accounts can add a location without losing their assets.
+
+Each asset has a Sell action and a selling panel with platform wordmarks, comparable-search links, selling links, and a copyable listing draft. Zillow is suggested for homes, Cars.com and Facebook for vehicles, Facebook and eBay for household items and tools, and eBay and Facebook for other items.
+
+Live comparable research currently supports US items priced in USD through the eBay Browse API. Set `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` to production credentials with Browse access. Without that connection the app still offers targeted platform searches; it does not invent listings or estimates. Vehicle and home listing aggregation is not yet connected. Existing specialized card, metal, VIN, and property estimate lookups remain available.
+
+The engine filters model, brand, variant, condition, and incompatible items before calculating an interquartile asking range from at least three relevant listings. Outliers are excluded. Active asking prices are explicitly distinguished from sold prices. Estimates can be recorded deliberately as fair market observations with their source. Research reports are private to the asset owner, retained with a timestamp, and invalidated when matching details or location change. Refresh is recommended after a day.
+
+The dashboard compares recorded fair market and quick-sale estimates for the same assets, shows gains and losses against purchase cost, and highlights missing or older market estimates. Fees and shipping are not assumed: users enter selling costs to calculate estimated net proceeds from a comparable asking midpoint. No sale speed or proceeds are guaranteed.

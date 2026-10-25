@@ -1,17 +1,16 @@
 // mongoose models: assets, and valuation snapshots (dated observations of what an asset is worth).
 // every document carries ownerId, and every query in the routes filters on it.
 
+import type { MarketLocation } from '../../shared/marketplace.js';
 import mongoose, { Schema, type Types } from 'mongoose';
 import { CATEGORY_IDS, type CategoryId, type Details } from '../../shared/categories.js';
 import {
     CONDITIONS,
-    INSURANCE_STATUSES,
     OBSERVED_VALUE_TYPES,
     PURPOSES,
     VALUATION_SOURCES,
     type AssetRecord,
     type Condition,
-    type InsuranceStatus,
     type ObservedValueType,
     type ProfileRecord,
     type Purpose,
@@ -34,8 +33,6 @@ export interface AssetDoc {
     purchasePriceCents: number | null;
     currency: Currency;
     serialNumber: string | null;
-    insurance: InsuranceStatus | null;
-    insuranceNote: string | null;
     notes: string | null;
     details: Details;
     isSample: boolean;
@@ -63,8 +60,6 @@ const assetSchema = new Schema<AssetDoc>(
         purchasePriceCents: { type: Number, default: null, min: 0, validate: wholeCents },
         currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'USD' },
         serialNumber: nullableString,
-        insurance: { type: String, enum: [...INSURANCE_STATUSES, null], default: null },
-        insuranceNote: nullableString,
         notes: nullableString,
         details: { type: Schema.Types.Mixed, default: {} },
         isSample: { type: Boolean, default: false }
@@ -124,6 +119,7 @@ export const Valuation =
 // ---------- profiles (one per owner, written by onboarding) ----------
 
 export interface ProfileDoc {
+    marketLocation: MarketLocation | null;
     ownerId: string;
     name: string;
     occupation: string | null;
@@ -138,6 +134,7 @@ const profileSchema = new Schema<ProfileDoc>(
         ownerId: { type: String, required: true, unique: true },
         name: { type: String, required: true, trim: true, maxlength: 80 },
         occupation: nullableString,
+        marketLocation: { type: new Schema({ city: String, region: String, postalCode: String, country: String }, { _id: false }), default: null },
         purpose: { type: String, required: true, enum: PURPOSES },
         onboardedAt: { type: Date, required: true }
     },
@@ -163,8 +160,6 @@ export function toAssetRecord(doc: WithId<AssetDoc>): AssetRecord {
         purchasePriceCents: doc.purchasePriceCents ?? null,
         currency: doc.currency ?? 'USD',
         serialNumber: doc.serialNumber ?? null,
-        insurance: doc.insurance ?? null,
-        insuranceNote: doc.insuranceNote ?? null,
         notes: doc.notes ?? null,
         details: doc.details ?? {},
         isSample: Boolean(doc.isSample),
@@ -176,8 +171,9 @@ export function toAssetRecord(doc: WithId<AssetDoc>): AssetRecord {
 export function toProfileRecord(doc: ProfileDoc): ProfileRecord {
     return {
         name: doc.name,
+        marketLocation: doc.marketLocation ?? null,
         occupation: doc.occupation ?? null,
-        purpose: doc.purpose,
+        purpose: PURPOSES.includes(doc.purpose) ? doc.purpose : 'exploring',
         onboardedAt: new Date(doc.onboardedAt).toISOString()
     };
 }

@@ -23,7 +23,7 @@ profileRouter.put('/profile', async (req, res) => {
     const doc = await Profile.findOneAndUpdate(
         { ownerId },
         {
-            $set: { name: input.name, occupation: input.occupation ?? null, purpose: input.purpose },
+            $set: { name: input.name, occupation: input.occupation ?? null, purpose: input.purpose, marketLocation: input.marketLocation ?? null },
             $setOnInsert: { ownerId, onboardedAt: new Date() }
         },
         { upsert: true, returnDocument: 'after', runValidators: true }

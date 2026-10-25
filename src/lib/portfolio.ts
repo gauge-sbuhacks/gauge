@@ -2,7 +2,7 @@
 // rules from the plan:
 //   - missing values are "not entered", never zero
 //   - every total says which value type it is and how many assets it covers
-//   - never add purchase cost, replacement, and resale together
+//   - never add purchase cost and resale together
 //   - history only comes from recorded observations (no invented past prices)
 
 import { getCategory, identifierFields, type CategoryDef, type CategoryId } from '@shared/categories.ts';
@@ -12,7 +12,7 @@ import { daysBetween, formatDate, parseIsoDate, todayIso } from './format.ts';
 
 // ---------- per-asset model ----------
 
-export type CheckId = 'identifier' | 'purchase' | 'estimate' | 'condition' | 'location' | 'insurance';
+export type CheckId = 'identifier' | 'purchase' | 'estimate' | 'condition' | 'location';
 
 export interface CompletenessCheck {
     id: CheckId;
@@ -33,8 +33,6 @@ export interface PortfolioItem {
     identifier: { label: string; value: string } | null;
     // has a current value and some proof (an identifier or purchase record)
     documented: boolean;
-    // insured or scheduled on a policy
-    covered: boolean;
 }
 
 function identifierOf(asset: AssetRecord): { label: string; value: string } | null {
@@ -57,7 +55,7 @@ function identifierHint(category: CategoryId): string {
 
 function buildItem(asset: AssetRecord, valuations: ValuationRecord[]): PortfolioItem {
     const category = getCategory(asset.category);
-    const latest: PortfolioItem['latest'] = { fair_market: null, replacement: null, liquidation: null };
+    const latest: PortfolioItem['latest'] = { fair_market: null, liquidation: null };
     for (const v of valuations) {
         // valuations arrive oldest first, so the last one of each type wins
         if (v.currency === asset.currency) latest[v.valueType] = v;
@@ -65,14 +63,13 @@ function buildItem(asset: AssetRecord, valuations: ValuationRecord[]): Portfolio
 
     const identifier = identifierOf(asset);
     const hasPurchase = asset.purchaseDate != null || asset.purchasePriceCents != null;
-    const hasEstimate = latest.fair_market != null || latest.replacement != null;
+    const hasEstimate = latest.fair_market != null || latest.liquidation != null;
 
     const checks: CompletenessCheck[] = [
         { id: 'identifier', label: 'Serial or ID', done: identifier != null, hint: identifierHint(asset.category) },
         { id: 'purchase', label: 'Purchase info', done: hasPurchase, hint: 'Add the purchase date or price' },
-        { id: 'estimate', label: 'Current value', done: hasEstimate, hint: 'Record a fair market or replacement value' },
+        { id: 'estimate', label: 'Current value', done: hasEstimate, hint: 'Record a fair market or quick-sale value' },
         { id: 'condition', label: 'Condition', done: asset.condition != null, hint: 'Set the condition' },
-        { id: 'insurance', label: 'Insurance status', done: asset.insurance != null, hint: 'Say whether it is insured' }
     ];
     // a house is its own location
     if (asset.category !== 'property') {
@@ -89,13 +86,13 @@ function buildItem(asset: AssetRecord, valuations: ValuationRecord[]): Portfolio
         total: checks.length,
         identifier,
         documented: hasEstimate && (identifier != null || hasPurchase),
-        covered: asset.insurance === 'insured' || asset.insurance === 'scheduled'
     };
 }
 
 export function buildPortfolio(data: PortfolioResponse): PortfolioItem[] {
     const byAsset = new Map<string, ValuationRecord[]>();
     for (const v of data.valuations) {
+        if (v.valueType !== 'fair_market' && v.valueType !== 'liquidation') continue;
         const list = byAsset.get(v.assetId);
         if (list) list.push(v);
         else byAsset.set(v.assetId, [v]);
@@ -117,11 +114,6 @@ export function valueOf(item: PortfolioItem, type: ValueType): number | null {
 
 export function latestOf(item: PortfolioItem, type: ValueType): ValuationRecord | null {
     return type === 'cost_basis' ? null : item.latest[type];
-}
-
-// what we weigh insurance "pressure" by: replacement cost, or fair market when replacement is missing
-export function protectionValue(item: PortfolioItem): number | null {
-    return valueOf(item, 'replacement') ?? valueOf(item, 'fair_market');
 }
 
 export interface Totals {
@@ -314,43 +306,6 @@ export function assetHistory(item: PortfolioItem, type: ObservedValueType, today
     return points;
 }
 
-// ---------- pressure gauge ----------
-// "how much of what you own would be hard to prove or recover after a fire or flood?"
-
-export type PressureLevel = 'low' | 'building' | 'high' | 'critical';
-
-export interface Pressure {
-    ratio: number | null;
-    level: PressureLevel | null;
-    totalCents: number;
-    protectedCents: number;
-    undocumentedCents: number;
-    uncoveredCents: number;
-    unvaluedCount: number;
-}
-
-export function pressureFor(items: PortfolioItem[]): Pressure {
-    let protectedCents = 0;
-    let undocumentedCents = 0;
-    let uncoveredCents = 0;
-    let unvaluedCount = 0;
-    for (const item of items) {
-        const v = protectionValue(item);
-        if (v == null) {
-            unvaluedCount++;
-            continue;
-        }
-        if (!item.covered) uncoveredCents += v;
-        else if (!item.documented) undocumentedCents += v;
-        else protectedCents += v;
-    }
-    const totalCents = protectedCents + undocumentedCents + uncoveredCents;
-    const ratio = totalCents > 0 ? (undocumentedCents + uncoveredCents) / totalCents : null;
-    let level: PressureLevel | null = null;
-    if (ratio != null) level = ratio < 0.25 ? 'low' : ratio < 0.5 ? 'building' : ratio < 0.75 ? 'high' : 'critical';
-    return { ratio, level, totalCents, protectedCents, undocumentedCents, uncoveredCents, unvaluedCount };
-}
-
 // ---------- needs attention ----------
 
 export type Severity = 'critical' | 'serious' | 'warning' | 'info';
@@ -377,35 +332,31 @@ export function attentionFor(items: PortfolioItem[], today = todayIso()): Attent
     const out: AttentionItem[] = [];
     for (const item of items) {
         const { asset } = item;
-        const value = protectionValue(item) ?? 0;
+        const value = valueOf(item, 'fair_market') ?? valueOf(item, 'liquidation') ?? 0;
         const base = { assetId: asset.id, assetName: asset.name, weightCents: value };
 
         const fmv = item.latest.fair_market;
-        const repl = item.latest.replacement;
-        if (!fmv && !repl) {
-            out.push({ ...base, id: `${asset.id}:value`, severity: 'warning', title: 'No current value', detail: 'Record a fair market or replacement value so it counts in your totals.' });
+        const quick = item.latest.liquidation;
+        if (!fmv && !quick) {
+            out.push({ ...base, id: `${asset.id}:value`, severity: 'warning', title: 'No current value', detail: 'Record a fair market or quick-sale value so it counts in your totals.' });
         } else {
-            const newest = [fmv, repl].filter(Boolean).map((v) => v!.observedAt).sort().pop()!;
+            const newest = [fmv, quick].filter(Boolean).map((v) => v!.observedAt).sort().pop()!;
             const age = daysBetween(newest, today);
             if (age > 365) {
                 out.push({ ...base, id: `${asset.id}:stale`, severity: 'info', title: 'Value is over a year old', detail: 'Prices move. Record a fresh estimate.' });
             }
         }
 
-        if (!item.covered && value >= 100_000) {
-            const title = asset.insurance === 'not_insured' ? 'Not insured' : 'Insurance not entered';
-            out.push({ ...base, id: `${asset.id}:insurance`, severity: value >= 1_000_000 ? 'critical' : 'serious', title, detail: 'Worth $1,000 or more with no recorded coverage.' });
-        }
 
         if (!item.identifier && value >= 500_000 && asset.category !== 'property') {
-            out.push({ ...base, id: `${asset.id}:id`, severity: 'warning', title: 'No serial or ID', detail: 'Insurers and police rely on serial numbers to prove ownership.' });
+            out.push({ ...base, id: `${asset.id}:id`, severity: 'warning', title: 'No serial or ID', detail: 'An identifier helps buyers verify exactly which item you own.' });
         }
 
         const warranty = asset.details.warrantyExpires;
         if (typeof warranty === 'string') {
             const days = daysBetween(today, warranty);
             if (days >= 0 && days <= 60) {
-                out.push({ ...base, id: `${asset.id}:warranty`, severity: 'warning', title: `Warranty ends in ${days} day${days === 1 ? '' : 's'}`, detail: 'Check for issues while it is still covered.' });
+                out.push({ ...base, id: `${asset.id}:warranty`, severity: 'warning', title: `Warranty ends in ${days} day${days === 1 ? '' : 's'}`, detail: 'Check for issues before the warranty expires.' });
             }
         }
 
