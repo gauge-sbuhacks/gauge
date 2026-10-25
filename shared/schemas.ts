@@ -289,6 +289,43 @@ export interface PropertyValueResult {
     notes: string[];
 }
 
+export const vehicleValueQuerySchema = z.object({
+    vin: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[A-HJ-NPR-Z0-9]{17}$/, 'Market values need the full 17-character VIN'),
+    mileage: z.number().int().min(0).max(2_000_000).nullish(),
+    condition: z.enum(CONDITIONS).nullish(),
+    titleStatus: z.string().nullish()
+});
+export type VehicleValueQuery = z.input<typeof vehicleValueQuerySchema>;
+
+export interface VehicleMarketValue {
+    valueCents: number;
+    // the provider's "below market" and "above market" prices
+    lowCents: number | null;
+    highCents: number | null;
+    // how many listings the estimate is based on, and the provider's confidence (0 to 100)
+    sampleCount: number | null;
+    certainty: number | null;
+}
+
+export interface VehicleValueResult {
+    provider: 'vinaudit';
+    providerLabel: string;
+    fetchedAt: string;
+    vehicle: string | null;
+    mileage: number | null;
+    // what dealers list similar cars for, and what a dealer would offer on a trade-in
+    retail: VehicleMarketValue | null;
+    tradeIn: VehicleMarketValue | null;
+    period: { from: string; to: string } | null;
+    // what the provider added or took off for mileage, condition, and title problems (retail)
+    adjustments: { label: string; cents: number }[];
+    notes: string[];
+}
+
 export const CARD_GAMES = ['pokemon', 'magic'] as const;
 export type CardGame = (typeof CARD_GAMES)[number];
 export const CARD_GAME_LABELS: Record<CardGame, string> = { pokemon: 'Pokémon', magic: 'Magic: The Gathering' };

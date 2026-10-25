@@ -79,6 +79,10 @@ export function usePropertyValueLookup() {
     return useMutation({ mutationFn: api.propertyValue });
 }
 
+export function useVehicleValueLookup() {
+    return useMutation({ mutationFn: api.vehicleValue });
+}
+
 export function useCardPriceLookup() {
     return useMutation({ mutationFn: api.cardPrices });
 }

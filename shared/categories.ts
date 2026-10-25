@@ -101,7 +101,8 @@ export const CATEGORIES: CategoryDef[] = [
             },
             { key: 'year', label: 'Year', type: 'integer', min: 1886, max: thisYear + 2, placeholder: String(thisYear) },
             { key: 'trim', label: 'Trim', type: 'text', placeholder: 'Premium Luxury' },
-            { key: 'mileage', label: 'Mileage', type: 'integer', unit: 'mi', min: 0, max: 2_000_000 },
+            { key: 'mileage', label: 'Mileage', type: 'integer', unit: 'mi', min: 0, max: 2_000_000, help: 'Current odometer reading. Market values depend on it.' },
+            { key: 'purchaseMileage', label: 'Mileage when bought', type: 'integer', unit: 'mi', min: 0, max: 2_000_000, help: 'Used to work out what each mile has cost you.' },
             { key: 'exteriorColor', label: 'Color', type: 'text' },
             {
                 key: 'titleStatus',

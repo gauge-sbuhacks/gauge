@@ -14,6 +14,7 @@ import {
     VALUE_TYPES,
     type ValueType
 } from '@shared/schemas.ts';
+import { DepreciationCard } from '@/components/assets/DepreciationCard.tsx';
 import { LookupPanel } from '@/components/assets/LookupPanel.tsx';
 import { ValuationDialog, type ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
 import { ValuationHistory } from '@/components/assets/ValuationHistory.tsx';
@@ -234,6 +235,8 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                             <ValuationHistory item={item} />
                         </CardContent>
                     </Card>
+
+                    {asset.category === 'vehicle' && <DepreciationCard item={item} />}
 
                     <Card>
                         <CardHeader>

@@ -70,7 +70,7 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 insurance: 'insured',
                 insuranceNote: 'Auto policy',
                 notes: 'VIN left blank on purpose. Add it (Edit) to try the free NHTSA decoder.',
-                details: { year: 2020, trim: 'Premium Luxury', mileage: 61_240, exteriorColor: 'Stellar Black Metallic', titleStatus: 'clean' }
+                details: { year: 2020, trim: 'Premium Luxury', mileage: 61_240, purchaseMileage: 18, exteriorColor: 'Stellar Black Metallic', titleStatus: 'clean' }
             },
             valuations: [
                 fmv(today, 36, 39_800),

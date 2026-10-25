@@ -17,6 +17,8 @@ import type {
     RecallLookupResult,
     ValuationCreateInput,
     ValuationRecord,
+    VehicleValueQuery,
+    VehicleValueResult,
     VinLookupResult
 } from '@shared/schemas.ts';
 
@@ -109,6 +111,7 @@ export const api = {
         bathrooms?: number | null;
         squareFeet?: number | null;
     }) => request<PropertyValueResult>('POST', '/lookups/property-value', q),
+    vehicleValue: (q: VehicleValueQuery) => request<VehicleValueResult>('POST', '/lookups/vehicle-value', q),
     cardPrices: (q: CardPriceQuery) => request<CardPriceResult>('POST', '/lookups/card-prices', q),
     metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q)
 };

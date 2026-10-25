@@ -7,6 +7,7 @@ import type { HealthResponse } from '../../shared/schemas.js';
 import { connectDb } from '../db/connect.js';
 import { clerkConfigured, getEnv } from '../env.js';
 import { rentcastConfigured } from '../lookups/rentcast.js';
+import { vinauditConfigured } from '../lookups/vinaudit.js';
 
 export async function healthHandler(_req: Request, res: Response) {
     const env = getEnv();
@@ -74,12 +75,12 @@ export async function healthHandler(_req: Request, res: Response) {
             note: 'Free plan is 50 requests a month. Built, but untested until a key is added.'
         },
         {
-            id: 'carapi',
-            label: 'CarAPI / VinAudit / MarketCheck',
-            covers: 'Vehicle market values',
-            status: 'planned',
-            envVar: null,
-            note: 'Pick one. Pricing and terms still need checking.'
+            id: 'vinaudit',
+            label: 'VinAudit',
+            covers: 'Vehicle retail and trade-in values, adjusted for mileage, condition, and title',
+            status: vinauditConfigured() ? 'ready' : 'needs_key',
+            envVar: 'VINAUDIT_API_KEY',
+            note: 'Trial is 100 queries, and each lookup uses 2. Built, but untested until a key is added.'
         },
         {
             id: 'ebay',

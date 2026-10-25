@@ -38,6 +38,7 @@ Copy `.env.example` to `.env.local`, fill in what you have, and restart `npm run
 | `VITE_CLERK_PUBLISHABLE_KEY` | turns on the Clerk sign-in screen (browser side) |
 | `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` | lets the api check who's calling. Set all three Clerk keys together |
 | `RENTCAST_API_KEY` | home value estimates on real estate assets (free plan: 50 a month) |
+| `VINAUDIT_API_KEY` | retail and trade-in values on vehicles (trial: 100 queries, 2 per lookup) |
 | `GAUGE_ALLOW_DEV_AUTH` | `true` skips sign-in on a Vercel deploy. Everyone shares one account, so test data only |
 
 Only `VITE_` variables reach the browser. Everything else stays on the api side.
@@ -70,6 +71,14 @@ With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sig
 2. **Select Plan** and pick the free one (50 requests a month; it may ask for a card because extra requests are billed)
 3. **Create API Key** and set `RENTCAST_API_KEY`
 4. On a real estate asset, open **Lookups, Get an estimate**. Each lookup uses one request; the same address is cached for a day
+
+### VinAudit (vehicle market values, optional)
+
+1. Request a trial at https://data.vinaudit.com/pricing (up to 100 queries). Make sure the key has **Market Values** enabled; the demo key does not
+2. Set `VINAUDIT_API_KEY`
+3. On a vehicle with the full 17-character VIN, open **Lookups, Market value**. It sends the mileage, condition (mapped to like new, average, or not great), and a salvage or rebuilt title, and returns retail and trade-in values. Each lookup uses 2 queries; the same car is cached for a day
+
+The **Depreciation** card on vehicles needs no key. It uses the purchase price and date, the latest fair market value, and the mileage now and when bought. The five-year projection extends the car's own yearly rate (or a rule of thumb when its history is under a year) and is labeled as a projection.
 
 ### Card prices and metal values (free, no keys)
 
@@ -118,7 +127,7 @@ server/         express api
   auth.ts         clerk, or the local dev user
   db/             mongoose connection + models (assets, valuationSnapshots, profiles)
   routes/         assets, valuations, profile, sample data, lookups, health
-  lookups/        nhtsa (vin + recalls), cards (tcgdex + scryfall), metals (gold-api.com), all free; rentcast (needs a key)
+  lookups/        nhtsa (vin + recalls), cards (tcgdex + scryfall), metals (gold-api.com), all free; rentcast and vinaudit (need keys)
 api/index.ts    vercel entry point (just exports server/app.ts)
 src/            react site
   config.ts       app name and the clerk switch
