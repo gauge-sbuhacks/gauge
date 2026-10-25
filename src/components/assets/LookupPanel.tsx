@@ -185,7 +185,7 @@ function VehicleValueSection({ item, onRecord }: { item: PortfolioItem; onRecord
             { onSuccess: setResult, onError: (err) => toast.error('Market value lookup failed', { description: err.message }) }
         );
 
-    const record = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'replacement' | 'liquidation') => {
+    const record = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'liquidation') => {
         const v = r[kind]!;
         const what = kind === 'retail' ? 'Retail' : 'Trade-in';
         onRecord({
@@ -230,7 +230,7 @@ function VehicleValueSection({ item, onRecord }: { item: PortfolioItem; onRecord
                                 <span className="shrink-0 text-xs text-muted-foreground">{result.providerLabel}</span>
                             </div>
                             {[
-                                { kind: 'retail' as const, label: 'Retail', value: result.retail, actions: [['Fair market', 'fair_market'], ['Replacement', 'replacement']] as const },
+                                { kind: 'retail' as const, label: 'Retail', value: result.retail, actions: [['Fair market', 'fair_market']] as const },
                                 { kind: 'tradeIn' as const, label: 'Trade-in', value: result.tradeIn, actions: [['Liquidation', 'liquidation']] as const }
                             ].map(({ kind, label, value, actions }) => (
                                 <div key={kind} className="space-y-1.5 border-t pt-3 first-of-type:border-t-0 first-of-type:pt-0">
