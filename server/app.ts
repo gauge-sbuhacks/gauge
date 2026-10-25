@@ -5,6 +5,7 @@
 import express from 'express';
 import { authMiddleware, requireUser } from './auth.js';
 import { HttpError, errorHandler } from './errors.js';
+import { capturePublicRouter, captureRouter } from './routes/capture.js';
 import { marketplaceRouter } from './routes/marketplace.js';
 import { assetsRouter } from './routes/assets.js';
 import { healthHandler } from './routes/health.js';
@@ -16,7 +17,12 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 
-app.use(express.json({ limit: '200kb' }));
+const jsonSmall = express.json({ limit: '200kb' });
+const jsonPhoto = express.json({ limit: '6mb' });
+app.use((req, res, next) => {
+    if (req.method === 'POST' && /^\/api\/capture\/[^/]+\/photos$/.test(req.path)) return jsonPhoto(req, res, next);
+    return jsonSmall(req, res, next);
+});
 
 // this is private data. never let a browser or cdn cache an api response
 app.use('/api', (_req, res, next) => {
@@ -27,8 +33,12 @@ app.use('/api', (_req, res, next) => {
 // public: tells the Setup page what is configured (names and booleans only)
 app.get('/api/health', healthHandler);
 
+// the QR token is the phone's credential. it belongs to the desktop user's session.
+app.use('/api', capturePublicRouter);
+
 // everything below needs a user
 app.use('/api', ...authMiddleware(), requireUser);
+app.use('/api', captureRouter);
 app.use('/api', profileRouter);
 app.use('/api', assetsRouter);
 app.use('/api', marketplaceRouter);

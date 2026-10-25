@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Boxes, ClipboardList, LayoutDashboard, LogOut, Menu, Plus, Settings2, UserRound } from 'lucide-react';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { Logo } from '@/components/common/Logo.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet.tsx';
@@ -59,12 +60,12 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 <Logo className="text-sidebar-accent-foreground" />
             </NavLink>
 
-            <Button asChild className="justify-start bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
-                <NavLink to="/assets/new" onClick={onNavigate}>
+            <AddAssetDialog>
+                <Button type="button" className="justify-start bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
                     <Plus data-icon="inline-start" />
                     Add asset
-                </NavLink>
-            </Button>
+                </Button>
+            </AddAssetDialog>
 
             <NavItems onNavigate={onNavigate} />
 
@@ -111,11 +112,11 @@ export default function AppShell() {
             <header className="sticky top-0 z-30 flex items-center justify-between bg-sidebar px-4 py-2.5 text-sidebar-foreground lg:hidden">
                 <Logo className="text-sidebar-accent-foreground" />
                 <div className="flex items-center gap-1">
-                    <Button asChild size="icon" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" aria-label="Add asset">
-                        <NavLink to="/assets/new">
+                    <AddAssetDialog>
+                        <Button type="button" size="icon" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" aria-label="Add asset">
                             <Plus />
-                        </NavLink>
-                    </Button>
+                        </Button>
+                    </AddAssetDialog>
                     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
                         <SheetTrigger asChild>
                             <Button size="icon" variant="ghost" className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" aria-label="Open menu">

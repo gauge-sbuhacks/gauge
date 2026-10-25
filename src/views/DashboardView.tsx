@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Boxes, FlaskConical, Plus, Scale, Wallet } from 'lucide-react';
 import { VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { AllocationDonut } from '@/components/charts/AllocationDonut.tsx';
 import { LiquidityDashboard } from '@/components/charts/LiquidityDashboard.tsx';
 import { HistoryChart, clipHistory } from '@/components/charts/HistoryChart.tsx';
@@ -96,12 +97,12 @@ export default function DashboardView() {
                                 <FlaskConical data-icon="inline-start" />
                                 Load test data
                             </Button>
-                            <Button asChild>
-                                <Link to="/assets/new">
+                            <AddAssetDialog>
+                                <Button type="button">
                                     <Plus data-icon="inline-start" />
                                     Add an asset
-                                </Link>
-                            </Button>
+                                </Button>
+                            </AddAssetDialog>
                         </>
                     }
                 />
@@ -137,12 +138,12 @@ export default function DashboardView() {
                 actions={
                     <>
                         <TestDataMenu />
-                        <Button asChild>
-                            <Link to="/assets/new">
+                        <AddAssetDialog>
+                            <Button type="button">
                                 <Plus data-icon="inline-start" />
                                 Add asset
-                            </Link>
-                        </Button>
+                            </Button>
+                        </AddAssetDialog>
                     </>
                 }
             />

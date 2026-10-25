@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { SellAssetButton } from '@/components/assets/SellAssetButton.tsx';
 import { usePortfolio } from '@/hooks/usePortfolio.ts';
 import { downloadCsv } from '@/lib/export/csv.ts';
@@ -222,12 +223,12 @@ export default function AssetsView() {
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <TestDataMenu />
-                        <Button asChild>
-                            <Link to="/assets/new">
+                        <AddAssetDialog>
+                            <Button type="button">
                                 <Plus data-icon="inline-start" />
                                 Add asset
-                            </Link>
-                        </Button>
+                            </Button>
+                        </AddAssetDialog>
                     </>
                 }
             />
@@ -309,12 +310,12 @@ export default function AssetsView() {
                     title="No assets yet"
                     description="Add something you own, or load the test data from the button above."
                     actions={
-                        <Button asChild>
-                            <Link to="/assets/new">
+                        <AddAssetDialog>
+                            <Button type="button">
                                 <Plus data-icon="inline-start" />
                                 Add an asset
-                            </Link>
-                        </Button>
+                            </Button>
+                        </AddAssetDialog>
                     }
                 />
             ) : filtered.length === 0 ? (

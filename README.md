@@ -2,7 +2,7 @@
 
 Understand the value of what you own and prepare to sell it. Gauge combines a physical-asset portfolio, location-aware marketplace searches, comparable asking-price research, and practical selling tools. Track purchase cost, fair market estimates, and quick-sale estimates, with value history and inventory exports.
 
-This is the manual-first version from the plan: everything works by typing things in. Photos, AI identification, and QR phone capture come later.
+You can type an asset in, or add one from a photo: **Add an asset** offers a manual form or a QR code. The phone opens that code with no extra sign-in, and the picture comes back to the same session.
 
 ## to run it
 
@@ -144,10 +144,20 @@ src/            react site
 
 - Three value types, never added together: fair market, liquidation (all recorded as dated observations), and cost basis (from the purchase price).
 - Every value you record is kept with its date and source, so history builds up. Editing an asset's value adds a new observation instead of overwriting the old one. The newest value of each type is the current one.
-- Values only change when someone records one, by typing it in or saving a lookup result. Nothing fetches prices in the background yet.
+- Values only change when someone records one, by typing it in, saving a lookup, or confirming a phone-capture draft.
 - Totals always say how many assets they cover ("on 9 of 10"). Missing values are "Not entered", never $0.
 - Charts only show recorded values. Nothing is projected.
 
+
+## Phone capture
+
+**Add an asset** opens a choice: enter it manually, or upload a photo. The photo path shows a QR code and waits until a picture arrives. The code carries the capture session, so the phone does not sign in again. The upload is stored on that same account. A one-item link lasts 10 minutes. **Add photos** on an existing asset lasts 45 minutes. Cancel closes the link. The raw token is returned once and only its hash is stored.
+
+Photos upload as JPEG and are stored in MongoDB for that account. Gemini (`GEMINI_API_KEY`) fills a draft. The desktop polls about once a second, then asks you to approve each filled field, one at a time, before the asset is saved. Skip the price if you do not want the suggested fair-market value. Adding photos to an asset that already exists only attaches the pictures. A one-item session closes after its draft is saved or discarded.
+
+Lookups follow what Gemini guessed: a 17-character VIN is decoded (and priced with VinAudit when that key is set), trading cards use TCGdex or Scryfall, jewelry with metal, weight, and purity uses the melt value, and other goods use eBay asking prices when that connection exists. Homes are photos only until you add an address. Vehicle depreciation still appears on the asset page after confirm, and only if you also have a purchase price. It is not invented from the photo.
+
+A QR code that points at `localhost` will not open on a phone. Use the deployed site, or run `npm run dev -- --host` and open the network address on the computer before scanning.
 
 ## Marketplace research and selling
 

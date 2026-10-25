@@ -1,6 +1,7 @@
 // the only file that calls fetch. every request goes through request(), which adds the
 // clerk session token (when sign-in is on) and turns error responses into ApiError.
 
+import type { CaptureApproval, CaptureMode, CaptureSessionView, PhoneCaptureView, PhotoKind } from '@shared/capture.ts';
 import type { MarketResearch } from '@shared/marketplace.ts';
 import type {
     AssetCreateInput,
@@ -116,5 +117,23 @@ export const api = {
     }) => request<PropertyValueResult>('POST', '/lookups/property-value', q),
     vehicleValue: (q: VehicleValueQuery) => request<VehicleValueResult>('POST', '/lookups/vehicle-value', q),
     cardPrices: (q: CardPriceQuery) => request<CardPriceResult>('POST', '/lookups/card-prices', q),
-    metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q)
+    metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q),
+
+    createCaptureSession: (body: { mode: CaptureMode; assetId?: string }) => request<CaptureSessionView>('POST', '/capture-sessions', body),
+    getCaptureSession: (id: string) => request<CaptureSessionView>('GET', `/capture-sessions/${id}`),
+    revokeCaptureSession: (id: string) => request<CaptureSessionView>('POST', `/capture-sessions/${id}/revoke`),
+    confirmCaptureDraft: (id: string, draftId: string, approval?: CaptureApproval) =>
+        request<{ assetId: string; session: CaptureSessionView }>('POST', `/capture-sessions/${id}/drafts/${draftId}/confirm`, approval),
+    photoBlob: async (photoId: string): Promise<Blob> => {
+        const headers: Record<string, string> = { accept: 'image/*' };
+        const token = await getToken();
+        if (token) headers.authorization = `Bearer ${token}`;
+        const res = await fetch(`/api/photos/${photoId}`, { headers });
+        if (!res.ok) throw new ApiError(res.status, 'photo', 'Could not load that photo.');
+        return res.blob();
+    },
+    discardCaptureDraft: (id: string, draftId: string) => request<CaptureSessionView>('POST', `/capture-sessions/${id}/drafts/${draftId}/discard`),
+    phoneCapture: (token: string) => request<PhoneCaptureView>('GET', `/capture/${token}`),
+    uploadCapturePhoto: (token: string, body: { groupId: string; kind: PhotoKind; mime: 'image/jpeg'; data: string }) =>
+        request<{ received: boolean; draftId: string }>('POST', `/capture/${token}/photos`, body)
 };

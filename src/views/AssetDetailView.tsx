@@ -13,6 +13,8 @@ import {
     VALUE_TYPES,
     type ValueType
 } from '@shared/schemas.ts';
+import { AuthImage } from '@/components/assets/AuthImage.tsx';
+import { CapturePairing } from '@/components/assets/CapturePairing.tsx';
 import { DepreciationCard } from '@/components/assets/DepreciationCard.tsx';
 import { LookupPanel } from '@/components/assets/LookupPanel.tsx';
 import { ValuationDialog, type ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
@@ -172,6 +174,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                 }
                 actions={
                     <>
+                        <CapturePairing assetId={asset.id} />
                         <Button variant="outline" onClick={() => openRecord()}>
                             <Plus data-icon="inline-start" />
                             Record a value
@@ -239,6 +242,24 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
 
                     {asset.category === 'vehicle' && <DepreciationCard item={item} />}
 
+                    {(asset.photos?.length ?? 0) > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Photos</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="grid grid-cols-3 gap-2">
+                                    {asset.photos?.map((photo) => (
+                                        <li key={photo.photoId}>
+                                            <AuthImage photoId={photo.photoId} alt={photo.kind} className="aspect-square w-full rounded-lg object-cover" />
+                                            <p className="mt-1 text-xs text-muted-foreground">{photo.kind}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Details</CardTitle>
@@ -298,6 +319,8 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
                                                     <button type="button" onClick={() => openRecord()} className="text-xs font-medium hover:underline">
                                                         {c.hint}
                                                     </button>
+                                                ) : c.id === 'photos' ? (
+                                                    <span className="text-xs text-muted-foreground">{c.hint}</span>
                                                 ) : (
                                                     <Link to={`/assets/${asset.id}/edit`} className="text-xs font-medium hover:underline">
                                                         {c.hint}

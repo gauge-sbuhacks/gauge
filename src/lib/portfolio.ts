@@ -12,7 +12,7 @@ import { daysBetween, formatDate, parseIsoDate, todayIso } from './format.ts';
 
 // ---------- per-asset model ----------
 
-export type CheckId = 'identifier' | 'purchase' | 'estimate' | 'condition' | 'location';
+export type CheckId = 'identifier' | 'purchase' | 'estimate' | 'condition' | 'location' | 'photos';
 
 export interface CompletenessCheck {
     id: CheckId;
@@ -75,6 +75,13 @@ function buildItem(asset: AssetRecord, valuations: ValuationRecord[]): Portfolio
     if (asset.category !== 'property') {
         checks.splice(4, 0, { id: 'location', label: 'Location', done: asset.location != null, hint: 'Say where it is kept' });
     }
+    const photos = asset.photos ?? [];
+    checks.push({
+        id: 'photos',
+        label: 'Photos',
+        done: photos.some((p) => p.kind === 'front'),
+        hint: 'Add a front photo, or capture one with your phone'
+    });
 
     return {
         asset,
