@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { captureStatus, captureTtlMs, reviewSteps, type IdentifiedItem } from '../shared/capture.ts';
-import { coerceFilledDetails, fetchGemini, geminiProblem, parseIdentifyJson, questionPrompt } from '../server/capture/identify.ts';
+import { coerceFilledDetails, fetchGemini, geminiModel, geminiProblem, parseIdentifyJson, questionPrompt } from '../server/capture/identify.ts';
 import { parsePriceJson } from '../server/capture/estimate.ts';
 import { latestReferencePriceCents, mapWatchSearchRow } from '../server/lookups/watches.ts';
 import { suggestValuesForAsset } from '../server/capture/suggest.ts';
@@ -292,7 +292,25 @@ test('an overloaded Gemini is tried again, and its errors read as plain words', 
         if (realKey === undefined) delete process.env.GEMINI_API_KEY;
         else process.env.GEMINI_API_KEY = realKey;
     }
-    assert.match(geminiProblem(429), /request limit/);
+    assert.match(geminiProblem(429), /too many requests/);
+    // the free tier's daily cap says how long until it resets, instead of 'wait a minute'
+    assert.match(geminiProblem(429, 57_126), /daily request limit.*about 16 hours/);
     assert.match(geminiProblem(503), /overloaded/);
     assert.match(geminiProblem(403), /GEMINI_API_KEY/);
+});
+
+test('the Gemini model defaults to flash-lite and can be switched with GEMINI_MODEL', () => {
+    const real = process.env.GEMINI_MODEL;
+    try {
+        delete process.env.GEMINI_MODEL;
+        assert.equal(geminiModel(), 'gemini-3.5-flash-lite');
+        process.env.GEMINI_MODEL = 'gemini-2.5-flash';
+        assert.equal(geminiModel(), 'gemini-2.5-flash');
+        // anything that isn't a plain model name is ignored, so it can't change the request URL
+        process.env.GEMINI_MODEL = 'x/../../other?key=1';
+        assert.equal(geminiModel(), 'gemini-3.5-flash-lite');
+    } finally {
+        if (real === undefined) delete process.env.GEMINI_MODEL;
+        else process.env.GEMINI_MODEL = real;
+    }
 });

@@ -174,15 +174,41 @@ function blankFilled(raw: string): IdentifiedItem | null {
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const RETRY_WAITS_MS = [1500, 4000];
 
-export function geminiProblem(status: number): string {
-    if (status === 429) return 'Gemini has hit its request limit (429). Wait a minute and try again.';
+// how long Google says to wait before the next request, in seconds (from a 429's RetryInfo)
+async function retryAfterSeconds(res: Response): Promise<number | null> {
+    try {
+        const body = (await res.clone().json()) as { error?: { details?: { retryDelay?: string }[] } };
+        const delay = body.error?.details?.find((d) => d.retryDelay)?.retryDelay;
+        const seconds = delay ? Number.parseFloat(delay) : NaN;
+        return Number.isFinite(seconds) ? seconds : null;
+    } catch {
+        return null;
+    }
+}
+
+export function geminiProblem(status: number, retrySeconds: number | null = null): string {
+    if (status === 429 && retrySeconds != null && retrySeconds > 120) {
+        // the free tier's daily cap. it resets at midnight Pacific time; billing on the key's project lifts it
+        const hours = Math.max(1, Math.round(retrySeconds / 3600));
+        return `Gemini's daily request limit for this API key is used up (429). It resets in about ${hours} hour${hours === 1 ? '' : 's'}, or turn on billing for the key's Google project.`;
+    }
+    if (status === 429) return 'Gemini is getting too many requests (429). Wait a minute and try again.';
     if (status === 503 || status === 502 || status === 504 || status === 500) return `Gemini is overloaded right now (${status}). Try again in a moment.`;
     if (status === 400 || status === 401 || status === 403) return `Gemini turned the request down (${status}). Check the GEMINI_API_KEY.`;
-    if (status === 404) return 'The Gemini model was not found (404).';
+    if (status === 404) return `The Gemini model "${geminiModel()}" was not found (404). Set GEMINI_MODEL to a current model.`;
     return `Gemini returned an error (${status}).`;
 }
 
 export class GeminiError extends Error {}
+
+// the model for identifying photos and the price check. each model has its own free-tier daily limit,
+// so GEMINI_MODEL can switch it without a code change (gemini-2.5-flash's free tier is 20 requests a day)
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+
+export function geminiModel(): string {
+    const name = process.env.GEMINI_MODEL?.trim();
+    return name && /^[a-z0-9][a-z0-9.-]*$/i.test(name) ? name : DEFAULT_GEMINI_MODEL;
+}
 
 // one generateContent call with the retries above. returns the response, ok or not
 export async function fetchGemini(body: unknown, timeoutMs: number): Promise<Response> {
@@ -190,7 +216,7 @@ export async function fetchGemini(body: unknown, timeoutMs: number): Promise<Res
         let res: Response;
         try {
             res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
                 { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) }
             );
         } catch (err) {
@@ -198,6 +224,8 @@ export async function fetchGemini(body: unknown, timeoutMs: number): Promise<Res
             throw new GeminiError(timedOut ? 'Gemini took too long to answer. Try again.' : 'Could not reach Gemini. Check the connection and try again.');
         }
         if (res.ok || !RETRY_STATUSES.has(res.status) || attempt >= RETRY_WAITS_MS.length) return res;
+        // a used-up daily limit won't clear in a few seconds, so don't make people wait for nothing
+        if (res.status === 429 && ((await retryAfterSeconds(res)) ?? 0) > 120) return res;
         await new Promise((resolve) => setTimeout(resolve, RETRY_WAITS_MS[attempt]));
     }
 }
@@ -214,7 +242,7 @@ async function gemini(prompt: string, images: { mime: string; base64: string }[]
         },
         25_000
     );
-    if (!res.ok) throw new GeminiError(geminiProblem(res.status));
+    if (!res.ok) throw new GeminiError(geminiProblem(res.status, await retryAfterSeconds(res)));
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     return body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
 }
