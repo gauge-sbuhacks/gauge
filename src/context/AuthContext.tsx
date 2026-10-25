@@ -80,10 +80,11 @@ function ClerkAuth({ children }: { children: ReactNode }) {
     // set during render (not in an effect) so the very first query already sends the token
     setTokenGetter(() => getToken());
 
-    // a different person signed in on this browser: drop the previous person's cached data
+    // someone signed out (or switched accounts): drop their cached data. resetQueries rather than
+    // clear, because clear cancels in-flight requests without telling the components waiting on them
     const lastUserId = useRef(userId);
     useEffect(() => {
-        if (lastUserId.current !== userId) queryClient.clear();
+        if (lastUserId.current && lastUserId.current !== userId) void queryClient.resetQueries();
         lastUserId.current = userId;
     }, [userId, queryClient]);
 
