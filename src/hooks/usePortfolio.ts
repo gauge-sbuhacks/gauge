@@ -73,39 +73,71 @@ export function useRemoveSample() {
     return useMutation({ mutationFn: api.removeSample, onSuccess: refresh });
 }
 
-// lookups don't change saved data, so nothing to refresh
+// ---------- lookups ----------
+// lookups don't change saved data, so nothing to refresh. the same lookup with the same inputs reuses
+// its answer for 10 minutes instead of asking the provider again, so repeat presses and double clicks
+// don't spend quota (RentCast's free plan is 50 a month). a failed lookup isn't kept, so retrying works.
+
+const REMEMBER_MS = 10 * 60_000;
+const recentLookups = new Map<string, { at: number; result: Promise<unknown> }>();
+
+function remembered<Q, R>(name: string, fn: (q: Q) => Promise<R>): (q: Q) => Promise<R> {
+    return (q) => {
+        const key = `${name}:${JSON.stringify(q)}`;
+        const hit = recentLookups.get(key);
+        if (hit && Date.now() - hit.at < REMEMBER_MS) return hit.result as Promise<R>;
+        if (recentLookups.size >= 100) recentLookups.delete(recentLookups.keys().next().value!);
+        const result = fn(q);
+        recentLookups.set(key, { at: Date.now(), result });
+        result.catch(() => recentLookups.delete(key));
+        return result;
+    };
+}
+
+const lookupFns = {
+    vin: remembered('vin', api.decodeVin),
+    recalls: remembered('recalls', api.recalls),
+    property: remembered('property', api.propertyValue),
+    vehicle: remembered('vehicle', api.vehicleValue),
+    cards: remembered('cards', api.cardPrices),
+    metal: remembered('metal', api.metalValue),
+    suggest: remembered('suggest', api.suggestValues),
+    watchSearch: remembered('watchSearch', api.watchSearch),
+    watchValue: remembered('watchValue', api.watchValue)
+};
+
 export function useVinLookup() {
-    return useMutation({ mutationFn: api.decodeVin });
+    return useMutation({ mutationFn: lookupFns.vin });
 }
 
 export function useRecallLookup() {
-    return useMutation({ mutationFn: api.recalls });
+    return useMutation({ mutationFn: lookupFns.recalls });
 }
 
 export function usePropertyValueLookup() {
-    return useMutation({ mutationFn: api.propertyValue });
+    return useMutation({ mutationFn: lookupFns.property });
 }
 
 export function useVehicleValueLookup() {
-    return useMutation({ mutationFn: api.vehicleValue });
+    return useMutation({ mutationFn: lookupFns.vehicle });
 }
 
 export function useCardPriceLookup() {
-    return useMutation({ mutationFn: api.cardPrices });
+    return useMutation({ mutationFn: lookupFns.cards });
 }
 
 export function useMetalValueLookup() {
-    return useMutation({ mutationFn: api.metalValue });
+    return useMutation({ mutationFn: lookupFns.metal });
 }
 
 export function useSuggestValues() {
-    return useMutation({ mutationFn: api.suggestValues });
+    return useMutation({ mutationFn: lookupFns.suggest });
 }
 
 export function useWatchSearchLookup() {
-    return useMutation({ mutationFn: api.watchSearch });
+    return useMutation({ mutationFn: lookupFns.watchSearch });
 }
 
 export function useWatchValueLookup() {
-    return useMutation({ mutationFn: api.watchValue });
+    return useMutation({ mutationFn: lookupFns.watchValue });
 }

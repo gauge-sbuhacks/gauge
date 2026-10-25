@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Controller, useForm, useWatch, type Path, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { parseMoneyInput } from '@shared/money.ts';
@@ -16,11 +16,13 @@ import {
     CONDITION_LABELS,
     CONDITIONS,
     OBSERVED_VALUE_TYPES,
+    PRICE_CHECK_SOURCE,
     VALUE_TYPE_HINTS,
     VALUE_TYPE_LABELS,
     type EstimateInput,
     type LookupSuggestion,
     type ObservedValueType,
+    type PropertyValueResult,
     type VinLookupResult
 } from '@shared/schemas.ts';
 import { ApiError } from '@/api/api.ts';
@@ -30,6 +32,7 @@ import { RailProgress } from '@/components/brand/Railway.tsx';
 import { Gus, type GusPose } from '@/components/brand/Mascots.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
 import { Field, MoneyInput, NameSuggestion, OptionalSelect } from '@/components/assets/FormBits.tsx';
+import { PropertyValueLookup } from '@/components/assets/PropertyValueLookup.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
 import { VehicleValueLookup } from '@/components/assets/VehicleValueLookup.tsx';
 import type { ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
@@ -47,16 +50,8 @@ import {
 } from '@/components/ui/alert-dialog.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
-import { WatchLookupCard } from '@/components/assets/WatchLookupCard.tsx';
-import {
-    useCreateAsset,
-    usePortfolio,
-    useSuggestValues,
-    useVinLookup,
-    useWatchSearchLookup,
-    useWatchValueLookup
-} from '@/hooks/usePortfolio.ts';
-import type { SuggestValuesResult, WatchSearchResult, WatchValueResult } from '@shared/schemas.ts';
+import { useCreateAsset, usePortfolio, useSuggestValues, useVinLookup } from '@/hooks/usePortfolio.ts';
+import type { SuggestValuesResult } from '@shared/schemas.ts';
 import { centsToInput } from '@shared/money.ts';
 import { suggestQueryFromForm } from '@/lib/suggestValues.ts';
 import { DEFAULT_LOCATIONS, assetFormSchema, emptyFormValues, formFieldForServerKey, suggestedName, toPayload, type AssetFormValues } from '@/lib/assetForm.ts';
@@ -71,13 +66,29 @@ import {
     type IdentityField,
     type StepId
 } from '@/lib/addAssetSteps.ts';
-import { todayIso } from '@/lib/format.ts';
+import { formatMoney, todayIso } from '@/lib/format.ts';
 import { distinctLocations } from '@/lib/portfolio.ts';
+import { propertyValueQueryFor } from '@/lib/propertyValue.ts';
 import { cn } from '@/lib/utils.ts';
 import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
 
 const LEAVE_MS = 220;
 const STATION_LABELS: Record<StepId, string> = { category: 'Category', identity: 'Item', details: 'Details', condition: 'Condition', money: 'Value', proof: 'Proof' };
+
+// one line on where an automatic value came from, in plain words
+function roughEstimateNote(sourceName: string): string {
+    if (sourceName === PRICE_CHECK_SOURCE) return 'We ran an AI price check on the details you entered, so treat it as a ballpark, not a quote.';
+    if (sourceName === 'gold-api.com') return "It's the melt value of the metal at today's spot price. Jewelry often sells for more because of its design, brand, or stones.";
+    if (sourceName.startsWith('VinAudit')) return "It's from VinAudit's market data for similar vehicles.";
+    if (sourceName.startsWith('eBay')) return 'It comes from current eBay asking prices, which usually run higher than what things sell for.';
+    return `It comes from ${sourceName}.`;
+}
+
+// what a provider estimate (VinAudit for cars, RentCast for homes) was based on. if the details change
+// after it was filled in, the saved value no longer claims to come from the provider
+function providerSignatureFor(v: AssetFormValues): string {
+    return JSON.stringify(v.category === 'property' ? propertyValueQueryFor(v.details) : vehicleValueQueryFor(v));
+}
 
 // Gus asks every question: calm while asking, alarmed when an answer needs fixing, and stamping the
 // certificate on the last step
@@ -98,12 +109,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const navigate = useNavigate();
     const create = useCreateAsset();
     const vinLookup = useVinLookup();
-    const watchSearch = useWatchSearchLookup();
-    const watchValue = useWatchValueLookup();
     const suggestValues = useSuggestValues();
     const [vinResult, setVinResult] = useState<VinLookupResult | null>(null);
-    const [watchSearchResult, setWatchSearchResult] = useState<WatchSearchResult | null>(null);
-    const [watchPriceResult, setWatchPriceResult] = useState<WatchValueResult | null>(null);
     const saved = useRef(false);
 
     const form = useForm<AssetFormValues>({ defaultValues: emptyFormValues(), resolver: zodResolver(assetFormSchema), mode: 'onTouched' });
@@ -126,24 +133,32 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const suggestSigRef = useRef('');
     const suggestMetaRef = useRef<Pick<SuggestValuesResult, 'fairMarket' | 'quickSale'> | null>(null);
     const [valueHint, setValueHint] = useState<string | null>(null);
+    // the fair market amount we filled in and where it came from, so the step can call it a rough estimate
+    const [autoFilled, setAutoFilled] = useState<{ cents: number; sourceName: string; quickIs85: boolean } | null>(null);
     useEffect(() => () => window.clearTimeout(timer.current), []);
 
     const applySuggestedValues = (result: SuggestValuesResult) => {
         suggestMetaRef.current = { fairMarket: result.fairMarket, quickSale: result.quickSale };
-        let filled = false;
+        let fairFilled = false;
+        let quickFilled = false;
         if (parseMoneyInput(getValues('estimateAmount')) == null && result.fairMarket) {
             setValue('estimateType', 'fair_market', { shouldDirty: true });
             setValue('estimateAmount', centsToInput(result.fairMarket.amountCents), { shouldDirty: true, shouldValidate: true });
             setValue('estimateDate', todayIso(), { shouldDirty: true });
-            filled = true;
+            fairFilled = true;
         }
         if (parseMoneyInput(getValues('quickSaleAmount')) == null && result.quickSale) {
             setValue('quickSaleAmount', centsToInput(result.quickSale.amountCents), { shouldDirty: true, shouldValidate: true });
             setValue('quickSaleDate', todayIso(), { shouldDirty: true });
-            filled = true;
+            quickFilled = true;
         }
-        if (filled) {
-            setValueHint(result.lookupMessage ?? 'Fair market and quick-sale filled from providers when available. Edit before saving.');
+        if (fairFilled && result.fairMarket) {
+            // melt and the price check set quick-sale to 85% of fair market; VinAudit and card prices have their own
+            const quickIs85 = quickFilled && result.quickSale != null && Math.abs(result.quickSale.amountCents - Math.round(result.fairMarket.amountCents * 0.85)) <= 1;
+            setAutoFilled({ cents: result.fairMarket.amountCents, sourceName: result.fairMarket.sourceName, quickIs85 });
+            setValueHint(null);
+        } else if (quickFilled) {
+            setValueHint('Quick-sale was filled in with a rough estimate. Change it if you know better.');
         } else if (!result.fairMarket && !result.quickSale) {
             setValueHint(result.lookupMessage ?? 'No automatic price yet. Enter values or save to retry on the server.');
         }
@@ -258,8 +273,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             const payload = toPayload(current, suggestMetaRef.current);
             const selected = providerEstimate?.estimate;
             if (
-                current.category === 'vehicle' &&
-                providerEstimate?.signature === JSON.stringify(vehicleValueQueryFor(current)) &&
+                (current.category === 'vehicle' || current.category === 'property') &&
+                providerEstimate?.signature === providerSignatureFor(current) &&
                 selected &&
                 payload.estimate?.amountCents === selected.amountCents &&
                 payload.estimate.valueType === selected.valueType &&
@@ -303,72 +318,6 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             }
         });
     };
-    const watchLookupQuery = () => ({
-        brand: (getValues('brand') ?? '').trim(),
-        reference: (getValues('details.referenceNumber') ?? '').trim() || undefined,
-        model: (getValues('model') ?? '').trim() || undefined,
-        name: (getValues('name') ?? '').trim() || undefined
-    });
-
-    const lookupWatchReference = () => {
-        const q = watchLookupQuery();
-        if (!q.brand) {
-            toast.error('Add the brand first');
-            return;
-        }
-        const ref = q.reference?.trim() ?? '';
-        const model = q.model?.trim() ?? '';
-        const name = q.name?.trim() ?? '';
-        if (ref.length < 3 && model.length < 2 && name.length < 3) {
-            setError('details.referenceNumber', { message: 'Add a reference, model, or name to search' });
-            return;
-        }
-        watchSearch.mutate(q, {
-            onSuccess: (r) => {
-                setWatchSearchResult(r);
-                setWatchPriceResult(null);
-            },
-            onError: (err) => toast.error('Watch search failed', { description: err.message })
-        });
-    };
-
-    const fetchWatchPrices = () => {
-        const q = watchLookupQuery();
-        if (!q.brand) {
-            toast.error('Add the brand first');
-            return;
-        }
-        if (!(q.reference || (q.model && q.model.length >= 2) || (q.name && q.name.length >= 3))) {
-            toast.error('Add a reference, model, or name to price');
-            return;
-        }
-        watchValue.mutate(q, {
-            onSuccess: setWatchPriceResult,
-            onError: (err) => toast.error('Watch price lookup failed', { description: err.message })
-        });
-    };
-
-    const applyWatchMatch = (index: number) => {
-        const match = watchSearchResult?.matches[index];
-        if (!match) return;
-        setValue('brand', match.brand, { shouldDirty: true, shouldValidate: true });
-        if (match.model) setValue('model', match.model, { shouldDirty: true, shouldValidate: true });
-        if (match.referenceNumber !== '—') {
-            setValue('details.referenceNumber', match.referenceNumber, { shouldDirty: true, shouldValidate: true });
-        }
-        if (match.movement) setValue('details.movement', match.movement, { shouldDirty: true, shouldValidate: true });
-        if (match.caseSizeMm != null) setValue('details.caseSizeMm', String(match.caseSizeMm), { shouldDirty: true, shouldValidate: true });
-        toast.success('Filled watch details from The Watch API');
-    };
-
-    const applyWatchPrices = () => {
-        if (!watchPriceResult?.fairMarketCents) return;
-        setValue('estimateType', 'fair_market', { shouldDirty: true });
-        setValue('estimateAmount', centsToInput(watchPriceResult.fairMarketCents), { shouldDirty: true, shouldValidate: true });
-        setValue('estimateDate', todayIso(), { shouldDirty: true });
-        toast.success('Applied fair market from The Watch API');
-    };
-
     const applySuggestions = (chosen: LookupSuggestion[]) => {
         const setText = setValue as (name: Path<AssetFormValues>, value: string, opts: { shouldDirty: boolean; shouldValidate: boolean }) => void;
         for (const s of chosen) setText(s.field as Path<AssetFormValues>, String(s.value), { shouldDirty: true, shouldValidate: true });
@@ -405,6 +354,36 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         });
         toast.success('Estimate filled in. Save the vehicle to record it.');
     };
+    const applyPropertyEstimate = (r: PropertyValueResult) => {
+        if (r.valueCents == null) return;
+        const observedAt = todayIso();
+        setValue('estimateType', 'fair_market', { shouldDirty: true });
+        setValue('estimateAmount', centsToInput(r.valueCents), { shouldDirty: true, shouldValidate: true });
+        setValue('estimateDate', observedAt, { shouldDirty: true, shouldValidate: true });
+        setProviderEstimate({
+            signature: providerSignatureFor(getValues()),
+            estimate: {
+                valueType: 'fair_market',
+                amountCents: r.valueCents,
+                observedAt,
+                source: 'provider',
+                sourceName: 'RentCast AVM',
+                method: 'Automated valuation from nearby comparable homes',
+                conditionAssumption: null,
+                vehicleTrim: null,
+                notes: [
+                    'Automated estimate',
+                    r.lowCents != null && r.highCents != null && `Range ${formatMoney(r.lowCents)} to ${formatMoney(r.highCents)}`,
+                    r.comparables.length > 0 && `Based on ${r.comparables.length} nearby listings`,
+                    ...r.notes
+                ]
+                    .filter(Boolean)
+                    .join('. ')
+                    .slice(0, 1000)
+            }
+        });
+        toast.success('Home estimate filled in. Save the property to record it.');
+    };
     const canSaveEarly = index >= 2 && Boolean(values.name?.trim());
 
     // does this step have a mistake showing? (Gus looks alarmed until it's fixed)
@@ -432,34 +411,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         optional = false;
         body = (
             <div className="space-y-5">
-                <IdentityInputs
-                    form={form}
-                    category={category}
-                    onDecodeVin={decodeVin}
-                    decoding={vinLookup.isPending}
-                    onLookupWatchReference={category === 'watch' ? lookupWatchReference : undefined}
-                    lookingUpWatch={watchSearch.isPending}
-                />
-                {category === 'watch' && (
-                    <WatchLookupCard
-                        brand={values.brand ?? ''}
-                        model={values.model ?? ''}
-                        name={values.name ?? ''}
-                        reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
-                        searching={watchSearch.isPending}
-                        pricing={watchValue.isPending}
-                        searchResult={watchSearchResult}
-                        priceResult={watchPriceResult}
-                        onSearch={lookupWatchReference}
-                        onPrice={fetchWatchPrices}
-                        onApplyMatch={applyWatchMatch}
-                        onApplyPrices={applyWatchPrices}
-                        onDismiss={() => {
-                            setWatchSearchResult(null);
-                            setWatchPriceResult(null);
-                        }}
-                    />
-                )}
+                <IdentityInputs form={form} category={category} onDecodeVin={decodeVin} decoding={vinLookup.isPending} />
                 {vinResult && (
                     <SuggestionReview
                         key={vinResult.fetchedAt + vinResult.vin}
@@ -540,30 +492,10 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         question = 'What did you pay, and what is it worth now?';
         help =
             category === 'property'
-                ? 'Leave anything you don\'t know blank. After saving, you can get a home value estimate from the asset page.'
+                ? 'Leave anything you don\'t know blank. Get a home value estimate below, or type in your own.'
                 : 'Leave anything you don\'t know blank. It shows as "Not entered", never $0.';
         body = (
             <div className="space-y-6">
-                {category === 'watch' && (
-                    <WatchLookupCard
-                        brand={values.brand ?? ''}
-                        model={values.model ?? ''}
-                        name={values.name ?? ''}
-                        reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
-                        searching={watchSearch.isPending}
-                        pricing={watchValue.isPending}
-                        searchResult={watchSearchResult}
-                        priceResult={watchPriceResult}
-                        onSearch={lookupWatchReference}
-                        onPrice={fetchWatchPrices}
-                        onApplyMatch={applyWatchMatch}
-                        onApplyPrices={applyWatchPrices}
-                        onDismiss={() => {
-                            setWatchSearchResult(null);
-                            setWatchPriceResult(null);
-                        }}
-                    />
-                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Purchase price" htmlFor="purchasePrice" error={errors.purchasePrice?.message} help="Your cost basis">
                         <MoneyInput id="purchasePrice" {...register('purchasePrice')} aria-invalid={Boolean(errors.purchasePrice) || undefined} />
@@ -573,13 +505,25 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     </Field>
                 </div>
                 {category === 'vehicle' && <VehicleValueLookup query={vehicleQuery} onRecord={applyVehicleEstimate} actionLabel="Use estimate as" />}
+                {category === 'property' && <PropertyValueLookup query={propertyValueQueryFor(values.details ?? {})} onUse={applyPropertyEstimate} />}
                 <div className="rounded-xl border p-4">
                     <p className="text-sm font-medium">Current value</p>
                     <p className="text-xs text-muted-foreground">
-                        {suggestValues.isPending
-                            ? 'Looking up melt, market, or price-check estimates from what you entered…'
-                            : 'Filled automatically when we can (metal melt, VinAudit, cards, watches, or a price check). Saved as the first point in its value history.'}
+                        {category === 'property'
+                            ? 'Use the home estimate above, or type your own. Saved as the first point in its value history.'
+                            : suggestValues.isPending
+                              ? 'Looking up a rough estimate from what you entered…'
+                              : 'We fill in a rough estimate when we can (metal melt, VinAudit, card prices, or an AI price check). Saved as the first point in its value history.'}
                     </p>
+                    {autoFilled && !suggestValues.isPending && parseMoneyInput(values.estimateAmount) === autoFilled.cents && (
+                        <div className="mt-3 flex gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                            <p>
+                                <span className="font-semibold text-foreground">Rough estimate.</span> {roughEstimateNote(autoFilled.sourceName)}
+                                {autoFilled.quickIs85 ? ' Quick-sale is set to about 85% of it.' : ''} Change it if you know better.
+                            </p>
+                        </div>
+                    )}
                     {valueHint && !suggestValues.isPending && <p className="mt-2 text-xs text-muted-foreground">{valueHint}</p>}
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                         <Field label="Value type" htmlFor="estimateType" help={VALUE_TYPE_HINTS[values.estimateType]}>
@@ -717,21 +661,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
 
 // the identity step's inputs, in the category's order: shared brand / model boxes mixed with the
 // category's own fields (VIN and year for a car, the address for a house)
-function IdentityInputs({
-    form,
-    category,
-    onDecodeVin,
-    decoding,
-    onLookupWatchReference,
-    lookingUpWatch
-}: {
-    form: UseFormReturn<AssetFormValues>;
-    category: CategoryId;
-    onDecodeVin: () => void;
-    decoding: boolean;
-    onLookupWatchReference?: () => void;
-    lookingUpWatch?: boolean;
-}) {
+function IdentityInputs({ form, category, onDecodeVin, decoding }: { form: UseFormReturn<AssetFormValues>; category: CategoryId; onDecodeVin: () => void; decoding: boolean }) {
     const def = getCategory(category);
     const errors = form.formState.errors;
 
@@ -757,8 +687,6 @@ function IdentityInputs({
                     keys={g}
                     onDecodeVin={category === 'vehicle' ? onDecodeVin : undefined}
                     decoding={decoding}
-                    onLookupWatchReference={category === 'watch' ? onLookupWatchReference : undefined}
-                    lookingUpWatch={lookingUpWatch}
                 />
             );
         } else if (g === 'brand' && groups[i + 1] === 'model') {

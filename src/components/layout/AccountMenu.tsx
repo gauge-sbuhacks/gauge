@@ -1,8 +1,9 @@
-// the signed-in person's menu: who they are, onboarding answers, setup, and sign out.
+// the signed-in person's menu: who they are, onboarding answers, theme, and sign out. the Setup page
+// (/settings) is for the team checking keys, so it isn't linked here.
 // "light" sits on the public pages, "dark" sits in the app's gunmetal top bar.
 
 import { useNavigate } from 'react-router';
-import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, Moon, Settings2, Sun, UserRound } from 'lucide-react';
+import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import {
     DropdownMenu,
@@ -60,10 +61,6 @@ export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
                         <DropdownMenuItem onSelect={() => navigate('/onboarding?edit')}>
                             <ClipboardList />
                             Edit your answers
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => navigate('/settings')}>
-                            <Settings2 />
-                            Setup
                         </DropdownMenuItem>
                     </>
                 ) : (

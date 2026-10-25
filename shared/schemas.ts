@@ -395,6 +395,10 @@ export interface SuggestValuesResult {
     lookupMessage: string | null;
 }
 
+// the source name saved with a value that came from the Gemini price check (no provider had a price).
+// it's a rough estimate, so the name says so wherever the value shows up
+export const PRICE_CHECK_SOURCE = 'AI price check';
+
 export interface WatchValueResult {
     provider: 'thewatchapi';
     providerLabel: string;

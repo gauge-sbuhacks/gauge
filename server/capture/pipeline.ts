@@ -1,13 +1,12 @@
 import type { CategoryId, Details } from '../../shared/categories.js';
 import type { IdentifiedItem, SuggestedValue } from '../../shared/capture.js';
-import type { AssetRecord, Condition, LookupSuggestion, WatchValueQuery } from '../../shared/schemas.js';
+import { PRICE_CHECK_SOURCE, type AssetRecord, type Condition, type LookupSuggestion } from '../../shared/schemas.js';
 import { estimatePrices, type PriceGuess } from './estimate.js';
 import { cleanDetails } from '../routes/assets.js';
 import { lookupCardPrices } from '../lookups/cards.js';
 import { lookupMetalValue } from '../lookups/metals.js';
 import { decodeVin } from '../lookups/nhtsa.js';
 import { lookupVehicleValue, vinauditConfigured } from '../lookups/vinaudit.js';
-import { lookupWatchValue, theWatchApiConfigured } from '../lookups/watches.js';
 import { ebayConfigured } from '../marketplace/ebay.js';
 import { researchAsset } from '../marketplace/research.js';
 
@@ -31,11 +30,9 @@ export interface LookupDeps {
     cards: typeof lookupCardPrices;
     metal: typeof lookupMetalValue;
     research: typeof researchAsset;
-    watchValue: (query: WatchValueQuery) => ReturnType<typeof lookupWatchValue>;
     estimatePrices: (item: IdentifiedItem) => Promise<PriceGuess | null>;
     vinauditConfigured: () => boolean;
     ebayConfigured: () => boolean;
-    watchConfigured: () => boolean;
 }
 
 const defaultDeps: LookupDeps = {
@@ -44,11 +41,9 @@ const defaultDeps: LookupDeps = {
     cards: lookupCardPrices,
     metal: lookupMetalValue,
     research: researchAsset,
-    watchValue: lookupWatchValue,
     estimatePrices,
     vinauditConfigured,
-    ebayConfigured,
-    watchConfigured: theWatchApiConfigured
+    ebayConfigured
 };
 
 function applySuggestion(item: IdentifiedItem, suggestion: LookupSuggestion) {
@@ -163,47 +158,8 @@ export async function enrichIdentification(input: IdentifiedItem, deps: LookupDe
             });
         }
 
-        if (category === 'watch') {
-            const brand = item.brand?.trim() || '';
-            const reference = typeof item.details.referenceNumber === 'string' ? item.details.referenceNumber.trim() : '';
-            if (!deps.watchConfigured()) {
-                return finish(item, deps, { ...base(), lookupMessage: 'A watch price needs a The Watch API key (THEWATCH_API_KEY).' });
-            }
-            const model = item.model?.trim() || '';
-            const name = item.name?.trim() || '';
-            if (!brand || (!reference && !model && !name)) {
-                return finish(item, deps, {
-                    ...base(),
-                    lookupMessage: 'Needs a brand and a reference, model, or name before The Watch API can price it.'
-                });
-            }
-            const value = await deps.watchValue({ brand, reference: reference || undefined, model: item.model, name: item.name });
-            const fair = value.fairMarketCents
-                ? {
-                      amountCents: value.fairMarketCents,
-                      lowCents: null,
-                      highCents: null,
-                      sourceName: value.sourceName ?? value.providerLabel,
-                      notes: value.notes[0] ?? 'The Watch API asking-price average. Confirm before it is saved.'
-                  }
-                : null;
-            const quick = value.quickSaleCents
-                ? {
-                      amountCents: value.quickSaleCents,
-                      lowCents: null,
-                      highCents: null,
-                      sourceName: value.sourceName ?? value.providerLabel,
-                      notes: value.notes[1] ?? 'Typical quick-sale estimate from The Watch API. Confirm before it is saved.'
-                  }
-                : null;
-            return finish(item, deps, {
-                ...base(),
-                lookupStatus: fair ? 'ready' : 'skipped',
-                lookupMessage: fair ? `Asking-price average from ${value.providerLabel}.` : (value.notes[0] ?? 'The Watch API had no price for that reference.'),
-                suggestedValue: fair,
-                quickSale: quick
-            });
-        }
+        // watches have no provider step: The Watch API never returned usable prices, so a watch is
+        // priced like any other item (eBay when connected, then the price check in finish())
 
         if (category === 'jewelry') {
             const metal = item.details.metal;
@@ -270,7 +226,7 @@ async function finish(item: IdentifiedItem, deps: LookupDeps, result: Enrichment
     if (!next.suggestedValue?.amountCents) {
         const guess = await deps.estimatePrices({ ...item, category: next.category, name: next.name, brand: next.brand, model: next.model, condition: next.condition, details: next.details });
         const fair = guess?.fairMarketCents
-            ? priced(guess.fairMarketCents, 'Price check', 'Deterministic fair-market estimate from the saved details. Confirm before it is saved.')
+            ? priced(guess.fairMarketCents, PRICE_CHECK_SOURCE, 'Rough estimate from an AI price check of the details entered. Not a quote or appraisal.')
             : null;
         if (fair) {
             const note = next.lookupMessage ? `${next.lookupMessage} A price check estimated fair market value.` : 'Fair market value estimated from the details with a price check.';

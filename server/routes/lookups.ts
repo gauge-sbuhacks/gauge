@@ -2,7 +2,7 @@
 // decides what to apply, so a provider can never silently overwrite confirmed data.
 // these are POSTs (not GETs) so vins and addresses stay out of urls and access logs.
 
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import {
     cardPriceQuerySchema,
@@ -33,6 +33,17 @@ lookupsRouter.use('/lookups', (_req, res, next) => {
     next();
 });
 
+// lookups that cost money or have a small free quota get their own, tighter cap per person
+const HOUR = 60 * 60_000;
+function limit(count: number, windowMs: number, message: string): RequestHandler {
+    const allowed = makeRateLimiter(count, windowMs);
+    return (_req, res, next) => (allowed(ownerIdOf(res)) ? next() : next(new HttpError(429, 'rate_limited', message)));
+}
+const homeLimit = limit(5, HOUR, 'Home estimates are limited to 5 an hour. Try again later.');
+const vehicleLimit = limit(10, HOUR, 'Vehicle estimates are limited to 10 an hour. Try again later.');
+const priceCheckLimit = limit(20, 10 * 60_000, 'Too many price checks in a row. Wait a few minutes and try again.');
+const watchLimit = limit(10, HOUR, 'Watch lookups are limited to 10 an hour. Try again later.');
+
 const vinBody = z.object({ vin: z.string().trim().min(1, 'Enter a VIN') });
 
 lookupsRouter.post('/lookups/vin', async (req, res) => {
@@ -62,12 +73,12 @@ const propertyBody = z.object({
     squareFeet: z.number().nullish()
 });
 
-lookupsRouter.post('/lookups/property-value', async (req, res) => {
+lookupsRouter.post('/lookups/property-value', homeLimit, async (req, res) => {
     const query = propertyBody.parse(req.body);
     res.json(await lookupPropertyValue(query));
 });
 
-lookupsRouter.post('/lookups/vehicle-value', async (req, res) => {
+lookupsRouter.post('/lookups/vehicle-value', vehicleLimit, async (req, res) => {
     res.json(await lookupVehicleValue(vehicleValueQuerySchema.parse(req.body)));
 });
 
@@ -79,7 +90,7 @@ lookupsRouter.post('/lookups/metal-value', async (req, res) => {
     res.json(await lookupMetalValue(metalValueQuerySchema.parse(req.body)));
 });
 
-lookupsRouter.post('/lookups/suggest-values', async (req, res) => {
+lookupsRouter.post('/lookups/suggest-values', priceCheckLimit, async (req, res) => {
     const q = suggestValuesQuerySchema.parse(req.body);
     const details = cleanDetails(q.category, q.details ?? {});
     res.json(
@@ -94,10 +105,11 @@ lookupsRouter.post('/lookups/suggest-values', async (req, res) => {
     );
 });
 
-lookupsRouter.post('/lookups/watch-search', async (req, res) => {
+// not used by the add flow anymore (The Watch API never returned usable prices); kept for the team
+lookupsRouter.post('/lookups/watch-search', watchLimit, async (req, res) => {
     res.json(await searchWatchMatches(watchSearchQuerySchema.parse(req.body)));
 });
 
-lookupsRouter.post('/lookups/watch-value', async (req, res) => {
+lookupsRouter.post('/lookups/watch-value', watchLimit, async (req, res) => {
     res.json(await lookupWatchValue(watchValueQuerySchema.parse(req.body)));
 });

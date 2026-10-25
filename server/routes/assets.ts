@@ -8,6 +8,7 @@ import type { z } from 'zod';
 import { detailsSchemaFor, getCategory, isCategoryId, type CategoryId, type Details } from '../../shared/categories.js';
 import {
     OBSERVED_VALUE_TYPES,
+    PRICE_CHECK_SOURCE,
     assetCreateSchema,
     assetPatchSchema,
     valuationCreateSchema,
@@ -31,14 +32,14 @@ function estimateFromSuggestedPart(
     valueType: EstimateInput['valueType'],
     part: { amountCents: number; sourceName: string; notes: string }
 ): EstimateInput {
-    const fromProvider = part.sourceName !== 'Price check';
+    const fromProvider = part.sourceName !== PRICE_CHECK_SOURCE;
     return {
         valueType,
         amountCents: part.amountCents,
         observedAt: todayUtc(),
         source: 'provider',
         sourceName: part.sourceName,
-        method: fromProvider ? part.sourceName : 'Price check',
+        method: fromProvider ? part.sourceName : PRICE_CHECK_SOURCE,
         notes: part.notes,
         vehicleTrim: null
     };

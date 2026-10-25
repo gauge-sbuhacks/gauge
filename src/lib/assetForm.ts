@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { detailsSchemaFor, getCategory, isCategoryId, isFieldVisible, usesCommonField, type CategoryId, type Details } from '@shared/categories.ts';
 import { centsToInput, parseMoneyInput } from '@shared/money.ts';
-import type { AssetCreateInput, Condition, ObservedValueType } from '@shared/schemas.ts';
+import { PRICE_CHECK_SOURCE, type AssetCreateInput, type Condition, type ObservedValueType } from '@shared/schemas.ts';
 import { todayIso } from './format.ts';
 import type { PortfolioItem } from './portfolio.ts';
 
@@ -89,14 +89,14 @@ function estimateFromSuggest(
     observedAt: string,
     from: { sourceName: string; notes: string } | null | undefined
 ): AssetCreateInput['estimate'] {
-    const fromProvider = from?.sourceName && from.sourceName !== 'Price check';
+    const fromProvider = from?.sourceName && from.sourceName !== PRICE_CHECK_SOURCE;
     return {
         valueType,
         amountCents,
         observedAt,
         source: fromProvider ? 'provider' : 'provider',
         sourceName: from?.sourceName ?? (valueType === 'fair_market' ? 'Entered during add' : 'Entered during add'),
-        method: fromProvider ? from!.sourceName : 'Price check',
+        method: fromProvider ? from!.sourceName : PRICE_CHECK_SOURCE,
         notes: from?.notes ?? null,
         vehicleTrim: null
     };

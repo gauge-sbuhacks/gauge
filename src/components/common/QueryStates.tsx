@@ -26,7 +26,8 @@ export function FullPageLoading() {
 export function ErrorPanel({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
     const apiError = error instanceof ApiError ? error : null;
     const message = error instanceof Error ? error.message : 'Something went wrong.';
-    const isSetup = apiError && ['db_unreachable', 'db_not_configured', 'auth_not_configured', 'network'].includes(apiError.code);
+    // only a missing server setting points at Setup; a dropped connection just needs a retry
+    const isSetup = apiError && ['db_unreachable', 'db_not_configured', 'auth_not_configured'].includes(apiError.code);
 
     return (
         <div className="mx-auto max-w-lg rounded-xl bg-card p-6 text-center ring-1 ring-foreground/10">

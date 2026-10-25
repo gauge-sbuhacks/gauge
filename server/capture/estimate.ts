@@ -2,7 +2,12 @@
 
 import type { CategoryId } from '../../shared/categories.js';
 import type { IdentifiedItem } from '../../shared/capture.js';
+import { TtlCache } from '../lookups/cache.js';
 import { geminiConfigured } from './identify.js';
+
+// the same facts get the same answer (temperature 0), so repeat checks reuse it for 6 hours
+// instead of calling Gemini again. failures aren't cached.
+const guessCache = new TtlCache<PriceGuess>(6 * 60 * 60 * 1000, 300);
 
 export interface PriceGuess {
     fairMarketCents: number | null;
@@ -65,13 +70,17 @@ export async function estimatePrices(item: IdentifiedItem): Promise<PriceGuess |
     if (item.category === 'property') return null;
     if (item.category === 'jewelry' && hasMeltInputs(item.details)) return null;
 
+    const prompt = priceCheckPrompt(item);
+    const cached = guessCache.get(prompt);
+    if (cached) return cached;
+
     const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
         {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: priceCheckPrompt(item) }] }],
+                contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: 'application/json',
                     temperature: 0,
@@ -92,5 +101,7 @@ export async function estimatePrices(item: IdentifiedItem): Promise<PriceGuess |
     if (!res.ok) return null;
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
-    return parsePriceJson(text);
+    const guess = parsePriceJson(text);
+    if (guess.fairMarketCents != null) guessCache.set(prompt, guess);
+    return guess;
 }

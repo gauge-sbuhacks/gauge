@@ -81,11 +81,9 @@ function deps(partial: Partial<LookupDeps>): LookupDeps {
         cards: unused as LookupDeps['cards'],
         metal: unused as LookupDeps['metal'],
         research: unused as LookupDeps['research'],
-        watchValue: unused as LookupDeps['watchValue'],
         estimatePrices: async () => null,
         vinauditConfigured: () => false,
         ebayConfigured: () => false,
-        watchConfigured: () => false,
         ...partial
     };
 }
@@ -139,39 +137,26 @@ test('homes and missing price keys are skipped instead of invented', async () =>
     assert.equal(home.lookupStatus, 'skipped');
     assert.equal(home.suggestedValue, null);
 
+    // no price source and no price check: nothing is made up
     const watch = await enrichIdentification(item({ category: 'watch', name: 'Submariner', brand: 'Rolex' }), deps({}));
     assert.equal(watch.suggestedValue, null);
-    assert.match(watch.lookupMessage ?? '', /The Watch API/);
+    assert.equal(watch.quickSale, null);
 });
 
-test('a watch reference uses The Watch API, and a price check only fills missing fair market', async () => {
+test('a watch is priced by the price check, and a price check only fills missing fair market', async () => {
     const priced = await enrichIdentification(
         item({ category: 'watch', name: 'Submariner', brand: 'Rolex', details: { referenceNumber: '126610LN' } }),
         deps({
-            watchConfigured: () => true,
-            watchValue: async (q) => {
-                assert.equal(q.brand, 'Rolex');
-                assert.equal(q.reference, '126610LN');
-                return {
-                    provider: 'thewatchapi',
-                    providerLabel: 'The Watch API',
-                    fetchedAt: '2026-10-25T00:00:00Z',
-                    brand: 'Rolex',
-                    reference: '126610LN',
-                    fairMarketCents: 1_450_000,
-                    quickSaleCents: 1_232_500,
-                    sourceName: 'The Watch API',
-                    method: 'Reference asking-price average',
-                    notes: ['Asking averages.']
-                };
-            },
-            estimatePrices: async () => ({ fairMarketCents: 9_999_999, quickSaleCents: 1_200_000 })
+            estimatePrices: async (it) => {
+                assert.equal(it.brand, 'Rolex');
+                assert.equal(it.details.referenceNumber, '126610LN');
+                return { fairMarketCents: 1_450_000, quickSaleCents: null };
+            }
         })
     );
     assert.equal(priced.suggestedValue?.amountCents, 1_450_000);
-    assert.equal(priced.suggestedValue?.sourceName, 'The Watch API');
+    assert.equal(priced.suggestedValue?.sourceName, 'AI price check');
     assert.equal(priced.quickSale?.amountCents, 1_232_500);
-    assert.equal(priced.quickSale?.sourceName, 'The Watch API');
 
     const guessed = await enrichIdentification(
         item({ category: 'electronics', name: 'Laptop', brand: 'Apple', model: 'MacBook Pro' }),
@@ -180,7 +165,7 @@ test('a watch reference uses The Watch API, and a price check only fills missing
         })
     );
     assert.equal(guessed.suggestedValue?.amountCents, 800_000);
-    assert.equal(guessed.suggestedValue?.sourceName, 'Price check');
+    assert.equal(guessed.suggestedValue?.sourceName, 'AI price check');
     assert.equal(guessed.quickSale?.amountCents, 680_000);
 });
 
