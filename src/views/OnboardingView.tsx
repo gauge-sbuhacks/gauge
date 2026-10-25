@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, CornerDownLeft, LoaderCircle } from 'lucide-reac
 import { marketLocationSchema, type MarketLocation } from '@shared/marketplace.ts';
 import { PURPOSES, PURPOSE_HINTS, PURPOSE_LABELS, type ProfileRecord, type Purpose } from '@shared/schemas.ts';
 import { Logo } from '@/components/common/Logo.tsx';
+import { RailProgress } from '@/components/brand/Railway.tsx';
 import { FullPageLoading } from '@/components/common/QueryStates.tsx';
 import { WelcomeIntro } from '@/components/onboarding/WelcomeIntro.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
@@ -235,18 +236,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
             </header>
 
             {step < INTRO && (
-                <div className="mx-auto mt-6 flex w-full max-w-2xl items-center gap-4 px-6">
-                    <div className="grid flex-1 grid-cols-3 gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={QUESTION_COUNT} aria-valuenow={step + 1}>
-                        {Array.from({ length: QUESTION_COUNT }, (_, i) => (
-                            <div key={i} className="h-2 overflow-hidden rounded-full border border-border bg-inset shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
-                                <div className={cn('h-full bg-[linear-gradient(180deg,#FCE3A8,#F4A906_45%,#C68A06)] transition-[width] duration-500 ease-out', i <= step ? 'w-full' : 'w-0')} />
-                            </div>
-                        ))}
-                    </div>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                        {step + 1} of {QUESTION_COUNT}
-                    </span>
-                </div>
+                <RailProgress current={step} stops={['Your name', 'Location', 'Your goals']} label="Onboarding progress" className="mx-auto mt-6 w-full max-w-2xl px-6" />
             )}
 
             <main className="flex flex-1 items-center">

@@ -55,29 +55,29 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
     return [
         {
             asset: {
-                name: '2020 Cadillac XT6',
+                name: '2021 Toyota RAV4',
                 category: 'vehicle',
-                brand: 'Cadillac',
-                model: 'XT6',
+                brand: 'Toyota',
+                model: 'RAV4',
                 location: 'Garage',
                 condition: 'good',
-                purchaseDate: '2020-09-12',
-                purchasePriceCents: dollars(57_890),
+                purchaseDate: '2021-04-17',
+                purchasePriceCents: dollars(35_890),
                 serialNumber: null,
-                notes: 'VIN left blank on purpose. Add it (Edit) to try the free NHTSA decoder.',
-                details: { year: 2020, trim: 'Premium Luxury', mileage: 61_240, purchaseMileage: 18, exteriorColor: 'Stellar Black Metallic', titleStatus: 'clean' }
+                notes: 'Fictional sample vehicle with illustrative values. You can try a market lookup using year, make, model, and mileage.',
+                details: { year: 2021, trim: 'XLE', mileage: 61_240, purchaseMileage: 18, exteriorColor: 'Silver', titleStatus: 'clean' }
             },
             valuations: [
-                fmv(today, 36, 39_800),
-                fmv(today, 24, 34_600),
-                fmv(today, 12, 31_200),
+                fmv(today, 36, 33_800),
+                fmv(today, 24, 31_600),
+                fmv(today, 12, 29_600),
                 fmv(today, 1, 28_400, { conditionAssumption: 'good', notes: 'Private party, about 61k miles' }),
                 liq(today, 1, 25_500, { notes: 'Dealer trade-in offer' })
             ]
         },
         {
             asset: {
-                name: '89 Carnation Road',
+                name: 'Sample family home',
                 category: 'property',
                 brand: null,
                 model: null,
@@ -86,12 +86,12 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 purchaseDate: '2019-06-28',
                 purchasePriceCents: dollars(540_000),
                 serialNumber: null,
-                notes: 'Values here are made up. With a RentCast key, use "Get an estimate" under Lookups for a live one.',
+                notes: 'Fictional sample address and values. Replace the address with your own to try a live property lookup.',
                 details: {
-                    addressLine1: '89 Carnation Road',
-                    city: 'Levittown',
-                    state: 'NY',
-                    postalCode: '11756',
+                    addressLine1: '123 Example Lane',
+                    city: 'Springfield',
+                    state: 'IL',
+                    postalCode: '62704',
                     propertyType: 'single_family',
                     squareFeet: 1_850,
                     bedrooms: 3,

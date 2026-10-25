@@ -482,3 +482,59 @@
 .recharts-wrapper *:focus {
     outline: none;
 }
+
+/* Railway details share the existing brass/copper palette. Sleepers sit between two rails. */
+.rail-track {
+    position: relative;
+    height: 10px;
+    background: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in oklab, currentColor 65%, transparent) 10px 13px, transparent 13px 23px);
+}
+.rail-track::before,
+.rail-track::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    height: 2px;
+    background: currentColor;
+}
+.rail-track::before { top: 1px; }
+.rail-track::after { bottom: 1px; }
+.rail-header-track {
+    margin-top: 12px;
+    color: var(--copper);
+    background-color: var(--sidebar);
+}
+.rail-station {
+    width: 16px;
+    height: 16px;
+    transform: translateX(-50%);
+    border: 2px solid var(--border-strong);
+    border-radius: 50%;
+    background: var(--background);
+}
+.rail-station-reached { border-color: var(--brass-ink); background: var(--brass-soft); }
+.rail-engine { transform: translateX(-50%); transition: left 500ms cubic-bezier(.2,.7,.2,1); }
+.rail-flow { position: relative; }
+.rail-flow::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    bottom: 20px;
+    left: 15px;
+    width: 10px;
+    border-inline: 2px solid color-mix(in oklab, var(--brass-ink) 40%, var(--border));
+    background: repeating-linear-gradient(0deg, transparent 0 10px, color-mix(in oklab, var(--brass-ink) 25%, transparent) 10px 13px, transparent 13px 23px);
+}
+@media (min-width: 768px) {
+    .rail-flow::before {
+        inset: 15px 20px auto;
+        width: auto;
+        height: 10px;
+        border-inline: 0;
+        border-block: 2px solid color-mix(in oklab, var(--brass-ink) 40%, var(--border));
+        background: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in oklab, var(--brass-ink) 25%, transparent) 10px 13px, transparent 13px 23px);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rail-engine { transition: none; }
+}

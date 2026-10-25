@@ -217,7 +217,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                 htmlFor="name"
                                 optional={false}
                                 error={errors.name?.message}
-                                help={nameSuggestion ? undefined : 'What you call it, like "Grandpa\'s Omega" or "2020 Cadillac XT6"'}
+                                help={nameSuggestion ? undefined : 'What you call it, like "Grandpa\'s Omega" or "2021 Toyota RAV4"'}
                             >
                                 <Input id="name" {...register('name')} maxLength={120} autoComplete="off" aria-invalid={Boolean(errors.name) || undefined} />
                                 {nameSuggestion && <NameSuggestion name={nameSuggestion} onUse={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })} />}

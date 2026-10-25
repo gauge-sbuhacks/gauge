@@ -2,7 +2,7 @@
 // the real portfolio math, so the page never shows a figure the app itself wouldn't.
 
 import { useEffect, useState } from 'react';
-import { ChevronRight, FileDown, Gauge, History, PackagePlus, type LucideIcon } from 'lucide-react';
+import { FileDown, Gauge, History, PackagePlus, type LucideIcon } from 'lucide-react';
 import { VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, type ValueType } from '@shared/schemas.ts';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { formatAge, formatMoney, formatMonth } from '@/lib/format.ts';
@@ -129,26 +129,18 @@ export function FlowDiagram({ items }: { items: PortfolioItem[] }) {
     ];
 
     return (
-        <ol className="grid gap-10 md:grid-cols-4 md:gap-6">
+        <ol className="rail-flow grid gap-8 md:grid-cols-4 md:gap-6">
             {steps.map((s, i) => (
-                <li key={s.title} className="relative">
-                    <div className="flex items-center gap-3">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-card text-foreground">
-                            <s.icon className="size-[18px]" strokeWidth={1.75} />
-                        </span>
-                        {i < steps.length - 1 && (
-                            <span className="hidden flex-1 items-center md:flex" aria-hidden>
-                                <span className="h-px flex-1 bg-foreground/15" />
-                                <ChevronRight className="-ml-1.5 size-4 text-foreground/30" />
-                            </span>
-                        )}
+                <li key={s.title} className="relative grid grid-cols-[2.5rem_1fr] gap-x-4 md:block">
+                    <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-brass/60 bg-card text-label ring-4 ring-card">
+                        <s.icon className="size-[18px]" strokeWidth={1.75} />
+                    </span>
+                    <div className="md:mt-5">
+                        <span className="text-[10px] font-bold tracking-[0.14em] text-label uppercase">Station {String(i + 1).padStart(2, '0')}</span>
+                        <h3 className="mt-1 font-semibold">{s.title}</h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.text}</p>
+                        <p className="mt-3 border-l-2 border-brass/60 pl-2.5 font-mono text-xs text-foreground/75">{s.example}</p>
                     </div>
-                    <h3 className="mt-4 font-semibold">
-                        <span className="mr-1.5 text-muted-foreground tabular-nums">{i + 1}.</span>
-                        {s.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{s.text}</p>
-                    <p className="mt-3 border-l-2 border-brass/60 pl-2.5 font-mono text-xs text-foreground/75">{s.example}</p>
                 </li>
             ))}
         </ol>

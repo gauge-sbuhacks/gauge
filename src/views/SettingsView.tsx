@@ -205,7 +205,7 @@ export default function SettingsView() {
                         Test data
                     </CardTitle>
                     <CardDescription>
-                        Ten made-up belongings (a 2020 Cadillac XT6, 89 Carnation Road, a Rolex, gold coins, and more) with a few years of value history. They are flagged as test data, and removing them never touches what you entered.
+                        Ten made-up belongings (a Toyota RAV4, a sample family home, a Rolex, gold coins, and more) with a few years of value history. They are flagged as test data, and removing them never touches what you entered.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-2">

@@ -38,7 +38,7 @@ export function DashboardPreview({ items }: { items: PortfolioItem[] }) {
                         <span className="size-2.5 rounded-full bg-[#F4A906]/80" />
                         <span className="size-2.5 rounded-full bg-[#68C2B3]/70" />
                     </span>
-                    <span className="mx-auto rounded-md bg-card/70 px-3 py-0.5 text-xs text-subtle-foreground">gauge · portfolio</span>
+                    <span className="mx-auto rounded-md bg-card/70 px-3 py-0.5 text-xs text-subtle-foreground">gauge · sample portfolio</span>
                     <span className="w-[42px]" aria-hidden />
                 </div>
 

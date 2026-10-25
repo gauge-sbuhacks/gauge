@@ -26,6 +26,7 @@ import {
 import { ApiError } from '@/api/api.ts';
 import { CategoryFields } from '@/components/assets/CategoryFields.tsx';
 import { MascotQuestion } from '@/components/brand/MascotQuestion.tsx';
+import { RailProgress } from '@/components/brand/Railway.tsx';
 import { Gus, type GusPose } from '@/components/brand/Mascots.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
 import { Field, MoneyInput, NameSuggestion, OptionalSelect } from '@/components/assets/FormBits.tsx';
@@ -76,6 +77,7 @@ import { cn } from '@/lib/utils.ts';
 import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
 
 const LEAVE_MS = 220;
+const STATION_LABELS: Record<StepId, string> = { category: 'Category', identity: 'Item', details: 'Details', condition: 'Condition', money: 'Value', proof: 'Proof' };
 
 // Gus asks every question: calm while asking, alarmed when an answer needs fixing, and stamping the
 // certificate on the last step
@@ -655,27 +657,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 {def && <span className="text-muted-foreground">Adding: {def.singular.toLowerCase()}</span>}
             </div>
 
-            {/* progress: one segment per question, filling as you go */}
-            <div className="mt-6 flex items-center gap-4">
-                <div
-                    className="grid flex-1 gap-1.5"
-                    style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
-                    role="progressbar"
-                    aria-label="Progress"
-                    aria-valuemin={1}
-                    aria-valuemax={steps.length}
-                    aria-valuenow={index + 1}
-                >
-                    {steps.map((s, i) => (
-                        <div key={s} className="h-2 overflow-hidden rounded-full border border-border bg-inset shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
-                            <div className={cn('h-full bg-[linear-gradient(180deg,#FCE3A8,#F4A906_45%,#C68A06)] transition-[width] duration-500 ease-out', i <= index ? 'w-full' : 'w-0')} />
-                        </div>
-                    ))}
-                </div>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                    {index + 1} of {steps.length}
-                </span>
-            </div>
+            <RailProgress current={index} stops={steps.map((step) => STATION_LABELS[step])} label="Add asset progress" className="mt-6" />
 
             <div ref={stage} key={stepId} className={cn('py-10 motion-reduce:animate-none sm:py-14', stageClass)}>
                 <MascotQuestion pose={gusPoseFor(stepId, isLast, stepHasError)} question={question} help={help} />

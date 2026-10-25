@@ -4,6 +4,7 @@ import { useMemo, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, Gem, Landmark, Truck, Wrench, type LucideIcon } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
+import { Locomotive, RailDivider } from '@/components/brand/Railway.tsx';
 import { DashboardPreview } from '@/components/landing/DashboardPreview.tsx';
 import { FlowDiagram } from '@/components/landing/Diagrams.tsx';
 import { Reveal } from '@/components/landing/Reveal.tsx';
@@ -119,6 +120,7 @@ export default function LandingView() {
                         )}
                     </div>
                 </div>
+                <RailDivider className="rail-header-track" />
             </header>
 
             <main>
@@ -128,6 +130,10 @@ export default function LandingView() {
                     <div aria-hidden className="absolute inset-0 -z-10 bg-linear-to-b from-background/90 via-background/75 to-background" />
 
                     <div className="mx-auto max-w-2xl px-6 pt-16 text-center sm:pt-24 animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
+                        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-brass/30 bg-brass-soft px-3 py-1.5 text-[11px] font-semibold tracking-[0.12em] text-label uppercase">
+                            <Locomotive className="h-5 w-8 shrink-0" />
+                            Keep your assets on track
+                        </div>
                         <h1 className="font-editorial text-4xl leading-[1.08] font-semibold tracking-[-0.025em] text-balance sm:text-5xl">Know what everything you own is worth.</h1>
                         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
                             Track your car, home, watches, cards, and tools in one portfolio, with value history, resale estimates, and an inventory you can export.
@@ -173,7 +179,7 @@ export default function LandingView() {
                         <Reveal className="max-w-2xl">
                             <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">How {APP_NAME} works</h2>
                             <p className="mt-3 text-muted-foreground">
-                                Four steps, all by hand for now. Lookups like the free NHTSA VIN decoder and home value estimates suggest details, and nothing is saved until you confirm it.
+                                Four stops from your first item to a clear picture of what you own. Add the details, review a value estimate, and choose what to record.
                             </p>
                         </Reveal>
                         <Reveal className="mt-12" delay={100}>

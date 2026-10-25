@@ -1,5 +1,5 @@
 // the frame around every app page: the top bar (pressure badge logo, Dashboard and Assets in the
-// middle, add + account on the right) sitting on a copper pipe, the page, then the footer. on phones
+// middle, add + account on the right) sitting on a copper railway track, the page, then the footer. on phones
 // the two tabs drop to a second row. the pipeworks background stays fixed behind everything.
 
 import { NavLink, Outlet, useLocation } from 'react-router';
@@ -7,6 +7,7 @@ import { Boxes, LayoutDashboard, Plus } from 'lucide-react';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { Logo } from '@/components/common/Logo.tsx';
 import { Backdrop } from '@/components/brand/Backdrop.tsx';
+import { RailDivider } from '@/components/brand/Railway.tsx';
 import { AccountMenu } from '@/components/layout/AccountMenu.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { Button } from '@/components/ui/button.tsx';
@@ -72,8 +73,7 @@ export default function AppShell() {
                 </div>
                 {/* phones: the two tabs get their own row, split evenly */}
                 <NavTabs className="h-11 border-t border-sidebar-border md:hidden" />
-                {/* the copper pipe the bar sits on */}
-                <div aria-hidden className="h-[5px] [background:var(--copper-pipe)]" />
+                <RailDivider className="rail-header-track" />
             </header>
 
             <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

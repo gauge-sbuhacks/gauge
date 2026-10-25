@@ -134,7 +134,7 @@ export const CATEGORIES: CategoryDef[] = [
         modelLabel: null,
         skips: ['condition', 'location', 'serialNumber'],
         fields: [
-            { key: 'addressLine1', label: 'Street address', type: 'text', placeholder: '89 Carnation Road', sensitive: true, wide: true },
+            { key: 'addressLine1', label: 'Street address', type: 'text', placeholder: '123 Example Lane', sensitive: true, wide: true },
             { key: 'city', label: 'City', type: 'text', sensitive: true },
             { key: 'state', label: 'State', type: 'text', placeholder: 'NY', maxLength: 30, sensitive: true },
             { key: 'postalCode', label: 'ZIP code', type: 'text', maxLength: 10, sensitive: true },

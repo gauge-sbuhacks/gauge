@@ -1,14 +1,19 @@
-// the footer on every page: copyright and the three legal pages.
+// the footer on every page: a small railway detail, copyright and the three legal pages.
 // `note` adds a line above (the landing page uses it), `width` matches the page it sits under.
 
 import { Link } from 'react-router';
 import { BRAND_BASE } from '@/components/brand/status.ts';
+import { Locomotive, RailDivider } from '@/components/brand/Railway.tsx';
 import { COPYRIGHT, LEGAL_LINKS } from '@/config.ts';
 import { cn } from '@/lib/utils.ts';
 
 export function SiteFooter({ note, width = 'max-w-7xl', className }: { note?: string; width?: string; className?: string }) {
     return (
         <footer className={cn('border-t bg-background', className)}>
+            <div className={cn('relative mx-auto mt-4 px-4 sm:px-6 lg:px-8', width)}>
+                <RailDivider className="text-border-strong/70" />
+                <Locomotive className="absolute right-8 -top-4 h-6 w-10 bg-background text-label sm:right-12" />
+            </div>
             <div className={cn('mx-auto flex flex-col gap-3 px-4 py-6 text-xs text-muted-foreground sm:px-6 lg:px-8', width)}>
                 {note && <p>{note}</p>}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
