@@ -3,7 +3,7 @@
 import type { CategoryId } from '../../shared/categories.js';
 import type { IdentifiedItem } from '../../shared/capture.js';
 import { TtlCache } from '../lookups/cache.js';
-import { geminiConfigured } from './identify.js';
+import { fetchGemini, geminiConfigured } from './identify.js';
 
 // the same facts get the same answer (temperature 0), so repeat checks reuse it for 6 hours
 // instead of calling Gemini again. failures aren't cached.
@@ -74,29 +74,25 @@ export async function estimatePrices(item: IdentifiedItem): Promise<PriceGuess |
     const cached = guessCache.get(prompt);
     if (cached) return cached;
 
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
+    // same retries as photo identification, so a moment of "overloaded" doesn't lose the price
+    const res = await fetchGemini(
         {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0,
-                    topP: 1,
-                    topK: 1,
-                    responseSchema: {
-                        type: 'object',
-                        properties: {
-                            fairMarketCents: { type: 'integer', nullable: true }
-                        },
-                        required: ['fairMarketCents']
-                    }
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0,
+                topP: 1,
+                topK: 1,
+                responseSchema: {
+                    type: 'object',
+                    properties: {
+                        fairMarketCents: { type: 'integer', nullable: true }
+                    },
+                    required: ['fairMarketCents']
                 }
-            }),
-            signal: AbortSignal.timeout(15_000)
-        }
+            }
+        },
+        15_000
     );
     if (!res.ok) return null;
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };

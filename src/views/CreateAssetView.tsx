@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, ArrowRight, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LoaderCircle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { CATEGORIES, getCategory, isCategoryId, type CategoryId, type Details } from '@shared/categories.ts';
 import { reviewSteps, type CaptureApproval, type CaptureDraft, type ReviewStep } from '@shared/capture.ts';
@@ -38,11 +38,18 @@ export default function CreateAssetView() {
         );
     }
 
+    // Gemini couldn't say what the photo shows (overloaded, out of requests, or just unsure)
+    const problem = ready.lookupStatus === 'error' || !ready.category ? (ready.lookupMessage ?? 'Gemini could not tell what this is.') : null;
+
     return (
         <DraftReview
-            key={ready.id}
+            // a new identification starts the review over with its answers
+            key={`${ready.id}:${ready.lookupStatus}:${ready.category ?? ''}:${ready.name ?? ''}`}
             draft={ready}
             busy={desk.confirm.isPending}
+            problem={problem}
+            retrying={desk.identify.isPending}
+            onRetry={() => desk.identify.mutate(ready.id, { onError: (err) => toast.error("Couldn't identify it", { description: err.message }) })}
             onCancel={() => {
                 desk.discard.mutate(ready.id, {
                     onSuccess: () => navigate('/assets'),
@@ -102,7 +109,23 @@ function priceQueryFor(approval: CaptureApproval): SuggestValuesQuery | null {
     };
 }
 
-function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; busy: boolean; onSave: (approval: CaptureApproval) => void; onCancel: () => void }) {
+function DraftReview({
+    draft,
+    busy,
+    problem,
+    retrying,
+    onRetry,
+    onSave,
+    onCancel
+}: {
+    draft: CaptureDraft;
+    busy: boolean;
+    problem: string | null;
+    retrying: boolean;
+    onRetry: () => void;
+    onSave: (approval: CaptureApproval) => void;
+    onCancel: () => void;
+}) {
     const [answers, setAnswers] = useState<Record<string, string>>(() => startingAnswers(reviewSteps(draft)));
     // picking a different category asks that category's questions (brand, model, ...)
     const pickedCategory = isCategoryId(answers.category ?? '') ? (answers.category as CategoryId) : draft.category;
@@ -196,6 +219,19 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
             <div key={index} className={cn('max-w-xl motion-reduce:animate-none', stageClass)}>
                 <form onSubmit={submit} noValidate>
                     {draft.photos[0] && <AuthImage photoId={draft.photos[0].photoId} alt="" className="mb-6 size-24 rounded-lg object-cover" />}
+                    {problem && index === 0 && (
+                        <div role="alert" className="mb-6 rounded-xl border border-loss/40 bg-loss/5 p-4">
+                            <p className="font-medium">Gemini couldn't identify this photo</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{problem}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-3">
+                                <Button type="button" size="sm" variant="outline" onClick={onRetry} disabled={retrying}>
+                                    {retrying ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <RotateCcw data-icon="inline-start" />}
+                                    {retrying ? 'Identifying' : 'Try again'}
+                                </Button>
+                                <span className="text-sm text-muted-foreground">or fill in the details yourself.</span>
+                            </div>
+                        </div>
+                    )}
                     <label htmlFor={step.key} className="block text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
                         {answerFor(step) ? `Is the ${step.label.toLowerCase()} right?` : `What is the ${step.label.toLowerCase()}?`}
                     </label>

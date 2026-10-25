@@ -149,6 +149,7 @@ export const api = {
         return res.blob();
     },
     discardCaptureDraft: (id: string, draftId: string) => request<CaptureSessionView>('POST', `/capture-sessions/${id}/drafts/${draftId}/discard`),
+    identifyCaptureDraft: (id: string, draftId: string) => request<CaptureSessionView>('POST', `/capture-sessions/${id}/drafts/${draftId}/identify`),
     phoneCapture: (token: string) => request<PhoneCaptureView>('GET', `/capture/${token}`),
     uploadCapturePhoto: (token: string, body: { groupId: string; kind: PhotoKind; mime: 'image/jpeg'; data: string }) =>
         request<{ received: boolean; draftId: string }>('POST', `/capture/${token}/photos`, body)

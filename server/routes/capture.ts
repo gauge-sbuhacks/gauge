@@ -374,6 +374,25 @@ captureRouter.post('/capture-sessions/:id/drafts/:draftId/discard', async (req, 
     res.json(viewOf(doc.toObject() as WithId<SessionDoc>));
 });
 
+// "try again" on the review screen: identify and price the same photos again, for when Gemini was
+// overloaded or out of requests the first time. nothing has to be re-scanned
+captureRouter.post('/capture-sessions/:id/drafts/:draftId/identify', async (req, res) => {
+    const ownerId = ownerIdOf(res);
+    const doc = await owned(req.params.id, ownerId);
+    const draft = doc.drafts.find((d) => d.id === req.params.draftId);
+    if (!draft || draft.status === 'confirmed' || draft.status === 'discarded') throw notFound('That draft');
+    const images: { mime: string; base64: string }[] = [];
+    for (const photo of draft.photos) {
+        const payload = await imagePayload(ownerId, photo);
+        if (payload) images.push(payload);
+    }
+    if (images.length === 0) throw new HttpError(400, 'validation', 'That photo is no longer available. Take it again from your phone.');
+    await fillDraft(draft, images, false);
+    doc.markModified('drafts');
+    await doc.save();
+    res.json(viewOf(doc.toObject() as WithId<SessionDoc>));
+});
+
 captureRouter.post('/capture-sessions/:id/drafts/:draftId/confirm', async (req, res) => {
     const ownerId = ownerIdOf(res);
     const doc = await owned(req.params.id, ownerId);

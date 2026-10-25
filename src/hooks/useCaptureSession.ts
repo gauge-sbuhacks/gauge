@@ -44,7 +44,13 @@ export function useCaptureDesk(assetId: string | undefined, live: boolean, initi
         onSuccess: (data) => qc.setQueryData(['capture-session', sessionId], data)
     });
 
-    return { create, session, token, sessionId, revoke, confirm, discard };
+    // identify the same photos again (Gemini was busy the first time)
+    const identify = useMutation({
+        mutationFn: (draftId: string) => api.identifyCaptureDraft(sessionId!, draftId),
+        onSuccess: (data) => qc.setQueryData(['capture-session', sessionId], data)
+    });
+
+    return { create, session, token, sessionId, revoke, confirm, discard, identify };
 }
 
 export function usePhoneCapture(token: string | undefined) {

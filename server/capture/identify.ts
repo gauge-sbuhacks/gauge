@@ -169,24 +169,52 @@ function blankFilled(raw: string): IdentifiedItem | null {
     }
 }
 
-async function gemini(prompt: string, images: { mime: string; base64: string }[]): Promise<string> {
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
-        {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [{ text: prompt }, ...images.slice(0, 4).map((image) => ({ inline_data: { mime_type: image.mime, data: image.base64 } }))]
-                    }
-                ],
-                generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
-            }),
-            signal: AbortSignal.timeout(25_000)
+// gemini often answers "overloaded" (503) or "too many requests" (429) for a moment. those are tried
+// again after a short wait; anything else, or a third miss, gives up with a reason people can read
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_WAITS_MS = [1500, 4000];
+
+export function geminiProblem(status: number): string {
+    if (status === 429) return 'Gemini has hit its request limit (429). Wait a minute and try again.';
+    if (status === 503 || status === 502 || status === 504 || status === 500) return `Gemini is overloaded right now (${status}). Try again in a moment.`;
+    if (status === 400 || status === 401 || status === 403) return `Gemini turned the request down (${status}). Check the GEMINI_API_KEY.`;
+    if (status === 404) return 'The Gemini model was not found (404).';
+    return `Gemini returned an error (${status}).`;
+}
+
+export class GeminiError extends Error {}
+
+// one generateContent call with the retries above. returns the response, ok or not
+export async function fetchGemini(body: unknown, timeoutMs: number): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+        let res: Response;
+        try {
+            res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY!.trim())}`,
+                { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) }
+            );
+        } catch (err) {
+            const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+            throw new GeminiError(timedOut ? 'Gemini took too long to answer. Try again.' : 'Could not reach Gemini. Check the connection and try again.');
         }
+        if (res.ok || !RETRY_STATUSES.has(res.status) || attempt >= RETRY_WAITS_MS.length) return res;
+        await new Promise((resolve) => setTimeout(resolve, RETRY_WAITS_MS[attempt]));
+    }
+}
+
+async function gemini(prompt: string, images: { mime: string; base64: string }[]): Promise<string> {
+    const res = await fetchGemini(
+        {
+            contents: [
+                {
+                    parts: [{ text: prompt }, ...images.slice(0, 4).map((image) => ({ inline_data: { mime_type: image.mime, data: image.base64 } }))]
+                }
+            ],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
+        },
+        25_000
     );
-    if (!res.ok) throw new Error(`Gemini returned ${res.status}`);
+    if (!res.ok) throw new GeminiError(geminiProblem(res.status));
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     return body.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
 }
