@@ -18,7 +18,7 @@ That starts two things together:
 - the site on http://localhost:5180 (vite)
 - the api on http://localhost:3180 (express). vite forwards every `/api` request to it
 
-Open the site, hit **Test data** to load the sample portfolio (2020 Cadillac XT6, 89 Carnation Road, and 8 more), and click around. The **Setup** page in the app shows what's connected and what still needs a key.
+Open the site, go to **Setup → Developer setup & test data** to load the sample portfolio (2020 Cadillac XT6, 89 Carnation Road, and 8 more), and click around. The **Setup** page in the app shows what's connected and what still needs a key.
 
 With no `.env.local` at all, the app uses MongoDB on your own computer (`mongodb://127.0.0.1:27017/gauge`) and signs you in as the "local dev user". Once the team has the shared keys (below), you don't need MongoDB installed.
 
@@ -27,6 +27,8 @@ Other scripts:
 - `npm run build` type-checks everything, then builds the site into `dist/`
 - `npm run typecheck` only the type check
 - `npm run lint` oxlint
+- `npm test` pricing, history, and ownership checks
+- `npm run sync:mtg-history` imports free historical prices for tracked Magic printings
 
 ## keys
 
@@ -38,6 +40,8 @@ Copy `.env.example` to `.env.local`, fill in what you have, and restart `npm run
 | `VITE_CLERK_PUBLISHABLE_KEY` | turns on the Clerk sign-in screen (browser side) |
 | `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` | lets the api check who's calling. Set all three Clerk keys together |
 | `RENTCAST_API_KEY` | home value estimates on real estate assets (free plan: 50 a month) |
+| `GOLD_API_KEY` | historical daily metal benchmarks; free plan, 10 history/OHLC requests per hour |
+| `EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET` | comparable active listings; no historical sold-price access |
 | `VINAUDIT_API_KEY` | retail and trade-in values on vehicles (trial: 100 queries, 2 per lookup) |
 | `GAUGE_ALLOW_DEV_AUTH` | `true` skips sign-in on a Vercel deploy. Everyone shares one account, so test data only |
 
@@ -146,7 +150,7 @@ src/            react site
 - Every value you record is kept with its date and source, so history builds up. Editing an asset's value adds a new observation instead of overwriting the old one. The newest value of each type is the current one.
 - Values only change when someone records one, by typing it in, saving a lookup, or confirming a phone-capture draft.
 - Totals always say how many assets they cover ("on 9 of 10"). Missing values are "Not entered", never $0.
-- Charts only show recorded values. Nothing is projected.
+- The portfolio chart shows recorded values; the asset page separates recorded values from provider market history. Vehicle projections are optional and labeled separately.
 
 
 ## Phone capture
@@ -169,4 +173,27 @@ Live comparable research currently supports US items priced in USD through the e
 
 The engine filters model, brand, variant, condition, and incompatible items before calculating an interquartile asking range from at least three relevant listings. Outliers are excluded. Active asking prices are explicitly distinguished from sold prices. Estimates can be recorded deliberately as fair market observations with their source. Research reports are private to the asset owner, retained with a timestamp, and invalidated when matching details or location change. Refresh is recommended after a day.
 
-The dashboard compares recorded fair market and quick-sale estimates for the same assets, shows gains and losses against purchase cost, and highlights missing or older market estimates. Fees and shipping are not assumed: users enter selling costs to calculate estimated net proceeds from a comparable asking midpoint. No sale speed or proceeds are guaranteed.
+The dashboard keeps portfolio value history, gains and losses, category allocation, and a matched market-versus-quick-sale comparison. These use recorded values and show how many assets have the required data; no API key is needed for these charts. Each asset puts current values, history, and selling links first. Details, current-value lookups, vehicle projections, full observation entries, and selling-cost calculations expand only when needed.
+
+
+## Historical market values (free sources)
+
+Opening a page reads saved history only. It does not spend external history requests or overwrite the user's recorded estimates. Each source shows dated observations, its provenance, and the latest actual observation date; market series are not extended to today or projected backward.
+
+- **Metals:** get a free key at https://gold-api.com/pricing and set `GOLD_API_KEY` in `.env.local` (and Vercel when deploying). Restart the API. On a Jewelry & metals asset, set metal, weight in grams, and purity, then choose **Market history → Load history**. The server fetches up to a year of daily average USD spot prices and scales them by the item's current fine metal content. This is a metal benchmark, not historical jewelry resale value. A shared MongoDB rolling-hour ledger limits calls to 10/hour for the key, including failed calls; daily data is cached across users for 24 hours. Calls made outside Gauge also consume the provider's allowance. Only the free daily endpoint is used.
+- **Magic:** MTGJSON's free bulk download includes up to 90 days of retail/market history for exact printings. Set **Card game → Magic**, **Magic set code**, **Card number**, and **Finish** in Edit. Run `npm run sync:mtg-history` from the project root against the same database used by the app. This separately downloads set metadata, streams the large `AllPrices.json.gz` file, and saves only tracked printings. No API key or Patreon GraphQL access is required. Re-run to update prices or after adding different printings. The browser never downloads this bulk file. Providers and finishes are separate series; ungraded prices do not value graded copies.
+- **Other assets:** existing recorded observations work immediately. Successful eBay research with at least three relevant listings now saves one daily asking-price midpoint per owner/item/matching version. Repeated research on the same UTC date updates that day's observation. These are active asks, not completed sales. Editing matching details starts a separate comparable series; deleting an asset removes its research snapshots. Previously overwritten reports cannot be recovered.
+
+The Magic bulk file is roughly 140 MB compressed and over 1 GB expanded. Run the import locally, not inside a Vercel request. If your network blocks downloads, download the free file from https://mtgjson.com/downloads/all-files/ and run:
+
+```bash
+npm run sync:mtg-history -- /absolute/path/AllPrices.json.gz
+```
+
+If set metadata is blocked too, download the relevant set files (for example `MH3.json`) from MTGJSON into a directory and pass it as the second argument:
+
+```bash
+npm run sync:mtg-history -- /absolute/path/AllPrices.json.gz /absolute/path/set-files
+```
+
+No free historical home/car valuation provider has been added. RentCast stays as the current-value lookup; Pokémon rolling averages are not drawn as invented daily history. The MTGJSON import keeps public card prices separately from private user observations. Data source: https://mtgjson.com; license and attribution: https://mtgjson.com/license/.

@@ -71,7 +71,8 @@ export function HistoryChart({
     referenceCents,
     referenceLabel,
     countLabel,
-    height = 260
+    height = 260,
+    curve = 'stepAfter'
 }: {
     points: HistoryPoint[];
     baseline?: 'zero' | 'auto';
@@ -79,6 +80,7 @@ export function HistoryChart({
     referenceLabel?: string;
     countLabel?: (n: number) => string;
     height?: number;
+    curve?: 'stepAfter' | 'linear';
 }) {
     const gradientId = useId().replace(/:/g, '');
 
@@ -98,6 +100,11 @@ export function HistoryChart({
     const yTicks = baseline === 'zero' ? valueTicks(0, max) : valueTicks(Math.max(0, min - pad), max + pad);
     const domain: [number, number] = [yTicks[0], yTicks[yTicks.length - 1]];
     const x = timeTicks(points[0].t, points[points.length - 1].t);
+    const compactTicks = yTicks.map(formatAxisMoney);
+    const duplicateLabels = new Set(compactTicks).size < compactTicks.length;
+    const axisMoney = duplicateLabels
+        ? new Intl.NumberFormat('en-US', {style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:3})
+        : null;
 
     return (
         <div style={{ height }}>
@@ -126,7 +133,7 @@ export function HistoryChart({
                     <YAxis
                         domain={domain}
                         ticks={yTicks}
-                        tickFormatter={formatAxisMoney}
+                        tickFormatter={axisMoney ? cents => axisMoney.format(cents / 100) : formatAxisMoney}
                         tick={{ fill: 'var(--color-chart-axis)', fontSize: 12 }}
                         axisLine={false}
                         tickLine={false}
@@ -147,12 +154,12 @@ export function HistoryChart({
                         />
                     )}
                     <Area
-                        type="stepAfter"
+                        type={curve}
                         dataKey="valueCents"
                         stroke="var(--color-series-1)"
                         strokeWidth={2}
                         fill={baseline === 'zero' ? `url(#${gradientId})` : 'transparent'}
-                        dot={false}
+                        dot={points.length === 1 ? { r: 4 } : false}
                         activeDot={{ r: 4.5, strokeWidth: 2, stroke: 'var(--color-card)', fill: 'var(--color-series-1)' }}
                         isAnimationActive={false}
                     />

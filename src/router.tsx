@@ -40,6 +40,14 @@ export const router = createBrowserRouter([
             },
             { path: 'onboarding', lazy: page(() => import('@/views/OnboardingView.tsx')) },
             { path: 'capture/:token', lazy: page(() => import('@/views/CaptureView.tsx')) },
+            // legal pages, readable without signing in
+            ...(['privacy', 'terms', 'accessibility'] as const).map((doc) => ({
+                path: doc,
+                lazy: async () => {
+                    const { default: LegalView } = await import('@/views/LegalView.tsx');
+                    return { Component: () => <LegalView doc={doc} /> };
+                }
+            })),
 
             // the app. AppGate handles signed-out visitors and unfinished onboarding
             {
@@ -48,13 +56,8 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, lazy: page(() => import('@/views/DashboardView.tsx')) },
                     { path: 'assets', lazy: page(() => import('@/views/AssetsView.tsx')) },
-                    {
-                        path: 'assets/new',
-                        lazy: async () => {
-                            const { default: AssetFormView } = await import('@/views/AssetFormView.tsx');
-                            return { Component: () => <AssetFormView mode="create" /> };
-                        }
-                    },
+                    // adding is a step-by-step flow; editing keeps the full form
+                    { path: 'assets/new', lazy: page(() => import('@/views/AddAssetView.tsx')) },
                     { path: 'assets/review/:sessionId', lazy: page(() => import('@/views/CreateAssetView.tsx')) },
                     { path: 'assets/:id', lazy: page(() => import('@/views/AssetDetailView.tsx')) },
                     {

@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Check, LoaderCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCategory, type CategoryId } from '@shared/categories.ts';
+import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
 import {
     CONDITION_HINTS,
@@ -77,11 +77,11 @@ function liveChecks(v: AssetFormValues) {
     const def = getCategory(v.category);
     const idFields = def.fields.filter((f) => f.identifier).map((f) => f.key);
     const items = [
-        { label: 'Serial or ID', done: v.serialNumber.trim() !== '' || idFields.some((k) => (v.details[k] ?? '').trim() !== '') },
+        { label: 'Serial or ID', done: (usesCommonField(v.category, 'serialNumber') && v.serialNumber.trim() !== '') || idFields.some((k) => (v.details[k] ?? '').trim() !== '') },
         { label: 'Purchase info', done: v.purchaseDate !== '' || v.purchasePrice.trim() !== '' },
         { label: 'Current value', done: v.estimateAmount.trim() !== '' },
-        { label: 'Condition', done: v.condition !== '' },
-        ...(v.category === 'property' ? [] : [{ label: 'Location', done: v.location.trim() !== '' }]),
+        ...(usesCommonField(v.category, 'condition') ? [{ label: 'Condition', done: v.condition !== '' }] : []),
+        ...(usesCommonField(v.category, 'location') ? [{ label: 'Location', done: v.location.trim() !== '' }] : []),
     ];
     return { done: items.filter((i) => i.done).length, total: items.length, items };
 }
@@ -247,6 +247,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                             )}
 
                             <div className="grid gap-4 sm:grid-cols-2">
+                                {(!category || usesCommonField(category, 'condition')) && (
                                 <Field label="Condition" error={errors.condition?.message} help={values.condition ? CONDITION_HINTS[values.condition] : 'Condition drives resale value'}>
                                     <Controller
                                         control={control}
@@ -274,7 +275,8 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                         )}
                                     />
                                 </Field>
-                                {category !== 'property' && (
+                                )}
+                                {(!category || usesCommonField(category, 'location')) && (
                                     <Field label="Location" htmlFor="location" error={errors.location?.message} help="Where it's kept">
                                         <Input id="location" list="location-options" {...register('location')} maxLength={80} autoComplete="off" placeholder="Home office" />
                                         <datalist id="location-options">
@@ -366,7 +368,8 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                         </CardContent>
                     </Card>
 
-                    {/* ---------- identification ---------- */}
+                    {/* ---------- identification (cars use the VIN, houses the parcel number) ---------- */}
+                    {(!category || usesCommonField(category, 'serialNumber')) && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Identification</CardTitle>
@@ -384,6 +387,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
 
                         </CardContent>
                     </Card>
+                    )}
 
                     <Card>
                         <CardHeader>
@@ -398,7 +402,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
 
                 {/* ---------- sticky sidebar: completeness + save ---------- */}
                 <aside className="hidden lg:block">
-                    <div className="sticky top-8 space-y-4">
+                    <div className="sticky top-22 space-y-4">
                         <Card size="sm">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">

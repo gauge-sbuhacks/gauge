@@ -1,5 +1,7 @@
 import mongoose, { Schema } from 'mongoose';
 import { Router } from 'express';
+import { historyVersion } from '../../shared/history.js';
+import { ResearchSnapshot } from '../history/models.js';
 import type { MarketResearch } from '../../shared/marketplace.js';
 import { ownerIdOf } from '../auth.js';
 import { withDb } from '../db/connect.js';
@@ -42,5 +44,9 @@ marketplaceRouter.post('/assets/:id/market-research', async (req,res) => {
     if (!asset) throw notFound('That asset');
     const report = await researchAsset(toAssetRecord(asset),profile?.marketLocation ?? null);
     await MarketReport.findOneAndUpdate({ ownerId, assetId: req.params.id }, { $set: { report, assetUpdatedAt: assetVersion(asset) } }, { upsert: true, runValidators: true });
+    if (report.providerStatus === 'ready' && report.askingRange) {
+        await ResearchSnapshot.findOneAndUpdate({ ownerId, assetId:req.params.id, version:historyVersion(toAssetRecord(asset)), date:report.researchedAt.slice(0,10) },
+            {$set:{valueCents:report.askingRange.medianCents,fetchedAt:report.researchedAt}},{upsert:true,runValidators:true});
+    }
     res.json({ report });
 });

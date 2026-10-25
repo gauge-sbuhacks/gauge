@@ -82,7 +82,7 @@ export function buildSamplePortfolio(today = new Date()): SampleItem[] {
                 brand: null,
                 model: null,
                 location: null,
-                condition: 'good',
+                condition: null,
                 purchaseDate: '2019-06-28',
                 purchasePriceCents: dollars(540_000),
                 serialNumber: null,

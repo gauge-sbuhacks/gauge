@@ -2,6 +2,7 @@
 // clerk session token (when sign-in is on) and turns error responses into ApiError.
 
 import type { CaptureApproval, CaptureMode, CaptureSessionView, PhoneCaptureView, PhotoKind } from '@shared/capture.ts';
+import type { HistoryResponse } from '@shared/history.ts';
 import type { MarketResearch } from '@shared/marketplace.ts';
 import type {
     AssetCreateInput,
@@ -83,6 +84,8 @@ async function request<T>(method: string, path: string, body?: unknown, acceptSt
 // ---------- endpoints ----------
 
 export const api = {
+    getAssetHistory: (id: string) => request<HistoryResponse>('GET', `/assets/${id}/history`),
+    refreshAssetHistory: (id: string) => request<HistoryResponse>('POST', `/assets/${id}/history`),
     getMarketResearch: (id: string) => request<{ report: MarketResearch | null }>('GET', `/assets/${id}/market-research`),
     researchMarket: (id: string) => request<{ report: MarketResearch }>('POST', `/assets/${id}/market-research`),
     health: () => request<HealthResponse>('GET', '/health', undefined, [503]),

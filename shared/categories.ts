@@ -49,6 +49,9 @@ export interface CategoryField {
     wide?: boolean;
 }
 
+// the general questions every asset gets, unless a category says they don't apply
+export type CommonField = 'condition' | 'location' | 'serialNumber';
+
 export interface CategoryDef {
     id: CategoryId;
     label: string;
@@ -59,6 +62,9 @@ export interface CategoryDef {
     // labels for the shared brand/model inputs. null hides them (real estate has no brand)
     brandLabel: string | null;
     modelLabel: string | null;
+    // general questions to leave out: a house has no "condition" grade, no shelf it sits on, and
+    // its ID is the parcel number. a car's ID is its VIN, so a separate serial number would repeat it
+    skips?: CommonField[];
     fields: CategoryField[];
 }
 
@@ -86,6 +92,7 @@ export const CATEGORIES: CategoryDef[] = [
         colorSlot: 1,
         brandLabel: 'Make',
         modelLabel: 'Model',
+        skips: ['serialNumber'],
         fields: [
             {
                 key: 'vin',
@@ -125,6 +132,7 @@ export const CATEGORIES: CategoryDef[] = [
         colorSlot: 2,
         brandLabel: null,
         modelLabel: null,
+        skips: ['condition', 'location', 'serialNumber'],
         fields: [
             { key: 'addressLine1', label: 'Street address', type: 'text', placeholder: '89 Carnation Road', sensitive: true, wide: true },
             { key: 'city', label: 'City', type: 'text', sensitive: true },
@@ -251,6 +259,9 @@ export const CATEGORIES: CategoryDef[] = [
                     { value: 'other', label: 'Other' }
                 ]
             },
+            { key: 'game', label: 'Card game', type: 'select', options: [{ value: 'pokemon', label: 'Pokémon' }, { value: 'magic', label: 'Magic: The Gathering' }], showWhen: { key: 'kind', values: ['trading_card'] } },
+            { key: 'setCode', label: 'Magic set code', type: 'text', placeholder: 'LEA, MH3, EOE', maxLength: 8, showWhen: { key: 'game', values: ['magic'] }, help: 'The set code and collector number identify the exact printing for history.' },
+            { key: 'finish', label: 'Finish', type: 'select', options: [{ value: 'normal', label: 'Nonfoil' }, { value: 'foil', label: 'Foil' }, { value: 'etched', label: 'Etched foil' }], showWhen: { key: 'game', values: ['magic'] } },
             { key: 'setName', label: 'Set', type: 'text', placeholder: 'Base Set', showWhen: { key: 'kind', values: cardKinds } },
             { key: 'cardNumber', label: 'Card number', type: 'text', placeholder: '4/102', mono: true, showWhen: { key: 'kind', values: cardKinds } },
             { key: 'edition', label: 'Edition or printing', type: 'text', placeholder: '1st Edition, Unlimited', showWhen: { key: 'kind', values: [...cardKinds, 'comic', 'vinyl'] } },
@@ -341,6 +352,11 @@ const byId = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 export function getCategory(id: string): CategoryDef {
     return byId.get(id as CategoryId) ?? byId.get('other')!;
+}
+
+// does this category ask the general question? ("condition", "location", "serialNumber")
+export function usesCommonField(id: string, field: CommonField): boolean {
+    return !(getCategory(id).skips ?? []).includes(field);
 }
 
 export function isCategoryId(id: string): id is CategoryId {

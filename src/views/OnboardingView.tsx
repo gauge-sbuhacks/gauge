@@ -10,6 +10,7 @@ import { PURPOSES, PURPOSE_HINTS, PURPOSE_LABELS, type ProfileRecord, type Purpo
 import { Logo } from '@/components/common/Logo.tsx';
 import { FullPageLoading } from '@/components/common/QueryStates.tsx';
 import { WelcomeIntro } from '@/components/onboarding/WelcomeIntro.tsx';
+import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
@@ -249,6 +250,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
                     </div>
                 </div>
             </main>
+            <SiteFooter width="max-w-2xl" className="border-t-0" />
         </div>
     );
 }

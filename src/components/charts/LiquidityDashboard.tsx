@@ -1,35 +1,76 @@
 import { Link } from 'react-router';
-import { ArrowUpRight } from 'lucide-react';
+import { VALUE_TYPE_SHORT, type ValueType } from '@shared/schemas.ts';
+import { AllocationDonut } from '@/components/charts/AllocationDonut.tsx';
+import { GainLoss } from '@/components/common/ValueDisplay.tsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 import { formatMoney } from '@/lib/format.ts';
 import { liquiditySummary } from '@/lib/liquidity.ts';
-import { valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
-import { SellAssetButton } from '@/components/assets/SellAssetButton.tsx';
+import { allocationByCategory, foldSlices, gainLossFor, totalsFor, valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
 
-export function LiquidityDashboard({ items }: { items:PortfolioItem[] }) {
-    const summary=liquiditySummary(items);
-    const rows=[...summary.pairs].sort((a,b) => valueOf(b,'fair_market')!-valueOf(a,'fair_market')!).slice(0,6);
-    const max=Math.max(1,...rows.flatMap(i => [valueOf(i,'fair_market')!,valueOf(i,'liquidation')!]));
-    const maxGain=Math.max(1,...summary.gains.map(g => Math.abs(g.gain.gainCents)));
-    return <section className="space-y-4" aria-label="Liquidity and resale">
-        <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-muted-foreground">From ownership to opportunity</p><h2 className="mt-1 text-xl font-semibold tracking-tight">What could you realize?</h2></div><span className="text-xs text-muted-foreground">Recorded estimates · {summary.pairs.length} of {items.length} assets have both values</span></div>
-        <div className="grid gap-3 sm:grid-cols-3">{[
-            { label:'Market value', value:summary.pairs.length ? formatMoney(summary.marketCents) : 'Not enough data', note:'Matched assets with both recorded values' },
-            { label:'Quick-sale estimate', value:summary.pairs.length ? formatMoney(summary.quickCents) : 'Not enough data', note:'The same assets, using recorded quick-sale values' },
-            { label:'Market vs. quick-sale gap', value:summary.pairs.length ? formatMoney(summary.gapCents) : 'Not enough data', note:'Before fees and shipping; actual proceeds may differ' }
-        ].map(v => <div key={v.label} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{v.label}</p><p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{v.value}</p><p className="mt-2 text-xs text-muted-foreground">{v.note}</p></div>)}</div>
-        <div className="grid gap-4 lg:grid-cols-2">
-            <Card><CardHeader><CardTitle>Market vs. quick sale</CardTitle><CardDescription>Compare recorded values for the same assets. No sale timing is assumed.</CardDescription></CardHeader><CardContent>
-                <div className="mb-4 flex gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-2"><span className="size-2 rounded-sm bg-primary"/>Market</span><span className="flex items-center gap-2"><span className="size-2 rounded-sm bg-brass"/>Quick sale</span></div>
-                {rows.length ? <ul className="space-y-4">{rows.map(i => <li key={i.asset.id}><div className="mb-2 flex items-center justify-between gap-2"><Link to={`/assets/${i.asset.id}#sell`} className="truncate text-sm font-medium hover:underline">{i.asset.name}</Link><span className="shrink-0 text-xs tabular-nums">{formatMoney(valueOf(i,'fair_market')!)} / {formatMoney(valueOf(i,'liquidation')!)}</span></div><div className="space-y-1" aria-hidden="true"><div className="h-2 rounded bg-muted"><div className="h-2 rounded bg-primary" style={{ width:`${valueOf(i,'fair_market')!/max*100}%` }}/></div><div className="h-2 rounded bg-muted"><div className="h-2 rounded bg-brass" style={{ width:`${valueOf(i,'liquidation')!/max*100}%` }}/></div></div></li>)}</ul> : <p className="py-8 text-center text-sm text-muted-foreground">Record market and quick-sale values to compare your options.</p>}
-            </CardContent></Card>
-            <Card><CardHeader><CardTitle>Gains and losses by asset</CardTitle><CardDescription>Fair market value minus purchase cost, where both are recorded.</CardDescription></CardHeader><CardContent>
-                {summary.gains.length ? <ul className="space-y-4">{summary.gains.map(({ item,gain }) => <li key={item.asset.id}><div className="mb-2 flex justify-between gap-2 text-sm"><Link className="truncate hover:underline" to={`/assets/${item.asset.id}`}>{item.asset.name}</Link><span className={gain.gainCents >= 0 ? 'text-gain' : 'text-loss'}>{gain.gainCents>0 ? '+' : ''}{formatMoney(gain.gainCents)}</span></div><div className="relative flex h-2 rounded bg-muted" aria-hidden="true"><div className="w-1/2"/><div className="absolute top-0 bottom-0 left-1/2 w-px bg-muted-foreground/30"/><div className={`absolute h-2 rounded ${gain.gainCents>=0 ? 'bg-good' : 'bg-destructive'}`} style={{ width:`${Math.abs(gain.gainCents)/maxGain*50}%`, ...(gain.gainCents>=0 ? { left:'50%' } : { right:'50%' }) }}/></div></li>)}</ul> : <p className="py-8 text-center text-sm text-muted-foreground">Add purchase prices and market values to see gains and losses.</p>}
-            </CardContent></Card>
-        </div>
-        <Card><CardHeader><CardTitle>Start with a price check</CardTitle><CardDescription>{summary.needsResearch.length ? `${summary.needsResearch.length} assets have no market estimate or an estimate over six months old.` : 'Your recorded market estimates are up to date. You can research any asset before selling.'}</CardDescription></CardHeader><CardContent>
-            <ul className="divide-y">{(summary.needsResearch.length ? summary.needsResearch : items).slice(0,5).map(i => <li key={i.asset.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"><div className="min-w-0"><Link to={`/assets/${i.asset.id}#sell`} className="block truncate text-sm font-medium hover:underline">{i.asset.name}</Link><p className="mt-1 text-xs text-muted-foreground">{i.latest.fair_market ? `Market estimate from ${i.latest.fair_market.observedAt}` : 'No market estimate recorded'}</p></div><SellAssetButton id={i.asset.id}/></li>)}</ul>
-            <Link to="/assets" className="mt-4 inline-flex items-center gap-1 text-xs font-medium hover:underline">Explore all assets <ArrowUpRight className="size-3"/></Link>
-        </CardContent></Card>
+// Keep three useful comparisons without repeating the portfolio's total-value history.
+export function LiquidityDashboard({ items, valueType = 'fair_market' }: { items: PortfolioItem[]; valueType?: ValueType }) {
+    const summary = liquiditySummary(items);
+    const gain = gainLossFor(items);
+    const allocation = foldSlices(allocationByCategory(items, valueType));
+    const allocatedCents = allocation.reduce((total, slice) => total + slice.valueCents, 0);
+    const totals = totalsFor(items, valueType);
+    const rows = [...summary.pairs].sort((a, b) => valueOf(b, 'fair_market')! - valueOf(a, 'fair_market')!).slice(0, 5);
+    const gains = summary.gains.slice(0, 5);
+    const maxValue = Math.max(1, ...rows.flatMap(item => [valueOf(item, 'fair_market')!, valueOf(item, 'liquidation')!]));
+    const maxGain = Math.max(1, ...gains.map(row => Math.abs(row.gain.gainCents)));
+
+    return <section className="grid min-w-0 gap-4 lg:grid-cols-2 xl:grid-cols-3" aria-label="Asset performance and selling insights">
+        <Card className="min-w-0" aria-label="Gains and losses by asset">
+            <CardHeader>
+                <CardTitle>Gains & losses</CardTitle>
+                <CardDescription>Market estimates compared with what you paid.</CardDescription>
+                {gain.counted > 0 && <p className="mt-2 text-xl font-semibold tracking-tight"><GainLoss cents={gain.gainCents} ratio={gain.ratio}/></p>}
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col gap-4">
+                {gains.length ? <>
+                    <ul className="space-y-4">{gains.map(({ item, gain: change }) => <li key={item.asset.id}>
+                        <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                            <Link to={`/assets/${item.asset.id}`} title={item.asset.name} className="min-w-0 truncate font-medium hover:underline">{item.asset.name}</Link>
+                            <span className={`shrink-0 tabular-nums ${change.gainCents > 0 ? 'text-gain' : change.gainCents < 0 ? 'text-loss' : 'text-muted-foreground'}`}>{formatMoney(change.gainCents, { signed: true })}</span>
+                        </div>
+                        <div className="relative h-2 rounded bg-muted" aria-hidden="true">
+                            <div className="absolute inset-y-0 left-1/2 w-px bg-muted-foreground/40"/>
+                            {change.gainCents !== 0 && <div className={`absolute h-2 rounded ${change.gainCents > 0 ? 'bg-good' : 'bg-destructive'}`} style={{width:`${Math.abs(change.gainCents)/maxGain*50}%`,...(change.gainCents>0?{left:'50%'}:{right:'50%'})}}/>}
+                        </div>
+                    </li>)}</ul>
+                    <div className="flex justify-between text-[11px] text-muted-foreground" aria-hidden="true"><span>Depreciation</span><span>Appreciation</span></div>
+                    <p className="mt-auto text-xs text-muted-foreground">{gain.counted} of {items.length} assets have both values{gain.counted > gains.length ? ` · Top ${gains.length} changes shown` : ''}. Unrealized, before selling costs.</p>
+                </> : <div className="flex min-h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground"><p>Add a purchase price and market value to see appreciation or depreciation.</p><Link to="/assets" className="font-medium text-foreground underline underline-offset-4">Add values</Link></div>}
+            </CardContent>
+        </Card>
+
+        <Card className="min-w-0" aria-label="Asset category breakdown">
+            <CardHeader><CardTitle>Value by category</CardTitle><CardDescription>Where your {VALUE_TYPE_SHORT[valueType].toLowerCase()} value sits.</CardDescription></CardHeader>
+            <CardContent className="flex flex-1 flex-col gap-4">
+                <AllocationDonut compact slices={allocation} totalCents={allocatedCents} centerLabel={VALUE_TYPE_SHORT[valueType]} emptyText="Add a positive value to see your category breakdown."/>
+                <p className="mt-auto text-xs text-muted-foreground">{totals.counted} of {items.length} assets valued. Only positive recorded values appear in the chart.</p>
+            </CardContent>
+        </Card>
+
+        <Card className="min-w-0 lg:col-span-2 xl:col-span-1" aria-label="Market versus quick-sale comparison">
+            <CardHeader>
+                <CardTitle>Market vs. quick sale</CardTitle>
+                <CardDescription>Two recorded estimates for the same assets.</CardDescription>
+                {summary.pairs.length > 0 && <p className="mt-2 text-xl font-semibold tracking-tight tabular-nums">{formatMoney(summary.quickCents)}<span className="ml-2 text-xs font-normal text-muted-foreground">quick-sale estimate</span></p>}
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col gap-4">
+                {rows.length ? <>
+                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-primary"/>Market</span><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-brass"/>Quick sale</span></div>
+                    <ul className="grid gap-4 lg:grid-cols-2 xl:grid-cols-1">{rows.map(item => <li className="min-w-0" key={item.asset.id}>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
+                            <Link to={`/assets/${item.asset.id}#sell`} title={item.asset.name} className="min-w-0 truncate font-medium hover:underline">{item.asset.name}</Link>
+                            <span className="shrink-0 text-muted-foreground tabular-nums"><span className="sr-only">Market </span>{formatMoney(valueOf(item, 'fair_market')!)} / <span className="sr-only">Quick sale </span>{formatMoney(valueOf(item, 'liquidation')!)}</span>
+                        </div>
+                        <div className="space-y-1" aria-hidden="true"><div className="h-2 rounded bg-muted"><div className="h-2 rounded bg-primary" style={{width:`${valueOf(item,'fair_market')!/maxValue*100}%`}}/></div><div className="h-2 rounded bg-muted"><div className="h-2 rounded bg-brass" style={{width:`${valueOf(item,'liquidation')!/maxValue*100}%`}}/></div></div>
+                    </li>)}</ul>
+                    <p className="mt-auto text-xs text-muted-foreground">{summary.pairs.length} of {items.length} assets have both estimates{summary.pairs.length>rows.length?` · Top ${rows.length} by market value shown`:''}. Before fees and shipping; sale timing isn't predicted.</p>
+                </> : <div className="flex min-h-48 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground"><p>Record a quick-sale and market estimate for the same asset to compare them.</p><Link to="/assets?missing=liquidation" className="font-medium text-foreground underline underline-offset-4">Add quick-sale values</Link></div>}
+            </CardContent>
+        </Card>
     </section>;
 }

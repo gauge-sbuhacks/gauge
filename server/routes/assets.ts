@@ -1,6 +1,7 @@
 // asset + valuation routes. the rule for every query here: filter by ownerId, never by id alone,
 // so one user can never read or change another user's things (a wrong owner just looks like "not found").
 
+import { ResearchSnapshot } from '../history/models.js';
 import { MarketReport } from './marketplace.js';
 import { Router } from 'express';
 import type { z } from 'zod';
@@ -199,6 +200,7 @@ assetsRouter.delete('/assets/:id', async (req, res) => {
     if (result.deletedCount === 0) throw notFound('That asset');
     await Valuation.deleteMany({ ownerId, assetId: req.params.id });
     await MarketReport.deleteMany({ ownerId, assetId: req.params.id });
+    await ResearchSnapshot.deleteMany({ ownerId, assetId:req.params.id });
     res.status(204).end();
 });
 

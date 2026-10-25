@@ -3,7 +3,7 @@
 // mistakes show up next to the field before anything is sent.
 
 import { z } from 'zod';
-import { detailsSchemaFor, getCategory, isCategoryId, isFieldVisible, type CategoryId, type Details } from '@shared/categories.ts';
+import { detailsSchemaFor, getCategory, isCategoryId, isFieldVisible, usesCommonField, type CategoryId, type Details } from '@shared/categories.ts';
 import { centsToInput, parseMoneyInput } from '@shared/money.ts';
 import type { AssetCreateInput, Condition, ObservedValueType } from '@shared/schemas.ts';
 import { todayIso } from './format.ts';
@@ -116,11 +116,12 @@ export function toPayload(values: AssetFormValues): AssetCreateInput {
         // categories without brand/model (real estate) clear them
         brand: def.brandLabel ? values.brand.trim() || null : null,
         model: def.modelLabel ? values.model.trim() || null : null,
-        location: values.location.trim() || null,
-        condition: values.condition || null,
+        // questions that don't apply to this category (a house's "condition") are cleared
+        location: usesCommonField(category, 'location') ? values.location.trim() || null : null,
+        condition: usesCommonField(category, 'condition') ? values.condition || null : null,
         purchaseDate: values.purchaseDate || null,
         purchasePriceCents: parseMoneyInput(values.purchasePrice) ?? null,
-        serialNumber: values.serialNumber.trim() || null,
+        serialNumber: usesCommonField(category, 'serialNumber') ? values.serialNumber.trim() || null : null,
         notes: values.notes.trim() || null,
         details: toDetails(category, values.details) as Details,
         estimate: amount != null ? { valueType: values.estimateType, amountCents: amount, observedAt: values.estimateDate || todayIso() } : null

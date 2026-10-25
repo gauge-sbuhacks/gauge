@@ -1,7 +1,8 @@
-// the signed-in person's menu on public pages: who they are, onboarding, the app, and sign out
+// the signed-in person's menu: who they are, onboarding answers, setup, and sign out.
+// "light" sits on the public pages, "dark" sits in the app's gunmetal top bar.
 
 import { useNavigate } from 'react-router';
-import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, UserRound } from 'lucide-react';
+import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, Settings2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import {
     DropdownMenu,
@@ -13,21 +14,31 @@ import {
 } from '@/components/ui/dropdown-menu.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { useProfile } from '@/hooks/useProfile.ts';
+import { cn } from '@/lib/utils.ts';
 
-export function AccountMenu() {
+export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
     const auth = useAuthInfo();
     const navigate = useNavigate();
     const { data } = useProfile({ enabled: auth.status === 'signed-in' });
     const profile = data?.profile;
     const name = profile?.name ?? auth.displayName;
+    const dark = tone === 'dark';
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="max-w-52">
+                <Button
+                    variant={dark ? 'ghost' : 'outline'}
+                    size={dark ? 'sm' : 'default'}
+                    aria-label={`Account menu for ${name}`}
+                    className={cn(
+                        'max-w-52',
+                        dark && 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground aria-expanded:bg-sidebar-accent aria-expanded:text-sidebar-accent-foreground'
+                    )}
+                >
                     <UserRound data-icon="inline-start" />
-                    <span className="truncate">{name}</span>
-                    <ChevronDown data-icon="inline-end" className="text-muted-foreground" />
+                    <span className={cn('truncate', dark && 'hidden sm:inline')}>{name}</span>
+                    <ChevronDown data-icon="inline-end" className={dark ? 'opacity-60' : 'text-muted-foreground'} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
@@ -38,13 +49,19 @@ export function AccountMenu() {
                 <DropdownMenuSeparator />
                 {profile ? (
                     <>
-                        <DropdownMenuItem onSelect={() => navigate('/')}>
-                            <LayoutDashboard />
-                            Dashboard
-                        </DropdownMenuItem>
+                        {!dark && (
+                            <DropdownMenuItem onSelect={() => navigate('/')}>
+                                <LayoutDashboard />
+                                Dashboard
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onSelect={() => navigate('/onboarding?edit')}>
                             <ClipboardList />
                             Edit your answers
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate('/settings')}>
+                            <Settings2 />
+                            Setup
                         </DropdownMenuItem>
                     </>
                 ) : (

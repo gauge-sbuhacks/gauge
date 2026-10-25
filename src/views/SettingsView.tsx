@@ -35,6 +35,7 @@ function StatusLine({ ok, warn, title, message }: { ok: boolean; warn?: boolean;
 }
 
 const ENV_VARS: { name: string; where: 'server' | 'browser'; needed: string; what: string }[] = [
+    { name: 'GOLD_API_KEY', where: 'server', needed: 'For metal history', what: 'Free Gold API history key. 10 history/OHLC requests per hour; cached for a day.' },
     { name: 'EBAY_CLIENT_ID', where: 'server', needed: 'For live market research', what: 'eBay production application ID for active comparable listings.' },
     { name: 'EBAY_CLIENT_SECRET', where: 'server', needed: 'For live market research', what: 'eBay production secret. Keep it on the API only.' },
     { name: 'MONGODB_URI', where: 'server', needed: 'For deploys', what: 'MongoDB Atlas connection string. Locally it falls back to MongoDB on this computer.' },
@@ -82,11 +83,20 @@ export default function SettingsView() {
 
     return (
         <div className="space-y-6">
-            <PageHeader title="Setup" description={`What ${APP_NAME} is connected to, and what still needs a key.`} />
+            <PageHeader title="Setup" description={`Your location and connections for ${APP_NAME}.`} />
 
                 <Card>
                 <CardHeader><CardTitle>Selling location</CardTitle><CardDescription>Used for marketplace research and relevant platform searches.</CardDescription></CardHeader>
                 <CardContent className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">{sellingLocation ? `${sellingLocation.city}, ${sellingLocation.region} · ${sellingLocation.postalCode} · ${sellingLocation.country}` : 'No selling location set yet'}</p><Button variant="outline" asChild><Link to="/onboarding?edit">Update location</Link></Button></CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Market history</CardTitle><CardDescription>Free historical sources, shown separately from your recorded values.</CardDescription></CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                    <p><a href="https://gold-api.com/pricing" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-4">Metals</a>: add a free Gold API key to enable daily history. Set the metal, weight, and purity on your item.</p>
+                    <p><a href="https://mtgjson.com/downloads/all-files/" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-4">Magic cards</a>: select the game, set code, collector number, and finish. Your developer can then import the free price history. No key needed.</p>
+                    <p className="text-xs text-muted-foreground">Other items build history from values you record and comparable asking prices you research. Historical sold prices are not connected.</p>
+                </CardContent>
             </Card>
 
             {health.isLoading ? (
@@ -145,6 +155,7 @@ export default function SettingsView() {
                 </CardContent>
             </Card>
 
+            <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer text-sm font-semibold">Developer setup & test data</summary><div className="mt-5 space-y-5">
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -207,6 +218,7 @@ export default function SettingsView() {
                     <span className="text-sm text-muted-foreground">{sampleCount > 0 ? `${sampleCount} test assets loaded` : 'None loaded'}</span>
                 </CardContent>
             </Card>
+            </div></details>
         </div>
     );
 }
