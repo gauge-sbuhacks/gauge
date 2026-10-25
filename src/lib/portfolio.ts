@@ -5,7 +5,7 @@
 //   - never add purchase cost and resale together
 //   - history only comes from recorded observations (no invented past prices)
 
-import { getCategory, identifierFields, type CategoryDef, type CategoryId } from '@shared/categories.ts';
+import { getCategory, identifierFields, usesCommonField, type CategoryDef, type CategoryId } from '@shared/categories.ts';
 import { representativeCents } from '@shared/money.ts';
 import type { AssetRecord, ObservedValueType, PortfolioResponse, ValuationRecord, ValueType } from '@shared/schemas.ts';
 import { daysBetween, formatDate, parseIsoDate, todayIso } from './format.ts';
@@ -69,12 +69,10 @@ function buildItem(asset: AssetRecord, valuations: ValuationRecord[]): Portfolio
         { id: 'identifier', label: 'Serial or ID', done: identifier != null, hint: identifierHint(asset.category) },
         { id: 'purchase', label: 'Purchase info', done: hasPurchase, hint: 'Add the purchase date or price' },
         { id: 'estimate', label: 'Current value', done: hasEstimate, hint: 'Record a fair market or quick-sale value' },
-        { id: 'condition', label: 'Condition', done: asset.condition != null, hint: 'Set the condition' },
     ];
-    // a house is its own location
-    if (asset.category !== 'property') {
-        checks.splice(4, 0, { id: 'location', label: 'Location', done: asset.location != null, hint: 'Say where it is kept' });
-    }
+    // only ask for what applies: a house has no condition grade and is its own location
+    if (usesCommonField(asset.category, 'condition')) checks.push({ id: 'condition', label: 'Condition', done: asset.condition != null, hint: 'Set the condition' });
+    if (usesCommonField(asset.category, 'location')) checks.push({ id: 'location', label: 'Location', done: asset.location != null, hint: 'Say where it is kept' });
 
     return {
         asset,

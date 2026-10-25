@@ -7,6 +7,7 @@ import { Logo } from '@/components/common/Logo.tsx';
 import { AssetValuesDiagram, FlowDiagram } from '@/components/landing/Diagrams.tsx';
 import { Reveal } from '@/components/landing/Reveal.tsx';
 import { AccountMenu } from '@/components/layout/AccountMenu.tsx';
+import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { useProfile } from '@/hooks/useProfile.ts';
@@ -217,12 +218,7 @@ export default function LandingView() {
                 </section>
             </main>
 
-            <footer className="border-t">
-                <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                    <Logo className="text-foreground" />
-                    <p>Values are estimates, not appraisals. Built at SBU Hacks.</p>
-                </div>
-            </footer>
+            <SiteFooter width="max-w-6xl" note="Values are estimates, not appraisals. Built at SBU Hacks." />
         </div>
     );
 }

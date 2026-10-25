@@ -5,6 +5,7 @@ import { Link, Navigate } from 'react-router';
 import { SignIn, SignUp } from '@clerk/react';
 import { ArrowLeft, FileDown, History, PackagePlus } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
+import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { APP_NAME } from '@/config.ts';
 
@@ -56,6 +57,7 @@ export default function AuthView({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                         {mode === 'sign-in' ? <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" /> : <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />}
                     </div>
                 </div>
+                <SiteFooter width="max-w-none" className="-mx-6 -mb-6 border-t-0" />
             </main>
         </div>
     );

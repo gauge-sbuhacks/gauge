@@ -1,5 +1,6 @@
 // the category-specific part of the form. fields come from shared/categories.ts and appear
 // progressively (pick "Trading card" and the set / grade / cert fields show up).
+// `keys` limits it to some fields, in that order (the step-by-step add flow asks a few at a time).
 
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { LoaderCircle, ScanSearch } from 'lucide-react';
@@ -19,16 +20,24 @@ export function CategoryFields({
     form,
     category,
     onDecodeVin,
-    decoding
+    decoding,
+    keys
 }: {
     form: UseFormReturn<AssetFormValues>;
     category: CategoryId;
+    keys?: string[];
     onDecodeVin?: () => void;
     decoding?: boolean;
 }) {
-    const def = getCategory(category);
+    let def = getCategory(category);
     const details = form.watch('details') ?? {};
     const errors = form.formState.errors.details as Record<string, { message?: string }> | undefined;
+
+    if (keys) {
+        const picked = keys.map((k) => def.fields.find((f) => f.key === k)).filter((f): f is CategoryField => f != null);
+        def = { ...def, fields: picked };
+        if (picked.length === 0) return null;
+    }
 
     if (def.fields.length === 0) {
         return <p className="text-sm text-muted-foreground">No extra fields for this category. Use notes for anything specific.</p>;

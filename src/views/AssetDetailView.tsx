@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, ArrowUpRight, FileText, LoaderCircle, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCategory, isFieldVisible, type CategoryField } from '@shared/categories.ts';
+import { getCategory, isFieldVisible, usesCommonField, type CategoryField } from '@shared/categories.ts';
 import { CONDITION_LABELS, VALUATION_SOURCE_LABELS, VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { AssetHistory } from '@/components/assets/AssetHistory.tsx';
 import { DepreciationCard } from '@/components/assets/DepreciationCard.tsx';
@@ -109,7 +109,7 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
     const supportsLookup = ['vehicle','property','jewelry'].includes(asset.category) || (asset.category==='collectible'&&asset.details.kind==='trading_card');
     return <div className="space-y-6">
         <PageHeader eyebrow={<Link to="/assets" className="inline-flex items-center gap-1 hover:text-foreground"><ArrowLeft className="size-3.5"/>Assets</Link>}
-            title={<span className="flex min-w-0 items-center gap-3"><CategoryBadgeIcon id={asset.category} className="size-10 shrink-0"/><span className="min-w-0"><span className="block break-words">{asset.name}</span><span className="block text-sm font-normal text-muted-foreground">{category.singular}{asset.condition?` · ${CONDITION_LABELS[asset.condition]}`:''}</span></span></span>}
+            title={<span className="flex min-w-0 items-center gap-3"><CategoryBadgeIcon id={asset.category} className="size-10 shrink-0"/><span className="min-w-0"><span className="block break-words">{asset.name}</span><span className="block text-sm font-normal text-muted-foreground">{category.singular}{asset.condition&&usesCommonField(asset.category,'condition')?` · ${CONDITION_LABELS[asset.condition]}`:''}</span></span></span>}
             actions={<><Button asChild variant="outline"><Link to={`/assets/${asset.id}/edit`}><Pencil/>Edit</Link></Button><Button asChild><a href="#sell">Sell this item<ArrowUpRight/></a></Button></>}/>
         {asset.isSample && <Badge variant="outline">Test data</Badge>}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">{VALUE_TYPES.map(type => <ValueCard key={type} item={item} type={type} onAdd={() => openRecord({valueType:type==='cost_basis'?'fair_market':type})}/>)}</div>

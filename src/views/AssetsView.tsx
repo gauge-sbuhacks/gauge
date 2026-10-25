@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, FileSpreadsheet, FileText, Plus, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { CATEGORIES } from '@shared/categories.ts';
+import { CATEGORIES, usesCommonField } from '@shared/categories.ts';
 import { CONDITION_LABELS, VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { CompletenessRing } from '@/components/common/CompletenessRing.tsx';
@@ -365,7 +365,7 @@ export default function AssetsView() {
                                                         </div>
                                                         <div className="truncate text-xs text-muted-foreground">
                                                             {item.category.singular}
-                                                            {asset.condition && ` · ${CONDITION_LABELS[asset.condition]}`}
+                                                            {asset.condition && usesCommonField(asset.category, 'condition') && ` · ${CONDITION_LABELS[asset.condition]}`}
                                                             {item.identifier && ` · ${item.identifier.value}`}
                                                         </div>
                                                     </div>
