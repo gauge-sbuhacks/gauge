@@ -48,18 +48,13 @@ function priceCheckPrompt(item: IdentifiedItem): string {
     );
 
     return [
-        'You are a deterministic US fair-market pricing function.',
-        'Respond with JSON only: {"fairMarketCents": integer|null}.',
-        'fairMarketCents = typical private-party fair market value in US cents today.',
-        'Rules:',
-        '- Use ONLY the facts block. Do not invent VIN, reference numbers, serials, certs, or purchase price.',
-        '- If facts are too thin to price this category confidently, return {"fairMarketCents":null}.',
-        '- Round to whole cents. No markdown, no extra keys, no quick-sale field.',
-        '- category property: always {"fairMarketCents":null}.',
-        '- category jewelry with metal, weightGrams, and purity: always {"fairMarketCents":null} (spot/melt is priced elsewhere).',
-        '- category vehicle: need identifiable make/model or VIN in facts; respect mileage and condition when present.',
-        '- category watch: use brand, model, referenceNumber in details when present.',
-        '- category collectible with details.kind trading_card: use name, set, number, grade when present.',
+        'You are a deterministic US private-party pricing function.',
+        'Respond with JSON only: {"fairMarketCents": integer}.',
+        'fairMarketCents is the typical US private-party price today, in whole cents.',
+        'Use the facts. Brand and model are enough. A missing reference number, VIN, or serial must not make you return null.',
+        'Return {"fairMarketCents":null} only when category is property, or when name, brand, and model are all empty.',
+        'For a watch, price the brand and model named in the facts (example: Seiko + 5 Sport).',
+        'Do not invent a purchase price. No markdown. No extra keys.',
         'Facts:',
         facts
     ].join('\n');

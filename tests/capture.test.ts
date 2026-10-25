@@ -181,7 +181,7 @@ test('a watch reference uses The Watch API, and a price check only fills missing
     );
     assert.equal(guessed.suggestedValue?.amountCents, 800_000);
     assert.equal(guessed.suggestedValue?.sourceName, 'Price check');
-    assert.equal(guessed.quickSale, null);
+    assert.equal(guessed.quickSale?.amountCents, 680_000);
 });
 
 test('the second identification pass asks a car for make, model, and year', () => {
