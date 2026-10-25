@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { toDataURL } from 'qrcode';
 import { Camera, LoaderCircle, PenLine } from 'lucide-react';
 import { toast } from 'sonner';
+import { Gus } from '@/components/brand/Mascots.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.tsx';
 import { useCaptureDesk } from '@/hooks/useCaptureSession.ts';
@@ -62,10 +63,14 @@ export function AddAssetDialog({ children }: { children: ReactElement }) {
             <DialogContent className="sm:max-w-lg">
                 {step === 'choice' ? (
                     <>
-                        <DialogHeader>
-                            <DialogTitle>Add an asset</DialogTitle>
-                            <DialogDescription>Choose how you want to add it.</DialogDescription>
-                        </DialogHeader>
+                        {/* Gus the boiler inspector asks how it's coming in */}
+                        <div className="flex items-end gap-3">
+                            <Gus pose="calm" size={64} className="mascot-bob h-auto w-14" />
+                            <DialogHeader className="mb-1">
+                                <DialogTitle className="font-display text-2xl font-black tracking-[0.02em] uppercase">Add an asset</DialogTitle>
+                                <DialogDescription>How do you want to add it?</DialogDescription>
+                            </DialogHeader>
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                             <button
                                 type="button"

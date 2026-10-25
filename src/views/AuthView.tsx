@@ -6,6 +6,7 @@ import { SignIn, SignUp } from '@clerk/react';
 import { ArrowLeft, FileDown, History, PackagePlus } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
+import { Boyle } from '@/components/brand/Mascots.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { APP_NAME } from '@/config.ts';
 
@@ -22,18 +23,21 @@ export default function AuthView({ mode }: { mode: 'sign-in' | 'sign-up' }) {
 
     return (
         <div className="grid min-h-svh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-            <aside className="hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
+            <aside className="relative isolate hidden flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex">
+                <div aria-hidden className="absolute inset-0 -z-10 bg-(image:--bg-steamroom) bg-cover bg-center" />
+                <div aria-hidden className="absolute inset-0 -z-10 bg-linear-to-t from-sidebar/90 via-sidebar/40 to-sidebar/70" />
                 <Link to="/" className="w-fit text-sidebar-accent-foreground">
                     <Logo />
                 </Link>
                 <div className="max-w-md animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
-                    <p className="text-3xl leading-tight font-semibold tracking-tight text-sidebar-accent-foreground">
+                    <Boyle pose="watch" size={96} className="mascot-bob mb-5 h-auto w-24" />
+                    <p className="font-display text-5xl leading-[0.92] font-black tracking-[0.01em] uppercase">
                         {mode === 'sign-up' ? 'Start an inventory you can actually use.' : 'Welcome back.'}
                     </p>
                     <ul className="mt-8 space-y-4">
                         {POINTS.map((p) => (
                             <li key={p.text} className="flex gap-3 text-sm leading-relaxed">
-                                <p.icon className="mt-0.5 size-4 shrink-0 text-sidebar-primary" strokeWidth={1.75} />
+                                <p.icon className="mt-0.5 size-4 shrink-0 text-label" strokeWidth={1.75} />
                                 {p.text}
                             </li>
                         ))}

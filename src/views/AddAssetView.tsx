@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Controller, useForm, useWatch, type Path, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Cog, CornerDownLeft, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { parseMoneyInput } from '@shared/money.ts';
@@ -25,6 +25,8 @@ import {
 } from '@shared/schemas.ts';
 import { ApiError } from '@/api/api.ts';
 import { CategoryFields } from '@/components/assets/CategoryFields.tsx';
+import { MascotQuestion, type Speaker } from '@/components/brand/MascotQuestion.tsx';
+import { Puff } from '@/components/brand/Mascots.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
 import { Field, MoneyInput, OptionalSelect } from '@/components/assets/FormBits.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
@@ -66,6 +68,17 @@ import { cn } from '@/lib/utils.ts';
 import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
 
 const LEAVE_MS = 220;
+
+// who asks each question: Gus the boiler inspector runs the inspection, Boyle the owl keeps watch
+// over the details, Puff turns up for the money, and Gus stamps the certificate at the end
+const SPEAKERS: Record<StepId, Speaker> = {
+    category: { who: 'gus', pose: 'calm' },
+    identity: { who: 'boyle', pose: 'watch' },
+    details: { who: 'gus', pose: 'calm' },
+    condition: { who: 'boyle', pose: 'watch' },
+    money: { who: 'puff', pose: 'happy' },
+    proof: { who: 'gus', pose: 'certify' }
+};
 
 export default function AddAssetView() {
     const portfolio = usePortfolio();
@@ -196,7 +209,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             }
             const res = await create.mutateAsync(payload);
             saved.current = true;
-            toast.success(`${res.asset.name} added`);
+            toast.success(`${res.asset.name} added`, { icon: <Puff pose="happy" size={22} /> });
             navigate(`/assets/${res.asset.id}`);
         } catch (err) {
             if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
@@ -405,7 +418,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                                 className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
                                 onClick={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })}
                             >
-                                <Sparkles className="size-3" />
+                                <Cog className="size-3.5 text-label" />
                                 Use "{nameSuggestion}"
                             </button>
                         ) : (
@@ -584,8 +597,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     aria-valuenow={index + 1}
                 >
                     {steps.map((s, i) => (
-                        <div key={s} className="h-1 overflow-hidden rounded-full bg-foreground/10">
-                            <div className={cn('h-full bg-foreground transition-[width] duration-500 ease-out', i <= index ? 'w-full' : 'w-0')} />
+                        <div key={s} className="h-2 overflow-hidden rounded-full border border-border bg-inset shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+                            <div className={cn('h-full bg-[linear-gradient(180deg,#FCE3A8,#F4A906_45%,#C68A06)] transition-[width] duration-500 ease-out', i <= index ? 'w-full' : 'w-0')} />
                         </div>
                     ))}
                 </div>
@@ -595,8 +608,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             </div>
 
             <div ref={stage} key={stepId} className={cn('py-10 motion-reduce:animate-none sm:py-14', stageClass)}>
-                <h1 className="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">{question}</h1>
-                <p className="mt-3 text-muted-foreground">{help}</p>
+                <MascotQuestion speaker={SPEAKERS[stepId]} question={question} help={help} />
 
                 <div className="mt-8">{body}</div>
 

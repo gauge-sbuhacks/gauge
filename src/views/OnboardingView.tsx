@@ -11,6 +11,8 @@ import { Logo } from '@/components/common/Logo.tsx';
 import { FullPageLoading } from '@/components/common/QueryStates.tsx';
 import { WelcomeIntro } from '@/components/onboarding/WelcomeIntro.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
+import { Backdrop } from '@/components/brand/Backdrop.tsx';
+import { MascotQuestion, type Speaker } from '@/components/brand/MascotQuestion.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
@@ -108,6 +110,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     if (step === 0) {
         stage = (
             <Question
+                speaker={{ who: 'boyle', pose: 'watch' }}
                 id="name"
                 question="First, what should we call you?"
                 help={`This is how your name appears in ${APP_NAME} and on the inventories you export.`}
@@ -133,6 +136,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     } else if (step === 1) {
         stage = (
             <Question
+                speaker={{ who: 'gus', pose: 'calm' }}
                 id="city"
                 question="Where will you be selling from?"
                 help="Your city and postal code help us research relevant markets. You can update this later. No street address needed."
@@ -167,6 +171,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     } else if (step === 2) {
         stage = (
             <Question
+                speaker={{ who: 'puff', pose: 'wink' }}
                 id="purpose"
                 question={`What brings you to ${APP_NAME}?`}
                 help="Pick the one closest to why you're here."
@@ -207,7 +212,9 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     }
 
     return (
-        <div className="flex min-h-svh flex-col bg-background">
+        <div className="relative isolate flex min-h-svh flex-col">
+            {/* the pipeworks frame the question in the middle */}
+            <Backdrop />
             <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 pt-6">
                 <Link to="/home" aria-label={`${APP_NAME} home`}>
                     <Logo />
@@ -232,8 +239,8 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
                 <div className="mx-auto mt-6 flex w-full max-w-2xl items-center gap-4 px-6">
                     <div className="grid flex-1 grid-cols-3 gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={QUESTION_COUNT} aria-valuenow={step + 1}>
                         {Array.from({ length: QUESTION_COUNT }, (_, i) => (
-                            <div key={i} className="h-1 overflow-hidden rounded-full bg-foreground/10">
-                                <div className={cn('h-full bg-foreground transition-[width] duration-500 ease-out', i <= step ? 'w-full' : 'w-0')} />
+                            <div key={i} className="h-2 overflow-hidden rounded-full border border-border bg-inset shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+                                <div className={cn('h-full bg-[linear-gradient(180deg,#FCE3A8,#F4A906_45%,#C68A06)] transition-[width] duration-500 ease-out', i <= step ? 'w-full' : 'w-0')} />
                             </div>
                         ))}
                     </div>
@@ -256,6 +263,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
 }
 
 function Question({
+    speaker,
     id,
     question,
     help,
@@ -268,6 +276,8 @@ function Question({
     submitLabel = 'Continue',
     enterHint = true
 }: {
+    // the mascot asking it
+    speaker: Speaker;
     id: string;
     question: string;
     help: string;
@@ -283,10 +293,7 @@ function Question({
 }) {
     return (
         <form onSubmit={onSubmit} noValidate>
-            <label htmlFor={id} className="block text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
-                {question}
-            </label>
-            <p className="mt-3 text-muted-foreground">{help}</p>
+            <MascotQuestion speaker={speaker} question={question} help={help} labelFor={id} />
 
             <div className="mt-8">{children}</div>
             {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

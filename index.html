@@ -1,11 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
     <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/svg+xml" href="/gauge.svg" />
+        <link rel="icon" type="image/svg+xml" href="/brand/logo/badge-mark-small.svg" />
+        <link rel="apple-touch-icon" href="/brand/logo/app-icon-badge.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="Gauge is a net-worth tracker for the things you can touch." />
         <meta name="robots" content="noindex" />
+        <meta name="theme-color" content="#1A140D" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Big+Shoulders:wght@500;700;800;900&family=Big+Shoulders+Stencil:wght@800&display=swap"
+        />
+        <!-- dark ("Boiler room") is the default; a saved light choice applies before the first paint -->
+        <script>
+            try {
+                if (localStorage.getItem('gauge-theme') === 'light') document.documentElement.classList.remove('dark');
+            } catch {}
+        </script>
         <title>Gauge</title>
     </head>
     <body>

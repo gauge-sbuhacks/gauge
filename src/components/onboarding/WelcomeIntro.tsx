@@ -1,13 +1,15 @@
-// the last onboarding screen: a gauge needle sweeps into place, then the welcome and the three
+// the last onboarding screen: the boiler gauge's needle drops into the green, then the welcome and the three
 // things to know arrive one after another. every piece uses fill-mode-both so it stays hidden
 // until its own delay comes up.
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowRight, FlaskConical, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PURPOSE_HINTS, type Purpose } from '@shared/schemas.ts';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
+import { Puff } from '@/components/brand/Mascots.tsx';
+import { PressureGauge } from '@/components/brand/PressureGauge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { useLoadSample } from '@/hooks/usePortfolio.ts';
 import { APP_NAME } from '@/config.ts';
@@ -30,27 +32,19 @@ function Arrive({ at, children, className, as: Tag = 'div' }: { at: number; chil
     );
 }
 
-// a large version of the logo mark. the needle comes to rest in the welcome position
+// the kit's brass boiler gauge: the needle starts in the red and eases down into the green
+// ("keep the pressure off"), with Puff floating beside it
 function WelcomeGauge() {
-    const ticks = Array.from({ length: 11 }, (_, i) => {
-        const a = Math.PI - (i / 10) * Math.PI;
-        const r1 = 70;
-        const r2 = i % 5 === 0 ? 58 : 63;
-        return { x1: 100 + r1 * Math.cos(a), y1: 100 - r1 * Math.sin(a), x2: 100 + r2 * Math.cos(a), y2: 100 - r2 * Math.sin(a) };
-    });
+    const [value, setValue] = useState(92);
+    useEffect(() => {
+        const id = window.setTimeout(() => setValue(8), 350);
+        return () => window.clearTimeout(id);
+    }, []);
     return (
-        <svg viewBox="0 0 200 116" className="w-40" aria-hidden>
-            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="currentColor" strokeOpacity=".12" strokeWidth="8" strokeLinecap="round" />
-            <path d="M 20 100 A 80 80 0 0 1 43.4 43.4" fill="none" stroke="var(--color-brass)" strokeWidth="8" strokeLinecap="round" />
-            {ticks.map((t, i) => (
-                <line key={i} {...t} stroke="currentColor" strokeOpacity={i % 5 === 0 ? 0.45 : 0.2} strokeWidth="1.5" strokeLinecap="round" />
-            ))}
-            <g className="needle-sweep" style={{ transformOrigin: '100px 100px', transform: 'rotate(-48deg)', '--needle-from': '-90deg' } as CSSProperties}>
-                <line x1="100" y1="100" x2="100" y2="38" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-            </g>
-            <circle cx="100" cy="100" r="8" fill="currentColor" />
-            <circle cx="100" cy="100" r="3" fill="var(--color-background)" />
-        </svg>
+        <div className="flex items-end gap-2">
+            <PressureGauge value={value} variant="boiler" size={150} />
+            <Puff pose="happy" size={64} className="mascot-bob mb-1" />
+        </div>
     );
 }
 
@@ -90,7 +84,7 @@ export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpos
             </Arrive>
 
             <Arrive at={500}>
-                <h1 className="mt-8 text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
+                <h1 className="mt-8 font-display text-4xl leading-[0.95] font-black tracking-[0.01em] uppercase sm:text-5xl">
                     Welcome to {APP_NAME}, {firstName}.
                 </h1>
             </Arrive>
@@ -101,7 +95,7 @@ export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpos
             <ol className="mt-10 space-y-6">
                 {STEPS.map((s, i) => (
                     <Arrive key={s.title} as="li" at={1150 + i * 220} className="flex gap-4">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border bg-card text-sm font-medium tabular-nums">{i + 1}</span>
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-[#5A3A06] bg-[linear-gradient(180deg,#FAD06A,#F4A906_52%,#C68A06)] font-display text-base font-black text-sbu-umber tabular-nums">{i + 1}</span>
                         <div>
                             <div className="font-medium">{s.title}</div>
                             <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{s.text}</p>

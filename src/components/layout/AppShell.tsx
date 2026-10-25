@@ -1,10 +1,12 @@
-// the frame around every app page: a gunmetal top bar (logo, Dashboard and Assets in the middle,
-// add + account on the right), the page, then the footer. on phones the two tabs drop to a second row.
+// the frame around every app page: the top bar (pressure badge logo, Dashboard and Assets in the
+// middle, add + account on the right) sitting on a copper pipe, the page, then the footer. on phones
+// the two tabs drop to a second row. the pipeworks background stays fixed behind everything.
 
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Boxes, LayoutDashboard, Plus } from 'lucide-react';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { Logo } from '@/components/common/Logo.tsx';
+import { Backdrop } from '@/components/brand/Backdrop.tsx';
 import { AccountMenu } from '@/components/layout/AccountMenu.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { Button } from '@/components/ui/button.tsx';
@@ -46,18 +48,21 @@ function NavTabs({ className }: { className?: string }) {
 
 export default function AppShell() {
     return (
-        <div className="flex min-h-svh flex-col">
-            <header className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <div className="relative isolate flex min-h-svh flex-col">
+            {/* pipes frame the edges and the middle stays clear, so cards and numbers never sit on them */}
+            <Backdrop />
+
+            <header className="sticky top-0 z-30 bg-sidebar/95 text-sidebar-foreground shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)] backdrop-blur-sm">
                 <div className="mx-auto grid h-14 max-w-7xl grid-cols-[1fr_auto_1fr] items-stretch gap-4 px-4 sm:px-6 lg:px-8">
                     <NavLink to="/home" aria-label="Home page" className="flex w-fit items-center text-sidebar-accent-foreground">
                         <Logo />
                     </NavLink>
 
-                    <NavTabs className="hidden w-80 md:grid" />
+                    <NavTabs className="hidden w-60 md:grid lg:w-80" />
 
                     <div className="col-start-3 flex items-center justify-end gap-2">
                         <AddAssetDialog>
-                            <Button type="button" size="sm" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" aria-label="Add asset">
+                            <Button type="button" size="sm" className="h-9 px-3" aria-label="Add asset">
                                 <Plus data-icon="inline-start" />
                                 <span className="hidden sm:inline">Add asset</span>
                             </Button>
@@ -67,6 +72,8 @@ export default function AppShell() {
                 </div>
                 {/* phones: the two tabs get their own row, split evenly */}
                 <NavTabs className="h-11 border-t border-sidebar-border md:hidden" />
+                {/* the copper pipe the bar sits on */}
+                <div aria-hidden className="h-[5px] [background:var(--copper-pipe)]" />
             </header>
 
             <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

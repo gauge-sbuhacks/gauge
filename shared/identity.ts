@@ -1,13 +1,14 @@
 // which questions each category asks first, after the category itself is chosen.
 // the add-asset form and the photo identification pass both read this list, so a car
-// is asked for its VIN, year, make, and model in both places.
+// is asked for its year, make, model, trim, and then VIN in both places.
 
 import { getCategory, type CategoryId } from './categories.js';
 
 export type IdentityField = 'brand' | 'model' | `details.${string}`;
 
 export const IDENTITY_FIELDS: Record<CategoryId, IdentityField[]> = {
-    vehicle: ['details.vin', 'details.year', 'brand', 'model', 'details.trim'],
+    // year, make, and model first (enough for a market estimate); the VIN is optional and decodes the rest
+    vehicle: ['details.year', 'brand', 'model', 'details.trim', 'details.vin'],
     property: ['details.addressLine1', 'details.city', 'details.state', 'details.postalCode'],
     watch: ['brand', 'model', 'details.referenceNumber'],
     jewelry: ['details.kind', 'brand', 'model'],

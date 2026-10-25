@@ -2,7 +2,7 @@
 // "light" sits on the public pages, "dark" sits in the app's gunmetal top bar.
 
 import { useNavigate } from 'react-router';
-import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, Settings2, UserRound } from 'lucide-react';
+import { ChevronDown, ClipboardList, LayoutDashboard, LogOut, Moon, Settings2, Sun, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
 import {
     DropdownMenu,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu.tsx';
 import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { useProfile } from '@/hooks/useProfile.ts';
+import { useTheme } from '@/lib/theme.ts';
 import { cn } from '@/lib/utils.ts';
 
 export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
@@ -23,6 +24,7 @@ export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
     const profile = data?.profile;
     const name = profile?.name ?? auth.displayName;
     const dark = tone === 'dark';
+    const theme = useTheme();
 
     return (
         <DropdownMenu>
@@ -37,7 +39,7 @@ export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
                     )}
                 >
                     <UserRound data-icon="inline-start" />
-                    <span className={cn('truncate', dark && 'hidden sm:inline')}>{name}</span>
+                    <span className={cn('truncate', dark && 'hidden lg:inline')}>{name}</span>
                     <ChevronDown data-icon="inline-end" className={dark ? 'opacity-60' : 'text-muted-foreground'} />
                 </Button>
             </DropdownMenuTrigger>
@@ -70,6 +72,11 @@ export function AccountMenu({ tone = 'light' }: { tone?: 'light' | 'dark' }) {
                         Start onboarding
                     </DropdownMenuItem>
                 )}
+                {/* the menu stays open, so the change is visible right away */}
+                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); theme.toggle(); }}>
+                    {theme.theme === 'dark' ? <Sun /> : <Moon />}
+                    {theme.theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {auth.signOut ? (
                     <DropdownMenuItem onSelect={() => auth.signOut?.()}>

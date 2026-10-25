@@ -23,12 +23,12 @@ export function CategoryPicker({ value, onChange, invalid, roomy = false }: { va
                         className={cn(
                             'flex items-start gap-2.5 rounded-lg border text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                             roomy ? 'gap-3 p-3.5' : 'p-2.5',
-                            active ? 'border-foreground/60 bg-muted ring-1 ring-foreground/30' : 'border-border hover:bg-muted/60',
+                            active ? 'border-primary bg-card-raised ring-1 ring-primary/60' : 'border-border bg-card hover:border-border-strong hover:bg-card-raised',
                             invalid && !value && 'border-destructive/60'
                         )}
                     >
                         <span className="relative mt-0.5">
-                            <Icon className={roomy ? 'size-5' : 'size-4'} strokeWidth={1.75} />
+                            <Icon className={cn('text-label', roomy ? 'size-5' : 'size-4')} strokeWidth={1.75} />
                             <span className="absolute -right-1 -bottom-1 size-2 rounded-full ring-2 ring-card" style={{ background: categoryColor(c.id) }} />
                         </span>
                         <span className="min-w-0">

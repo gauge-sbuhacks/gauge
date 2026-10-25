@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Boxes, Plus } from 'lucide-react';
-import { VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
+import { VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { LiquidityDashboard } from '@/components/charts/LiquidityDashboard.tsx';
 import { HistoryChart, clipHistory } from '@/components/charts/HistoryChart.tsx';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
@@ -73,7 +73,8 @@ export default function DashboardView() {
                     <Segmented size="sm" label="Time range" value={range} onChange={v => setParam('range',v==='all'?null:v)} options={RANGES.map(r => ({value:r.value,label:r.label}))}/>
                 </div>
                 <div>
-                    <CardTitle className="text-4xl font-semibold tracking-tight sm:text-5xl">{totals.counted ? formatMoney(totals.totalCents) : 'No values yet'}</CardTitle>
+                    <p className="label-engraved">{VALUE_TYPE_LABELS[valueType]}</p>
+                    <CardTitle className="total mt-1 font-sans text-5xl leading-none tracking-[-0.01em] normal-case sm:text-6xl">{totals.counted ? formatMoney(totals.totalCents) : 'No values yet'}</CardTitle>
                     <p className="mt-2 text-sm text-muted-foreground">{totals.counted} of {totals.of} assets valued{totals.missing > 0 && <> · <Link to={`/assets?missing=${valueType}`} className="underline underline-offset-4">{totals.missing} need a value</Link></>}</p>
                 </div>
             </CardHeader>

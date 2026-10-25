@@ -10,10 +10,11 @@ function HistoryTooltip({ active, payload, countLabel }: { active?: boolean; pay
     if (!active || !payload?.length) return null;
     const p = payload[0].payload;
     return (
-        <div className="rounded-lg bg-popover px-3 py-2 text-sm shadow-md ring-1 ring-foreground/10">
-            <div className="font-semibold tabular-nums">{formatMoney(p.valueCents)}</div>
-            <div className="text-muted-foreground">{formatDate(p.date)}</div>
-            {countLabel && <div className="text-xs text-muted-foreground">{countLabel(p.assetsCounted)}</div>}
+        // a cream ticket stub, as in the kit
+        <div className="rounded-sm border-l-2 border-dashed border-[#8F4C2E] bg-ticket px-3 py-2 text-sm text-sbu-umber shadow-md">
+            <div className="text-[10px] font-bold tracking-[0.14em] text-[#93581C] uppercase [font-stretch:125%]">{formatDate(p.date)}</div>
+            <div className="font-extrabold tabular-nums [font-stretch:78%]">{formatMoney(p.valueCents)}</div>
+            {countLabel && <div className="text-xs text-[#6A5235]">{countLabel(p.assetsCounted)}</div>}
         </div>
     );
 }
@@ -112,8 +113,8 @@ export function HistoryChart({
                 <AreaChart data={points} margin={{ top: 8, right: 20, bottom: 0, left: 0 }}>
                     <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="var(--color-series-1)" stopOpacity={0.16} />
-                            <stop offset="100%" stopColor="var(--color-series-1)" stopOpacity={0.02} />
+                            <stop offset="0%" stopColor="var(--color-chart-line)" stopOpacity={0.28} />
+                            <stop offset="100%" stopColor="var(--color-chart-line)" stopOpacity={0.02} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="var(--color-chart-grid)" />
@@ -156,11 +157,11 @@ export function HistoryChart({
                     <Area
                         type={curve}
                         dataKey="valueCents"
-                        stroke="var(--color-series-1)"
+                        stroke="var(--color-chart-line)"
                         strokeWidth={2}
                         fill={baseline === 'zero' ? `url(#${gradientId})` : 'transparent'}
                         dot={points.length === 1 ? { r: 4 } : false}
-                        activeDot={{ r: 4.5, strokeWidth: 2, stroke: 'var(--color-card)', fill: 'var(--color-series-1)' }}
+                        activeDot={{ r: 4.5, strokeWidth: 2, stroke: 'var(--color-card)', fill: 'var(--color-sbu-gold)' }}
                         isAnimationActive={false}
                     />
                 </AreaChart>

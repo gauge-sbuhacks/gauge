@@ -40,7 +40,7 @@ test('review steps include the category questions and the three values', () => {
         details: { mileage: 61000, trim: '' },
         suggestedValue: { amountCents: 2_800_000, lowCents: null, highCents: null, sourceName: 'VinAudit retail', notes: '' }
     });
-    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'detail:vin', 'detail:year', 'brand', 'model', 'detail:trim', 'condition', 'detail:mileage', 'purchase', 'value', 'quickSale']);
+    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'detail:year', 'brand', 'model', 'detail:trim', 'detail:vin', 'condition', 'detail:mileage', 'purchase', 'value', 'quickSale']);
     assert.equal(steps.find((step) => step.key === 'brand')?.label, 'Make');
 
     const bare = reviewSteps({

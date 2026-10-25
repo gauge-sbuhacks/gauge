@@ -12,13 +12,13 @@ export function CompletenessRing({ done, total, size = 22, showLabel = true, cla
     return (
         <span className={cn('inline-flex items-center gap-1.5', className)} title={`${done} of ${total} record details filled in`}>
             <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden className="-rotate-90">
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-muted)" strokeWidth={stroke} />
+                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-inset)" strokeWidth={stroke} />
                 <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={r}
                     fill="none"
-                    stroke={complete ? 'var(--color-good)' : 'var(--color-series-1)'}
+                    stroke={complete ? 'var(--color-good)' : 'var(--color-sbu-gold)'}
                     strokeWidth={stroke}
                     strokeLinecap="round"
                     strokeDasharray={`${c * ratio} ${c}`}

@@ -1,17 +1,22 @@
 import * as React from "react"
 import { cn } from "cn"
 
+// gauge: every card is a riveted plate (warm gradient, top hairline, soft shadow, two copper rivets).
+// the rivets are pseudo-elements, so no markup changes; pass rivets={false} to leave them off
 function Card({
   className,
   size = "default",
+  rivets = true,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm"; rivets?: boolean }) {
   return (
     <div
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card relative flex flex-col gap-(--card-spacing) overflow-hidden rounded-lg border border-border bg-card bg-linear-to-b from-card-top to-card py-(--card-spacing) text-sm text-card-foreground shadow-[var(--hairline-top),var(--shadow-card)] [--card-spacing:--spacing(4)]",
+        rivets && "before:pointer-events-none before:absolute before:top-2 before:left-2 before:size-[7px] before:rounded-full before:[background:var(--rivet)] after:pointer-events-none after:absolute after:top-2 after:right-2 after:size-[7px] after:rounded-full after:[background:var(--rivet)]",
+        " has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
         className
       )}
       {...props}
@@ -37,7 +42,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
+        "font-display text-xl leading-tight font-extrabold tracking-[0.02em] uppercase group-data-[size=sm]/card:text-lg",
         className
       )}
       {...props}

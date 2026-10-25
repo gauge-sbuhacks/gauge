@@ -1,7 +1,7 @@
-/* global styles + design tokens.
+/* global styles + design tokens: the "industrial" kit from Claude Design, in the SBU Hacks palette.
+   light = "Ticket" (:root), dark = "Boiler room" (.dark, the default; see index.html).
    shadcn components read the plain variables (--background, --primary...), tailwind reads @theme.
-   kept deliberately plain: steel grays, a gunmetal sidebar, and a little brass. the full
-   steel-and-steam theme comes later and should only need to change values in this file. */
+   the kit's own svgs read these same names, so inline svgs follow the theme too. */
 
 /* clerk's sign-in styles live in their own layer, below utilities, so tailwind classes passed
    through clerkAppearance.elements can override them */
@@ -13,51 +13,101 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* fonts load from google fonts (index.html): Big Shoulders for display, Archivo for everything else */
+@theme {
+    --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-heading: "Big Shoulders", Impact, "Arial Narrow", sans-serif;
+    --font-display: "Big Shoulders", Impact, "Arial Narrow", sans-serif;
+    --font-stencil: "Big Shoulders Stencil", "Big Shoulders", Impact, sans-serif;
+    --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', system-ui, sans-serif;
-    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
-
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
+    /* shadcn/ui names */
     --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
 
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
+    /* gauge surfaces and text */
+    --color-card-top: var(--card-top);
+    --color-card-raised: var(--card-raised);
+    --color-inset: var(--inset);
+    --color-border-strong: var(--border-strong);
+    --color-subtle-foreground: var(--subtle-foreground);
+    --color-label: var(--label);
+    --color-ticket: var(--ticket);
+    --color-chart-line: var(--chart-line);
+    --color-grid: var(--grid);
+    --color-axis: var(--axis);
+    --color-good-text: var(--good-text);
+    --color-warning-text: var(--warning-text);
+    --color-serious-text: var(--serious-text);
+    --color-critical-text: var(--critical-text);
+
+    /* categories (fixed per category) */
+    --color-cat-jewelry: var(--cat-jewelry);
+    --color-cat-real-estate: var(--cat-real-estate);
+    --color-cat-equipment: var(--cat-equipment);
+    --color-cat-vehicle: var(--cat-vehicle);
+    --color-cat-collectible: var(--cat-collectible);
+    --color-cat-watch: var(--cat-watch);
+    --color-cat-home: var(--cat-home);
+    --color-cat-electronics: var(--cat-electronics);
+    --color-cat-other: var(--cat-other);
+
+    /* metals and the SBU Hacks palette */
+    --color-brass: var(--brass-ink);
+    --color-brass-soft: var(--brass-soft);
+    --color-copper: var(--copper);
+    --color-sbu-umber: var(--sbu-umber);
+    --color-sbu-copper: var(--sbu-copper);
+    --color-sbu-orange: var(--sbu-orange);
+    --color-sbu-gold: var(--sbu-gold);
+    --color-sbu-red: var(--sbu-red);
+    --color-sbu-cream: var(--sbu-cream);
+    --color-sbu-teal: var(--sbu-teal);
+
+    /* cards are 14px; small controls 4px and 8px, as in the kit */
+    --radius-sm: calc(var(--radius) - 10px);
+    --radius-md: calc(var(--radius) - 6px);
     --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+    --radius-xl: calc(var(--radius) + 4px);
+    --radius-2xl: calc(var(--radius) + 8px);
+    --radius-3xl: calc(var(--radius) + 12px);
+    --radius-4xl: calc(var(--radius) + 16px);
 }
 
 /* "static" makes tailwind always output these variables, even when the code builds the name at
    runtime (like var(--color-series-3) for a category), which its scanner can't see */
 @theme static {
-    /* chart colors (validated categorical palette, fixed order: slot 1 is always vehicles, etc.) */
     --color-series-1: var(--series-1);
     --color-series-2: var(--series-2);
     --color-series-3: var(--series-3);
@@ -77,65 +127,267 @@
     --color-critical: var(--status-critical);
     --color-gain: var(--gain-text);
     --color-loss: var(--loss-text);
-
-    --color-brass: var(--brass);
-    --color-brass-soft: var(--brass-soft);
 }
 
+/* ---------- light: "Ticket" ---------- */
 :root {
+    /* Type */
+    --font-display: "Big Shoulders", "Big Shoulders Display", Impact, "Arial Narrow", sans-serif;
+    --font-stencil: "Big Shoulders Stencil", "Big Shoulders", Impact, sans-serif;
+    --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --number-stretch: 78%;      /* Archivo 800 at 78% width for totals, tabular figures */
+    --label-stretch: 125%;      /* engraved labels: Archivo 700, caps, +14% tracking */
+    --label-tracking: 0.14em;
+
+    --radius: 14px;  /* cards; tailwind-theme.css derives sm (4px) and md (8px) from it */
+
+    /* Raw SBU Hacks palette (sampled from the event site) */
+    --sbu-umber: #251A09;
+    --sbu-copper: #93581C;
+    --sbu-copper-light: #AB6219;
+    --sbu-orange: #D38412;
+    --sbu-gold: #F4A906;
+    --sbu-red: #AE3811;
+    --sbu-cream: #EFDEBB;
+    --sbu-teal: #68C2B3;
+
+    /* Metals (same in both themes) */
+    --brass-hi: #FFE7AE;
+    --brass: #EDB447;
+    --brass-lo: #A8730E;
+    --brass-deep: #6E4806;
+    --copper-hi: #F6C08A;
+    --copper: #CF8238;
+    --copper-lo: #7E4612;
+    --copper-deep: #4A2608;
+    --rivet: radial-gradient(circle at 35% 30%, #F2C08A, #93581C 55%, #3A1E06);
+    --brass-plate: linear-gradient(180deg, #FAD06A, #F4A906 52%, #C68A06);
+    --copper-pipe: linear-gradient(180deg, #F2C08A, #C47A2C 45%, #7E4612);
+
+    /* Gauge parts */
+    --dial-face-hi: #FFF9EC;
+    --dial-face: #F2E3C1;
+    --dial-face-lo: #DCC29A;
+    --dial-ink: #2A1B0C;
+    --dial-mark: #AE3811;
+    --needle: #B3361A;
+    --dial-dark-hi: #3A2A18;
+    --dial-dark: #1C140B;
+    --dial-dark-lo: #100B05;
+    --dial-cream: #F2E3C1;
+    --dial-gold: #F4A906;
+    --needle-gold: #F4A906;
+    --seal-ink: #AE3811;
+    --seal-paper: #FBF5E7;
+
+    /* Ticket (light) */
+    --background: #F2E6CC;
+    --sidebar: #EADBB9;
+    --card: #F8F0DE;
+    --card-top: #FDF8EC;
+    --card-raised: #F6EDDA;
+    --inset: #E7D6B2;
+    --border: #D9C29A;
+    --border-strong: #B89A6A;
+    --foreground: #2A1B0C;
+    --muted-foreground: #6A5235;
+    --subtle-foreground: #735C3E;
+    --label: #93581C;
+    --primary: #F4A906;
+    --primary-foreground: #251A09;
+    --ring: #AB6219;
+    --chart-line: #9A5418;
+    --grid: #E2CFA8;
+    --axis: #B89A6A;
+    --gain: #2F7A33;
+    --loss: #A33212;
+    --good: #4E8F3A;
+    --warning: #E0A106;
+    --serious: #C9661A;
+    --critical: #AE3811;
+    --good-text: #2F6E2E;
+    --warning-text: #8A5F06;
+    --serious-text: #B4532A;
+    --critical-text: #A33212;
+    --ticket: #FFF8E8;
+    --logo-ink: #251A09;
+    --logo-accent: #93581C;
+
+    --cat-jewelry: #A86796;
+    --cat-real-estate: #2460D3;
+    --cat-equipment: #894176;
+    --cat-vehicle: #5D7FBF;
+    --cat-collectible: #7138B6;
+    --cat-watch: #00948E;
+    --cat-home: #935EDE;
+    --cat-electronics: #006696;
+    --cat-other: #9A8A70;
+
+    /* Remaining shadcn/ui slots, so this file fully replaces the default theme */
+    --card-foreground: #2A1B0C;
+    --popover: #FBF5E7;
+    --popover-foreground: #2A1B0C;
+    --secondary: #EADBB9;
+    --secondary-foreground: #2A1B0C;
+    --muted: #EADBB9;
+    --accent: #F6EDDA;
+    --accent-foreground: #2A1B0C;
+    --destructive: #AE3811;
+    --input: #D9C29A;
+    --chart-1: #9A5418;
+    --chart-2: #2460D3;
+    --chart-3: #00948E;
+    --chart-4: #935EDE;
+    --chart-5: #A86796;
+    --sidebar-foreground: #2A1B0C;
+    --sidebar-primary: #F4A906;
+    --sidebar-primary-foreground: #251A09;
+    --sidebar-accent: rgba(171,98,25,0.12);
+    --sidebar-accent-foreground: #7E4612;
+    --sidebar-border: #B89A6A;
+    --sidebar-ring: #AB6219;
+
+    --bg-base: #F2E6CC;
+    --bg-glow: #FFF8E8;
+    --bg-shade: #D9C49C;
+    --bg-veil: #F2E6CC;
+    --bg-line: #4A2E14;
+    --bg-steam: #FFFFFF;
+
+    --hairline-top: inset 0 1px 0 rgba(255,255,255,0.85);
+    --shadow-card: 0 1px 0 rgba(120,80,30,0.12), 0 10px 24px -16px rgba(80,50,10,0.35);
+
+    /* Motion */
+    --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --dur-needle: 900ms;
+    --dur-stamp: 280ms;
+
+    /* ---- app names mapped onto the kit (components use these; change the kit values above) ---- */
     color-scheme: light;
+    /* category chart slots follow shared/categories.ts colorSlot: 1 vehicle, 2 real estate, 3 watch,
+       4 jewelry, 5 collectible, 6 electronics, 7 home, 8 equipment */
+    --series-1: var(--cat-vehicle);
+    --series-2: var(--cat-real-estate);
+    --series-3: var(--cat-watch);
+    --series-4: var(--cat-jewelry);
+    --series-5: var(--cat-collectible);
+    --series-6: var(--cat-electronics);
+    --series-7: var(--cat-home);
+    --series-8: var(--cat-equipment);
+    --series-other: var(--cat-other);
+    --chart-grid: var(--grid);
+    --chart-axis: var(--axis);
+    --status-good: var(--good);
+    --status-warning: var(--warning);
+    --status-serious: var(--serious);
+    --status-critical: var(--critical);
+    --gain-text: var(--gain);
+    --loss-text: var(--loss);
+    /* "brass" as a text or bar color has to stay readable on cream, so it is a darker ink here */
+    --brass-ink: #8A5F06;
+    --brass-soft: #F3E2B8;
+    /* backgrounds: pipeworks for the app and the question screens, steam room for heroes */
+    --bg-pipeworks: url("/brand/backgrounds/bg-pipeworks-light.webp");
+    --bg-steamroom: url("/brand/backgrounds/bg-steamroom-light.webp");
+}
 
-    --background: #f3f4f6;
-    --foreground: #14171c;
-    --card: #ffffff;
-    --card-foreground: #14171c;
-    --popover: #ffffff;
-    --popover-foreground: #14171c;
-    --primary: #1f2933;
-    --primary-foreground: #f8fafc;
-    --secondary: #eceef1;
-    --secondary-foreground: #1f2933;
-    --muted: #eceef1;
-    --muted-foreground: #59616c;
-    --accent: #eceef1;
-    --accent-foreground: #1f2933;
-    --destructive: #c2362f;
-    --border: #e0e3e8;
-    --input: #d3d8de;
-    --ring: #8a94a3;
-    --radius: 0.625rem;
+/* ---------- dark: "Boiler room" (the default) ---------- */
+.dark {
+    --background: #1A140D;
+    --sidebar: #20180F;
+    --card: #261C11;
+    --card-top: #2F2316;
+    --card-raised: #35271A;
+    --inset: #140E07;
+    --border: #47341F;
+    --border-strong: #6A4B2A;
+    --foreground: #F2E3C1;
+    --muted-foreground: #CDB78F;
+    --subtle-foreground: #A88F6A;
+    --label: #E0904A;
+    --primary: #F4A906;
+    --primary-foreground: #251A09;
+    --ring: #F4A906;
+    --chart-line: #E0904A;
+    --grid: #3A2B1C;
+    --axis: #6A4B2A;
+    --gain: #8FCB7E;
+    --loss: #E8694A;
+    --good: #6FB25A;
+    --warning: #F4A906;
+    --serious: #E07A2E;
+    --critical: #D9482A;
+    --good-text: #9BD487;
+    --warning-text: #F4A906;
+    --serious-text: #E8894A;
+    --critical-text: #EE7556;
+    --ticket: #EFDEBB;
+    --logo-ink: #F2E3C1;
+    --logo-accent: #D38412;
 
-    /* gunmetal sidebar with a brass accent: the only real "steel" hint for now */
-    --sidebar: #161b22;
-    --sidebar-foreground: #c9d0d9;
-    --sidebar-primary: #c9a24a;
-    --sidebar-primary-foreground: #161b22;
-    --sidebar-accent: #222a35;
-    --sidebar-accent-foreground: #f1f4f7;
-    --sidebar-border: #2a323d;
-    --sidebar-ring: #c9a24a;
+    --cat-jewelry: #BA7AA8;
+    --cat-real-estate: #3A74E3;
+    --cat-equipment: #9A5487;
+    --cat-vehicle: #7092D0;
+    --cat-collectible: #8B5AD1;
+    --cat-watch: #33A6A0;
+    --cat-home: #A473EE;
+    --cat-electronics: #1F78A6;
+    --cat-other: #8C7A62;
 
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-    --series-5: #e87ba4;
-    --series-6: #008300;
-    --series-7: #6250d6;
-    --series-8: #e34948;
-    --series-other: #a4a9b0;
-    --chart-grid: #e6e8eb;
-    --chart-axis: #7c8591;
+    --card-foreground: #F2E3C1;
+    --popover: #2A1F14;
+    --popover-foreground: #F2E3C1;
+    --secondary: #35271A;
+    --secondary-foreground: #F2E3C1;
+    --muted: #35271A;
+    --accent: #35271A;
+    --accent-foreground: #F2E3C1;
+    --destructive: #D9482A;
+    --input: #47341F;
+    --chart-1: #E0904A;
+    --chart-2: #3A74E3;
+    --chart-3: #33A6A0;
+    --chart-4: #A473EE;
+    --chart-5: #BA7AA8;
+    --sidebar-foreground: #F2E3C1;
+    --sidebar-primary: #F4A906;
+    --sidebar-primary-foreground: #251A09;
+    --sidebar-accent: rgba(244,169,6,0.12);
+    --sidebar-accent-foreground: #F7B92A;
+    --sidebar-border: #6A4B2A;
+    --sidebar-ring: #F4A906;
 
-    --status-good: #0ca30c;
-    --status-warning: #fab219;
-    --status-serious: #ec835a;
-    --status-critical: #d03b3b;
-    --gain-text: #006300;
-    --loss-text: #c0322f;
+    --bg-base: #1D1409;
+    --bg-glow: #6B4F2C;
+    --bg-shade: #0E0904;
+    --bg-veil: #1D1409;
+    --bg-line: #F2E3C1;
+    --bg-steam: #F2E3C1;
 
-    --brass: #b58a3c;
-    --brass-soft: #f4ead6;
+    --hairline-top: inset 0 1px 0 rgba(255,220,170,0.07);
+    --shadow-card: 0 2px 0 rgba(0,0,0,0.3), 0 14px 30px -16px rgba(0,0,0,0.85);
+
+    color-scheme: dark;
+    --brass-ink: #F4A906;
+    --brass-soft: rgba(244, 169, 6, 0.14);
+    --bg-pipeworks: url("/brand/backgrounds/bg-pipeworks-dark.webp");
+    --bg-steamroom: url("/brand/backgrounds/bg-steamroom-dark.webp");
+}
+
+/* kit helpers: tabular numbers, big totals, engraved labels, industrial headings */
+.tabular { font-variant-numeric: tabular-nums; }
+.total { font-family: var(--font-sans); font-weight: 800; font-stretch: var(--number-stretch); font-variant-numeric: tabular-nums; }
+.label-engraved {
+  font-family: var(--font-sans); font-weight: 700; font-size: 11px;
+  font-stretch: var(--label-stretch); letter-spacing: var(--label-tracking);
+  text-transform: uppercase; color: var(--label);
+}
+.heading-industrial { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-needle: 1ms; --dur-stamp: 1ms; }
 }
 
 @layer base {
@@ -169,25 +421,29 @@
     transform: none;
 }
 
-/* the welcome screen's gauge needle sweeps from empty to its resting angle.
-   the pivot point is set inline (transform-origin, in svg units) by the component */
-@keyframes needle-sweep {
-    from {
-        transform: rotate(var(--needle-from, -120deg));
-    }
-}
-.needle-sweep {
-    transform-box: view-box;
-    animation: needle-sweep 1400ms cubic-bezier(0.3, 1.25, 0.45, 1) 200ms both;
-}
-
 @media (prefers-reduced-motion: reduce) {
     [data-reveal] {
         opacity: 1;
         transform: none;
         transition: none;
     }
-    .needle-sweep {
+}
+
+/* mascots breathe a little while they wait for an answer */
+@keyframes mascot-bob {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+.mascot-bob {
+    animation: mascot-bob 3.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .mascot-bob {
         animation: none;
     }
 }
