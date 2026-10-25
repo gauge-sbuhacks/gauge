@@ -313,6 +313,58 @@ export interface VehicleMarketValue {
     certainty: number | null;
 }
 
+export const watchSearchQuerySchema = z.object({
+    brand: z.string().trim().min(1, 'Pick the brand first'),
+    reference: z.string().trim().min(3, 'Type at least 3 characters of the reference number')
+});
+export type WatchSearchQuery = z.input<typeof watchSearchQuerySchema>;
+
+export interface WatchMatch {
+    brand: string;
+    referenceNumber: string;
+    // without the brand in front ("Submariner Date", not "Rolex Submariner Date")
+    model: string | null;
+    movement: 'automatic' | 'manual' | 'quartz' | 'other' | null;
+    caseSizeMm: number | null;
+    caseMaterial: string | null;
+    yearsProduced: string | null;
+}
+
+export interface WatchSearchResult {
+    provider: 'thewatchapi';
+    providerLabel: string;
+    fetchedAt: string;
+    matches: WatchMatch[];
+}
+
+export const watchValueQuerySchema = z.object({
+    brand: z.string().trim().min(1, 'Add the brand first'),
+    reference: z.string().trim().min(1, 'Add the reference number first'),
+    model: z.string().trim().nullish(),
+    condition: z.enum(CONDITIONS).nullish(),
+    movement: z.string().trim().nullish(),
+    caseSizeMm: z.number().nullish(),
+    caseMaterial: z.string().trim().nullish(),
+    year: z.number().int().nullish(),
+    hasBox: z.boolean().nullish(),
+    hasPapers: z.boolean().nullish()
+});
+export type WatchValueQuery = z.input<typeof watchValueQuerySchema>;
+
+export interface WatchValueResult {
+    provider: 'thewatchapi';
+    providerLabel: string;
+    fetchedAt: string;
+    brand: string;
+    reference: string;
+    fairMarketCents: number | null;
+    quickSaleCents: number | null;
+    // "The Watch API asking prices" or "Price check", recorded with the value
+    sourceName: string | null;
+    method: string | null;
+    notes: string[];
+}
+
 export interface VehicleValueResult {
     provider: 'vinaudit';
     providerLabel: string;

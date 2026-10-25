@@ -3,12 +3,13 @@
 // name are required; every step after "what is it" can be skipped.
 
 import { getCategory, isFieldVisible, usesCommonField, type CategoryId, type Details } from '@shared/categories.ts';
+import { IDENTITY_FIELDS, detailKeys, identityFields, type IdentityField } from '@shared/identity.ts';
 import type { AssetFormValues } from './assetForm.ts';
 
-export type StepId = 'category' | 'identity' | 'details' | 'condition' | 'money' | 'proof';
+export type { IdentityField };
+export { detailKeys, identityFields };
 
-// a field on the identity step: the shared brand / model inputs, or one of the category's own fields
-export type IdentityField = 'brand' | 'model' | `details.${string}`;
+export type StepId = 'category' | 'identity' | 'details' | 'condition' | 'money' | 'proof';
 
 interface CategoryCopy {
     identity: { question: string; help: string; fields: IdentityField[] };
@@ -20,8 +21,8 @@ const COPY: Record<CategoryId, CategoryCopy> = {
     vehicle: {
         identity: {
             question: 'Tell us about the vehicle.',
-            help: 'Enter the year, make, and model for a market estimate. Trim is optional. Have your VIN? Use it to autofill the details.',
-            fields: ['details.year', 'brand', 'model', 'details.trim', 'details.vin']
+            help: 'Enter the year, make, and model for a market estimate. Trim is optional. Have your VIN? Decode it to autofill the details.',
+            fields: IDENTITY_FIELDS.vehicle
         },
         details: { question: 'Mileage, color, and title.', help: 'Mileage matters most for market value.' }
     },
@@ -29,61 +30,45 @@ const COPY: Record<CategoryId, CategoryCopy> = {
         identity: {
             question: 'Where is the property?',
             help: 'The address is what a home value estimate is based on.',
-            fields: ['details.addressLine1', 'details.city', 'details.state', 'details.postalCode']
+            fields: IDENTITY_FIELDS.property
         },
         details: { question: 'About the home.', help: 'Size and room counts make the home value estimate more accurate.' }
     },
     watch: {
         identity: {
             question: 'Which watch is it?',
-            help: 'The reference number is usually on the case back or the warranty card.',
-            fields: ['brand', 'model', 'details.referenceNumber']
+            help: 'Add brand and reference, then use The Watch API to match the reference and pull asking-price averages.',
+            fields: IDENTITY_FIELDS.watch
         },
         details: { question: 'Box, papers, and specs.', help: 'A full set, with box and papers, is worth noticeably more.' }
     },
     jewelry: {
-        identity: { question: 'What kind of piece is it?', help: 'Bullion, a coin, jewelry, or a loose stone.', fields: ['details.kind', 'brand', 'model'] },
+        identity: { question: 'What kind of piece is it?', help: 'Bullion, a coin, jewelry, or a loose stone.', fields: IDENTITY_FIELDS.jewelry },
         details: { question: 'Metal, weight, and purity.', help: 'With these, Gauge can work out the melt value from today\'s spot price.' }
     },
     collectible: {
-        identity: { question: 'What kind of collectible is it?', help: 'The type decides which details we ask for next.', fields: ['details.kind', 'details.game', 'brand', 'model'] },
+        identity: { question: 'What kind of collectible is it?', help: 'The type decides which details we ask for next.', fields: IDENTITY_FIELDS.collectible },
         details: { question: 'Set, grade, and history.', help: 'Graded items with a cert number are the easiest to price and to prove.' }
     },
     electronics: {
-        identity: { question: 'What is it?', help: 'The model number is usually on a label underneath or in the settings.', fields: ['brand', 'model', 'details.modelNumber'] },
+        identity: { question: 'What is it?', help: 'The model number is usually on a label underneath or in the settings.', fields: IDENTITY_FIELDS.electronics },
         details: { question: 'Specs and warranty.', help: 'A warranty date shows up on your dashboard before it runs out.' }
     },
     household: {
-        identity: { question: 'What kind of item is it?', help: 'Furniture, a rug, an instrument, an appliance, and so on.', fields: ['details.kind', 'brand', 'model'] },
+        identity: { question: 'What kind of item is it?', help: 'Furniture, a rug, an instrument, an appliance, and so on.', fields: IDENTITY_FIELDS.household },
         details: { question: 'Materials and size.', help: 'These help when it comes time to sell or insure it.' }
     },
     equipment: {
-        identity: { question: 'What is it?', help: 'The model number is usually on the data plate.', fields: ['brand', 'model', 'details.modelNumber'] },
+        identity: { question: 'What is it?', help: 'The model number is usually on the data plate.', fields: IDENTITY_FIELDS.equipment },
         details: { question: 'Service and warranty.', help: 'Service dates keep a record of upkeep.' }
     },
     other: {
-        identity: { question: 'What is it?', help: 'A name is all we need. A brand and model help with pricing later.', fields: ['brand', 'model'] }
+        identity: { question: 'What is it?', help: 'A name is all we need. A brand and model help with pricing later.', fields: IDENTITY_FIELDS.other }
     }
 };
 
 export function identityCopy(category: CategoryId) {
     return COPY[category].identity;
-}
-
-// identity fields the category actually has (no brand box for a house)
-export function identityFields(category: CategoryId): IdentityField[] {
-    const def = getCategory(category);
-    return COPY[category].identity.fields.filter((f) => {
-        if (f === 'brand') return def.brandLabel != null;
-        if (f === 'model') return def.modelLabel != null;
-        return def.fields.some((d) => d.key === f.slice('details.'.length));
-    });
-}
-
-// the category's own fields that weren't asked on the identity step, in their usual order
-export function detailKeys(category: CategoryId): string[] {
-    const asked = new Set(identityFields(category).filter((f) => f.startsWith('details.')).map((f) => f.slice('details.'.length)));
-    return getCategory(category).fields.filter((f) => !asked.has(f.key)).map((f) => f.key);
 }
 
 export function detailsCopy(category: CategoryId) {

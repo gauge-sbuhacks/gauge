@@ -134,6 +134,8 @@ function blankDraft(groupId: string, photo: AssetPhoto): CaptureDraft {
         lookupStatus: 'pending',
         lookupMessage: null,
         suggestedValue: null,
+        quickSale: null,
+        purchasePriceCents: null,
         assetId: null
     };
 }
@@ -178,7 +180,8 @@ async function fillDraft(draft: CaptureDraft, images: { mime: string; base64: st
         notes: first.notes,
         lookupStatus: enriched.lookupStatus,
         lookupMessage: enriched.lookupMessage,
-        suggestedValue: enriched.suggestedValue
+        suggestedValue: enriched.suggestedValue,
+        quickSale: enriched.quickSale
     });
 }
 
@@ -286,7 +289,8 @@ async function applySceneSplit(primary: CaptureDraft, doc: WithId<SessionDoc>, i
         notes: first.notes,
         lookupStatus: enriched.lookupStatus,
         lookupMessage: enriched.lookupMessage,
-        suggestedValue: enriched.suggestedValue
+        suggestedValue: enriched.suggestedValue,
+        quickSale: enriched.quickSale
     });
     for (const item of rest) {
         if (photoCount(doc) >= MAX_CAPTURE_PHOTOS) break;
@@ -304,9 +308,10 @@ async function applySceneSplit(primary: CaptureDraft, doc: WithId<SessionDoc>, i
             confidence: item.confidence,
             notes: item.notes,
             lookupStatus: next.lookupStatus,
-            lookupMessage: next.lookupMessage,
-            suggestedValue: next.suggestedValue
-        });
+        lookupMessage: next.lookupMessage,
+        suggestedValue: next.suggestedValue,
+        quickSale: next.quickSale
+    });
         doc.drafts.push(sibling);
     }
 }
@@ -454,14 +459,20 @@ function applyApproval(draft: CaptureDraft, body: unknown) {
         draft.condition = typeof input.condition === 'string' && (CONDITIONS as readonly string[]).includes(input.condition) ? (input.condition as CaptureDraft['condition']) : null;
     }
     if (input.details && typeof input.details === 'object') draft.details = coerceDetails(draft.category, input.details);
-    if ('valueCents' in input) {
-        const cents = input.valueCents;
-        if (typeof cents !== 'number' || cents <= 0) draft.suggestedValue = null;
-        else if (draft.suggestedValue) draft.suggestedValue = { ...draft.suggestedValue, amountCents: Math.round(cents) };
-        else {
-            draft.suggestedValue = { amountCents: Math.round(cents), lowCents: null, highCents: null, sourceName: 'Edited suggestion', notes: 'Confirmed during review.' };
-        }
+    if ('purchasePriceCents' in input) {
+        const paid = input.purchasePriceCents;
+        if (typeof paid !== 'number' || !Number.isFinite(paid) || paid < 0) throw new HttpError(400, 'validation', 'Enter what you paid. Use 0 if it was a gift.');
+        draft.purchasePriceCents = Math.round(paid);
     }
+    if ('valueCents' in input) draft.suggestedValue = requiredPrice(draft.suggestedValue, input.valueCents, 'Fair market value');
+    if ('quickSaleCents' in input) draft.quickSale = requiredPrice(draft.quickSale, input.quickSaleCents, 'Quick-sale value');
+}
+
+function requiredPrice(current: CaptureDraft['suggestedValue'], cents: number | null | undefined, label: string): CaptureDraft['suggestedValue'] {
+    if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0) throw new HttpError(400, 'validation', `Enter a ${label.toLowerCase()}.`);
+    const amountCents = Math.round(cents);
+    if (current) return { ...current, amountCents };
+    return { amountCents, lowCents: null, highCents: null, sourceName: 'Entered during review', notes: 'Confirmed during review.' };
 }
 
 async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<string> {
@@ -482,7 +493,7 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
         location: null,
         condition,
         purchaseDate: null,
-        purchasePriceCents: null,
+        purchasePriceCents: draft.purchasePriceCents,
         currency: 'USD',
         serialNumber: draft.serialNumber,
         notes: draft.notes,
@@ -490,20 +501,34 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
         photos: draft.photos,
         isSample: false
     });
-    if (draft.suggestedValue && draft.suggestedValue.amountCents > 0) {
-        await Valuation.create({
-            ownerId,
-            assetId: created._id,
-            valueType: 'fair_market',
-            amountCents: draft.suggestedValue.amountCents,
-            lowCents: draft.suggestedValue.lowCents,
-            highCents: draft.suggestedValue.highCents,
-            currency: 'USD',
-            observedAt: todayUtc(),
-            source: 'provider',
-            sourceName: draft.suggestedValue.sourceName,
-            notes: draft.suggestedValue.notes
-        });
+    if (draft.purchasePriceCents == null || !draft.suggestedValue || draft.suggestedValue.amountCents <= 0 || !draft.quickSale || draft.quickSale.amountCents <= 0) {
+        throw new HttpError(400, 'validation', 'Fair market, quick-sale, and cost basis are all required.');
     }
+    await Valuation.create({
+        ownerId,
+        assetId: created._id,
+        valueType: 'fair_market',
+        amountCents: draft.suggestedValue.amountCents,
+        lowCents: draft.suggestedValue.lowCents,
+        highCents: draft.suggestedValue.highCents,
+        currency: 'USD',
+        observedAt: todayUtc(),
+        source: draft.suggestedValue.sourceName === 'Entered during review' ? 'user' : 'provider',
+        sourceName: draft.suggestedValue.sourceName,
+        notes: draft.suggestedValue.notes
+    });
+    await Valuation.create({
+        ownerId,
+        assetId: created._id,
+        valueType: 'liquidation',
+        amountCents: draft.quickSale.amountCents,
+        lowCents: draft.quickSale.lowCents,
+        highCents: draft.quickSale.highCents,
+        currency: 'USD',
+        observedAt: todayUtc(),
+        source: draft.quickSale.sourceName === 'Entered during review' ? 'user' : 'provider',
+        sourceName: draft.quickSale.sourceName,
+        notes: draft.quickSale.notes
+    });
     return String((created.toObject() as WithId<AssetDoc>)._id);
 }

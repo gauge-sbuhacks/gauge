@@ -4,7 +4,7 @@
 // until you apply it or record it as a value.
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Coins, ExternalLink, House, Layers, LoaderCircle, ScanSearch, Siren } from 'lucide-react';
+import { Coins, ExternalLink, House, Layers, LoaderCircle, ScanSearch, Siren, Watch } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, type Details } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
@@ -21,8 +21,8 @@ import {
     type PropertyValueResult,
     type RecallLookupResult,
     type SpotMetal,
-
-    type VinLookupResult
+    type VinLookupResult,
+    type WatchValueResult
 } from '@shared/schemas.ts';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
@@ -36,8 +36,8 @@ import {
     usePropertyValueLookup,
     useRecallLookup,
     useUpdateAsset,
-
-    useVinLookup
+    useVinLookup,
+    useWatchValueLookup
 } from '@/hooks/usePortfolio.ts';
 import { formatDate, formatMoney, todayIso } from '@/lib/format.ts';
 import type { PortfolioItem } from '@/lib/portfolio.ts';
@@ -533,6 +533,85 @@ function MetalLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (init
     );
 }
 
+function WatchLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (initial: Partial<ValuationFormValues>) => void }) {
+    const lookup = useWatchValueLookup();
+    const [result, setResult] = useState<WatchValueResult | null>(null);
+    const brand = item.asset.brand ?? '';
+    const reference = typeof item.asset.details.referenceNumber === 'string' ? item.asset.details.referenceNumber : '';
+    const search = (event: FormEvent) => {
+        event.preventDefault();
+        if (!brand.trim() || !reference.trim()) {
+            toast.error('Add the brand and reference number first');
+            return;
+        }
+        lookup.mutate(
+            { brand, reference, model: item.asset.model },
+            {
+                onSuccess: setResult,
+                onError: (err) => toast.error('Watch lookup failed', { description: err.message })
+            }
+        );
+    };
+    return (
+        <Section icon={<Watch className="size-4" />} title="Market price" description="The Watch API asking-price average for this brand and reference number.">
+            <form onSubmit={search} className="flex flex-wrap items-end gap-2">
+                <Button type="submit" disabled={lookup.isPending}>
+                    {lookup.isPending ? <LoaderCircle className="animate-spin" /> : <ScanSearch />}
+                    Look up
+                </Button>
+            </form>
+            {result && (
+                <div className="mt-4 space-y-2 text-sm">
+                    {result.notes.map((note) => (
+                        <p key={note} className="text-muted-foreground">{note}</p>
+                    ))}
+                    {result.fairMarketCents != null && (
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                onClick={() =>
+                                    onRecord({
+                                        valueType: 'fair_market',
+                                        mode: 'amount',
+                                        amount: centsToInput(result.fairMarketCents!),
+                                        observedAt: todayIso(),
+                                        source: 'provider',
+                                        sourceName: result.sourceName ?? result.providerLabel,
+                                        method: result.method ?? 'Reference asking-price average',
+                                        notes: result.notes[0] ?? ''
+                                    })
+                                }
+                            >
+                                Record {formatMoney(result.fairMarketCents)} as fair market
+                            </Button>
+                            {result.quickSaleCents != null && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        onRecord({
+                                            valueType: 'liquidation',
+                                            mode: 'amount',
+                                            amount: centsToInput(result.quickSaleCents!),
+                                            observedAt: todayIso(),
+                                            source: 'provider',
+                                            sourceName: result.sourceName ?? result.providerLabel,
+                                            method: 'Typical quick-sale estimate',
+                                            notes: result.notes[1] ?? 'About 85% of asking averages.'
+                                        })
+                                    }
+                                >
+                                    Record {formatMoney(result.quickSaleCents)} as quick sale
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </Section>
+    );
+}
+
 // ---------- everything else ----------
 
 
@@ -541,6 +620,7 @@ export function LookupPanel({ item, onRecord }: { item: PortfolioItem; onRecord:
     if (category === 'vehicle') return <VehicleLookups item={item} onRecord={onRecord} />;
     if (category === 'property') return <PropertyLookups item={item} onRecord={onRecord} />;
     if (category === 'jewelry') return <MetalLookups item={item} onRecord={onRecord} />;
+    if (category === 'watch') return <WatchLookups item={item} onRecord={onRecord} />;
     if (category === 'collectible' && details.kind === 'trading_card') return <CardLookups item={item} onRecord={onRecord} />;
     return (
         <p className="text-sm text-muted-foreground">

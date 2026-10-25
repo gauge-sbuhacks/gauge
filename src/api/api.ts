@@ -24,7 +24,11 @@ import type {
     VehicleValueResult,
     ObservedValueType,
     AssetRecord,
-    VinLookupResult
+    VinLookupResult,
+    WatchSearchQuery,
+    WatchSearchResult,
+    WatchValueQuery,
+    WatchValueResult
 } from '@shared/schemas.ts';
 
 export class ApiError extends Error {
@@ -125,6 +129,8 @@ export const api = {
     vehicleValue: (q: VehicleValueQuery) => request<VehicleValueResult>('POST', '/lookups/vehicle-value', q),
     cardPrices: (q: CardPriceQuery) => request<CardPriceResult>('POST', '/lookups/card-prices', q),
     metalValue: (q: MetalValueQuery) => request<MetalValueResult>('POST', '/lookups/metal-value', q),
+    watchSearch: (q: WatchSearchQuery) => request<WatchSearchResult>('POST', '/lookups/watch-search', q),
+    watchValue: (q: WatchValueQuery) => request<WatchValueResult>('POST', '/lookups/watch-value', q),
 
     createCaptureSession: (body: { mode: CaptureMode; assetId?: string }) => request<CaptureSessionView>('POST', '/capture-sessions', body),
     getCaptureSession: (id: string) => request<CaptureSessionView>('GET', `/capture-sessions/${id}`),

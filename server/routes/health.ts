@@ -7,6 +7,7 @@ import type { HealthResponse } from '../../shared/schemas.js';
 import { connectDb } from '../db/connect.js';
 import { clerkConfigured, getEnv } from '../env.js';
 import { geminiConfigured } from '../capture/identify.js';
+import { theWatchApiConfigured } from '../lookups/watches.js';
 import { ebayConfigured } from '../marketplace/ebay.js';
 import { rentcastConfigured } from '../lookups/rentcast.js';
 import { goldHistoryConfigured } from '../history/gold.js';
@@ -58,7 +59,8 @@ export async function healthHandler(_req: Request, res: Response) {
         { id:'magic_history', label:'MTGJSON history', covers:'Magic card prices by exact printing and finish', status:'ready', envVar:null, note:'Free download; no key. Run the separate history import after adding matching cards.' },
         { id: 'ebay', label: 'eBay', covers: 'Comparable active listings for US items in USD', status: ebayConfigured() ? 'ready' : 'needs_key', envVar: 'EBAY_CLIENT_ID + EBAY_CLIENT_SECRET', note: 'Production Browse API access required. Asking prices, not completed sales.' },
         { id: 'photos', label: 'Photos', covers: 'Phone photos for the signed-in account', status: 'ready', envVar: null, note: 'Stored in MongoDB and served only to the account that captured them.' },
-        { id: 'gemini', label: 'Gemini', covers: 'Identify a belonging from photos', status: geminiConfigured() ? 'ready' : 'needs_key', envVar: 'GEMINI_API_KEY', note: 'Fills a photo draft. You approve each field before it is saved.' },
+        { id: 'gemini', label: 'Gemini', covers: 'Identify a belonging from photos and estimate fair market when no provider price exists', status: geminiConfigured() ? 'ready' : 'needs_key', envVar: 'GEMINI_API_KEY', note: 'Picks the category, then answers that category\'s questions. A short price check fills fair market only when a lookup did not.' },
+        { id: 'thewatchapi', label: 'The Watch API', covers: 'Watch reference search and asking-price averages', status: theWatchApiConfigured() ? 'ready' : 'needs_key', envVar: 'THEWATCH_API_KEY', note: 'Reference and model search on all plans. Price history endpoints may require a paid plan; Gemini can estimate fair market when prices are unavailable.' },
         {
             id: 'nhtsa_vpic',
             label: 'NHTSA vPIC',

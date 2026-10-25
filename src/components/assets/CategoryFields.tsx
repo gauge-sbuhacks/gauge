@@ -21,6 +21,8 @@ export function CategoryFields({
     category,
     onDecodeVin,
     decoding,
+    onLookupWatchReference,
+    lookingUpWatch,
     keys
 }: {
     form: UseFormReturn<AssetFormValues>;
@@ -28,6 +30,8 @@ export function CategoryFields({
     keys?: string[];
     onDecodeVin?: () => void;
     decoding?: boolean;
+    onLookupWatchReference?: () => void;
+    lookingUpWatch?: boolean;
 }) {
     let def = getCategory(category);
     const details = form.watch('details') ?? {};
@@ -60,6 +64,27 @@ export function CategoryFields({
                         <OptionalSelect id={id} value={field.value ?? ''} onChange={field.onChange} options={f.type === 'boolean' ? BOOL_OPTIONS : (f.options ?? [])} invalid={invalid} />
                     )}
                 />
+            );
+        }
+
+        if (f.key === 'referenceNumber' && onLookupWatchReference) {
+            return (
+                <div className="flex gap-2">
+                    <Input
+                        id={id}
+                        {...form.register(name)}
+                        placeholder={f.placeholder}
+                        maxLength={f.maxLength}
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-invalid={invalid || undefined}
+                        className="font-mono uppercase placeholder:font-sans placeholder:normal-case"
+                    />
+                    <Button type="button" variant="outline" onClick={onLookupWatchReference} disabled={lookingUpWatch}>
+                        {lookingUpWatch ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <ScanSearch data-icon="inline-start" />}
+                        Look up
+                    </Button>
+                </div>
             );
         }
 
