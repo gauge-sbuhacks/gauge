@@ -2,7 +2,7 @@
 // the real portfolio math, so the page never shows a figure the app itself wouldn't.
 
 import { useEffect, useState } from 'react';
-import { FileDown, Gauge, History, PackagePlus, type LucideIcon } from 'lucide-react';
+import { Banknote, FileDown, Gauge, PackagePlus, type LucideIcon } from 'lucide-react';
 import { VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, type ValueType } from '@shared/schemas.ts';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { formatAge, formatMoney, formatMonth } from '@/lib/format.ts';
@@ -104,27 +104,27 @@ export function FlowDiagram({ items }: { items: PortfolioItem[] }) {
     const steps: Step[] = [
         {
             icon: PackagePlus,
-            title: 'Record',
-            text: 'Add an item with its serial or VIN, purchase date and price, where it is kept and its condition.',
+            title: 'Log or upload',
+            text: 'Upload a photo or log an item by hand. Keep its purchase details, condition, serial number, and location together.',
             example: car ? `${car.asset.name}, ${car.asset.location ?? 'no location'}` : 'Your first item'
         },
         {
-            icon: History,
-            title: 'Value',
-            text: 'Log fair market or quick-sale values. Each one is dated and kept, so history builds up on its own.',
+            icon: Gauge,
+            title: 'Know today’s value',
+            text: 'Review market estimates, record current values, and track how your physical assets change in value over time.',
             example: carValue != null && carValuedAt ? `Fair market ${formatMoney(carValue)}, ${formatAge(carValuedAt)}` : 'Fair market, dated today'
         },
         {
-            icon: Gauge,
-            title: 'Read',
-            text: 'See totals per value type, allocation by category and room, value over time, and what needs attention.',
-            example: `${formatMoney(totals.totalCents, { compact: true })} fair market, on ${totals.counted} of ${totals.of}`
+            icon: Banknote,
+            title: 'Explore a sale',
+            text: 'Compare fair market and liquidation estimates. Explore resale options when you’re ready to turn an asset into cash.',
+            example: car && valueOf(car, 'liquidation') != null ? `${formatMoney(valueOf(car, 'liquidation')!)} estimated quick sale` : 'Compare keeping it with cashing out'
         },
         {
             icon: FileDown,
-            title: 'Export',
-            text: 'Download a CSV, or a PDF inventory with identifiers, purchase records, and current values.',
-            example: `inventory.pdf, ${items.length} items`
+            title: 'Manage & export',
+            text: 'Review your holdings by category or room. Export a CSV or PDF inventory with purchase records and current values.',
+            example: `${items.length} items · ${formatMoney(totals.totalCents, { compact: true })} · CSV / PDF`
         }
     ];
 

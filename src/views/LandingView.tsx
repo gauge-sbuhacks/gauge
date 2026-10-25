@@ -2,11 +2,13 @@
 
 import { useMemo, type MouseEvent } from 'react';
 import { Link } from 'react-router';
-import { ArrowRight, Gem, Landmark, Truck, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Banknote, FileDown, Gem, Gauge, Landmark, PackagePlus, Wrench, type LucideIcon } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
-import { Locomotive, RailDivider } from '@/components/brand/Railway.tsx';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
+import { Gus } from '@/components/brand/Mascots.tsx';
 import { RailwayAmbience } from '@/components/brand/RailwayAmbience.tsx';
 import { DashboardPreview } from '@/components/landing/DashboardPreview.tsx';
+import { HeaderTrain } from '@/components/landing/HeaderTrain.tsx';
 import { FlowDiagram } from '@/components/landing/Diagrams.tsx';
 import { Reveal } from '@/components/landing/Reveal.tsx';
 import { AccountMenu } from '@/components/layout/AccountMenu.tsx';
@@ -16,6 +18,7 @@ import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { useProfile } from '@/hooks/useProfile.ts';
 import { APP_NAME } from '@/config.ts';
 import { samplePortfolioItems } from '@/lib/samplePortfolio.ts';
+import '@/css/landing.css';
 
 const SECTIONS = [
     { id: 'how', label: 'How it works' },
@@ -43,10 +46,10 @@ const USE_CASES: UseCase[] = [
         answer: 'Location, condition, and every kind of value for each item, in one record you can hand over.'
     },
     {
-        icon: Truck,
-        title: 'Moving or splitting a household',
-        problem: 'Moving and property settlements both start with a list of what you own and what it is worth.',
-        answer: 'A room-by-room inventory you can filter by location and export in a minute.'
+        icon: Banknote,
+        title: 'Deciding what to sell',
+        problem: 'You want to free up cash, but need to understand what your belongings could realistically bring in.',
+        answer: 'Compare fair market and quick-sale estimates, then explore resale options for the assets you choose.'
     },
     {
         icon: Wrench,
@@ -88,20 +91,20 @@ export default function LandingView() {
     );
 
     return (
-        <div className="min-h-svh bg-background">
-            <header className="sticky top-0 z-30 border-b bg-background">
-                <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-6 px-5 sm:px-6">
+        <div className="landing-page min-h-svh bg-background">
+            <header className="landing-header sticky top-0 z-30 bg-background">
+                <div className="landing-header-inner mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 sm:px-6">
                     <Link to={signedIn ? '/home' : '/'} aria-label={`${APP_NAME} home`}>
                         <Logo />
                     </Link>
-                    <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+                    <nav aria-label="Homepage sections" className="landing-nav hidden items-center text-sm text-muted-foreground md:flex">
                         {SECTIONS.map((s) => (
-                            <a key={s.id} href={`#${s.id}`} onClick={(e) => scrollToSection(e, s.id)} className="transition-colors hover:text-foreground">
+                            <a key={s.id} href={`#${s.id}`} onClick={(e) => scrollToSection(e, s.id)}>
                                 {s.label}
                             </a>
                         ))}
                     </nav>
-                    <div className="flex items-center gap-2">
+                    <div className="landing-account-actions flex items-center gap-2">
                         {signedIn ? (
                             <>
                                 <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -121,7 +124,7 @@ export default function LandingView() {
                         )}
                     </div>
                 </div>
-                <RailDivider className="rail-header-track" />
+                <HeaderTrain />
             </header>
 
             <main>
@@ -129,25 +132,31 @@ export default function LandingView() {
                 <section className="relative isolate overflow-hidden">
                     <div aria-hidden className="absolute inset-0 -z-10 bg-(image:--bg-steamroom) bg-cover bg-center opacity-40" />
                     <div aria-hidden className="absolute inset-0 -z-10 bg-linear-to-b from-background/90 via-background/75 to-background" />
-                    <RailwayAmbience />
+                    <RailwayAmbience variant="landing" />
 
                     <div className="landing-hero-grid mx-auto grid max-w-7xl items-center px-5 pt-9 pb-9 sm:px-6 sm:pt-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-12 lg:py-14 xl:gap-16">
                         <div className="landing-intro mx-auto w-full max-w-2xl text-center lg:mx-0 lg:max-w-none lg:text-left animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
-                            <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-brass/30 bg-brass-soft px-2.5 py-1 text-[10px] font-semibold tracking-[0.12em] text-label uppercase">
-                                <Locomotive className="h-4 w-6 shrink-0" />
-                                Keep your assets on track
-                            </div>
-                            <h1 className="font-editorial text-[2rem] leading-[1.07] font-semibold tracking-[-0.025em] text-balance sm:text-[2.5rem]">Know what everything you own is worth.</h1>
+                            <h1 className="font-editorial text-[2rem] leading-[1.1] font-semibold tracking-[-0.025em] text-balance sm:text-[2.5rem]">Everything you own.<br /><span className="text-label">All in one portfolio.</span></h1>
                             <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-pretty text-muted-foreground sm:text-base lg:mx-0">
-                                Track your car, home, watches, cards, and tools in one portfolio, with value history, resale estimates, and an inventory you can export.
+                                Log or upload your physical assets, see what they’re worth today, and decide what to keep or sell. Your car, home, watches, cards, and tools—all accounted for.
                             </p>
+                            <ul className="landing-capabilities" aria-label="What you can do with Gauge">
+                                <li><PackagePlus /><span>Log or upload assets</span></li>
+                                <li><Gauge /><span>See present-day values</span></li>
+                                <li><Banknote /><span>Explore liquidation</span></li>
+                                <li><FileDown /><span>Manage & export holdings</span></li>
+                            </ul>
                             <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
                                 {primaryCta}
-                                <Button asChild variant="outline" size="lg" className="h-10 px-3.5 text-[14px] sm:h-9">
-                                    <a href="#how" onClick={(e) => scrollToSection(e, 'how')}>
-                                        How it works
-                                    </a>
-                                </Button>
+                                {signedIn && !needsOnboarding ? (
+                                    <AddAssetDialog>
+                                        <Button variant="outline" size="lg" className="h-10 px-3.5 text-[14px] sm:h-9">Log or upload an asset</Button>
+                                    </AddAssetDialog>
+                                ) : (
+                                    <Button asChild variant="outline" size="lg" className="h-10 px-3.5 text-[14px] sm:h-9">
+                                        <Link to={next.to}>Log or upload an asset</Link>
+                                    </Button>
+                                )}
                             </div>
                             {signedIn ? (
                                 <p className="mt-3 text-xs text-muted-foreground">
@@ -178,13 +187,20 @@ export default function LandingView() {
                 </section>
 
                 {/* ---------- how it works ---------- */}
-                <section id="how" className="scroll-mt-14 border-t bg-card">
+                <section id="how" className="landing-section relative isolate overflow-hidden border-t bg-card">
+                    <RailwayAmbience variant="landing" className="landing-steam-how" />
                     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-12">
-                        <Reveal className="max-w-2xl">
-                            <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">How {APP_NAME} works</h2>
-                            <p className="mt-3 text-muted-foreground">
-                                Four stops from your first item to a clear picture of what you own. Add the details, review a value estimate, and choose what to record.
-                            </p>
+                        <Reveal className="landing-how-heading">
+                            <div className="max-w-2xl">
+                                <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">How {APP_NAME} works</h2>
+                                <p className="mt-3 text-muted-foreground">
+                                    From your first upload to your next sale. Gus helps you get your holdings in order, one stop at a time.
+                                </p>
+                            </div>
+                            <div className="landing-gus-guide">
+                                <p>I’ll help you<br />take stock.</p>
+                                <Gus pose="calm" size={88} className="h-auto w-20 sm:w-[88px]" />
+                            </div>
                         </Reveal>
                         <Reveal className="mt-8" delay={100}>
                             <FlowDiagram items={items} />
@@ -193,18 +209,19 @@ export default function LandingView() {
                 </section>
 
                 {/* ---------- use cases ---------- */}
-                <section id="use-cases" className="scroll-mt-14 border-t bg-card">
+                <section id="use-cases" className="landing-section relative isolate overflow-hidden border-t bg-background">
+                    <RailwayAmbience variant="landing" className="landing-steam-cases" />
                     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-12">
                         <Reveal className="max-w-2xl">
-                            <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">Where it helps most</h2>
-                            <p className="mt-3 text-muted-foreground">The moments when knowing exactly what you own, and what it is worth, stops being a nice-to-have.</p>
+                            <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">For the things you keep. And the things you sell.</h2>
+                            <p className="mt-3 text-muted-foreground">Keep a collection organized, prepare an estate, or turn unused assets into your next opportunity.</p>
                         </Reveal>
-                        <div className="mt-7 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+                        <div className="landing-use-cases mt-7 grid sm:grid-cols-2">
                             {USE_CASES.map((u, i) => (
-                                <div key={u.title} className="bg-card p-5">
+                                <div key={u.title} className="landing-use-case">
                                     <Reveal delay={(i % 3) * 90}>
                                         <u.icon className="size-5 text-label" strokeWidth={1.75} />
-                                        <h3 className="mt-4 font-editorial text-lg font-semibold tracking-[-0.01em]">{u.title}</h3>
+                                        <h3 className="mt-3 font-editorial text-lg font-semibold tracking-[-0.01em]">{u.title}</h3>
                                         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{u.problem}</p>
                                         <p className="mt-3 text-sm leading-relaxed">{u.answer}</p>
                                     </Reveal>
@@ -217,10 +234,11 @@ export default function LandingView() {
                 {/* ---------- closing ---------- */}
                 <section className="relative isolate overflow-hidden bg-sidebar text-sidebar-foreground">
                     <div aria-hidden className="absolute inset-0 -z-10 bg-(image:--bg-steamroom) bg-cover bg-bottom opacity-80" />
+                    <RailwayAmbience variant="landing" />
                     <Reveal className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 px-5 py-10 sm:px-6 md:flex-row md:items-center">
                         <div>
                             <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em]">Start with one thing you own.</h2>
-                            <p className="mt-2 max-w-lg text-sm text-sidebar-foreground/80">It takes about a minute. Or load the test portfolio first and look around.</p>
+                            <p className="mt-2 max-w-lg text-sm text-sidebar-foreground/80">Upload a photo or enter the details. Build a portfolio you can value, manage, and export.</p>
                         </div>
                         <Button asChild size="lg" className="h-10 px-4">
                             <Link to={next.to}>

@@ -3,7 +3,7 @@
 // clipboard in hand, having just inspected everything inside it.
 
 import { useMemo } from 'react';
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Banknote, FileDown } from 'lucide-react';
 import { Gus } from '@/components/brand/Mascots.tsx';
 import { HistoryChart } from '@/components/charts/HistoryChart.tsx';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
@@ -14,9 +14,10 @@ import { cn } from '@/lib/utils.ts';
 export function DashboardPreview({ items }: { items: PortfolioItem[] }) {
     const model = useMemo(() => {
         const totals = totalsFor(items, 'fair_market');
+        const liquidation = totalsFor(items, 'liquidation');
         const history = portfolioHistory(items, 'fair_market');
         const top = [...items].sort((a, b) => (valueOf(b, 'fair_market') ?? -1) - (valueOf(a, 'fair_market') ?? -1)).slice(0, 4);
-        return { totals, history, top };
+        return { totals, liquidation, history, top };
     }, [items]);
 
     return (
@@ -44,7 +45,7 @@ export function DashboardPreview({ items }: { items: PortfolioItem[] }) {
 
                 <div className="grid gap-5 p-4 text-left sm:p-5 md:grid-cols-[1.2fr_1fr]">
                     <div className="min-w-0">
-                        <p className="text-xs font-medium text-muted-foreground">Fair market value</p>
+                        <p className="text-xs font-medium text-muted-foreground">Present-day market value</p>
                         <p className="mt-1 text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl">{formatMoney(model.totals.totalCents)}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                             {model.totals.counted} of {model.totals.of} assets valued
@@ -81,6 +82,24 @@ export function DashboardPreview({ items }: { items: PortfolioItem[] }) {
                                 );
                             })}
                         </ul>
+                    </div>
+                </div>
+                <div className="landing-preview-summary">
+                    <div>
+                        <Banknote aria-hidden="true" />
+                        <div>
+                            <p>Estimated quick-sale value</p>
+                            <strong>{formatMoney(model.liquidation.totalCents)}</strong>
+                            <span>{model.liquidation.counted} of {model.liquidation.of} assets valued</span>
+                        </div>
+                    </div>
+                    <div>
+                        <FileDown aria-hidden="true" />
+                        <div>
+                            <p>Your holdings, ready to export</p>
+                            <strong>CSV & PDF inventory</strong>
+                            <span>Records, identifiers & values</span>
+                        </div>
                     </div>
                 </div>
             </div>

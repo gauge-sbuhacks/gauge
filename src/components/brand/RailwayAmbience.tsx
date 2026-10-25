@@ -11,18 +11,30 @@ const STEAM = [
     { left: '87%', bottom: '-10%', size: 260, duration: 27, delay: -3 }
 ];
 
-/** Decoration only: rising steam stays at the edges of the page. */
-export function RailwayAmbience({ variant = 'hero', className }: { variant?: 'hero' | 'page'; className?: string }) {
+// Staggered bursts across each landing section: fresh steam forms while older puffs evaporate.
+const LANDING_STEAM = [
+    { left: '3%', bottom: '12%', size: 200, duration: 8.5, delay: -1 },
+    { left: '95%', bottom: '66%', size: 220, duration: 10, delay: -5.5 },
+    { left: '8%', bottom: '78%', size: 210, duration: 9.5, delay: -7 },
+    { left: '91%', bottom: '8%', size: 230, duration: 9, delay: -3.5 },
+    { left: '25%', bottom: '3%', size: 180, duration: 10.5, delay: -8.5 },
+    { left: '77%', bottom: '85%', size: 190, duration: 11, delay: -2.5 }
+];
+
+/** Noninteractive steam sits behind the page's content. */
+export function RailwayAmbience({ variant = 'hero', className }: { variant?: 'hero' | 'page' | 'landing'; className?: string }) {
+    const landing = variant === 'landing';
     return (
         <div aria-hidden="true" className={cn('railway-ambience', `railway-ambience-${variant}`, className)}>
-            {STEAM.map((plume, index) => (
+            {(landing ? LANDING_STEAM : STEAM).map((plume, index) => (
                 <span key={index} className="railway-ambient-steam" style={{
                     left: plume.left,
                     bottom: plume.bottom,
-                    width: plume.size,
-                    height: plume.size * 1.25,
+                    width: landing ? `min(42vw, ${plume.size}px)` : plume.size,
+                    height: landing ? `min(34vw, ${plume.size * .8}px)` : plume.size * 1.25,
                     '--steam-duration': `${plume.duration}s`,
-                    '--steam-delay': `${plume.delay}s`
+                    '--steam-delay': `${plume.delay}s`,
+                    '--steam-drift': `${index % 2 === 0 ? -35 : 40}px`
                 } as CSSProperties} />
             ))}
         </div>
