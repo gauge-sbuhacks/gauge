@@ -6,6 +6,7 @@ import {
     MAX_CAPTURE_PHOTOS,
     MAX_PHOTO_BYTES,
     PHOTO_KINDS,
+    REVIEW_MANUAL_SOURCE,
     captureStatus,
     captureTtlMs,
     type AssetPhoto,
@@ -15,7 +16,8 @@ import {
     type CaptureSessionView,
     type IdentifiedItem,
     type PhoneCaptureView,
-    type PhotoKind
+    type PhotoKind,
+    type ReviewedSource
 } from '../../shared/capture.js';
 import { CONDITIONS } from '../../shared/schemas.js';
 import { ownerIdOf } from '../auth.js';
@@ -464,15 +466,29 @@ function applyApproval(draft: CaptureDraft, body: unknown) {
         if (typeof paid !== 'number' || !Number.isFinite(paid) || paid < 0) throw new HttpError(400, 'validation', 'Enter what you paid. Use 0 if it was a gift.');
         draft.purchasePriceCents = Math.round(paid);
     }
-    if ('valueCents' in input) draft.suggestedValue = requiredPrice(draft.suggestedValue, input.valueCents, 'Fair market value');
-    if ('quickSaleCents' in input) draft.quickSale = requiredPrice(draft.quickSale, input.quickSaleCents, 'Quick-sale value');
+    if ('valueCents' in input) draft.suggestedValue = reviewedPrice(draft.suggestedValue, input.valueCents, input.valueSource, 'Fair market value');
+    if ('quickSaleCents' in input) draft.quickSale = reviewedPrice(draft.quickSale, input.quickSaleCents, input.quickSaleSource, 'Quick-sale value');
 }
 
-function requiredPrice(current: CaptureDraft['suggestedValue'], cents: number | null | undefined, label: string): CaptureDraft['suggestedValue'] {
+// the value as confirmed on the review screen. it keeps a source only while it is still that source's
+// amount: the photo's suggestion, or the price check the review screen ran. anything typed is a manual entry
+function reviewedPrice(current: CaptureDraft['suggestedValue'], cents: number | null | undefined, claimed: unknown, label: string): CaptureDraft['suggestedValue'] {
     if (typeof cents !== 'number' || !Number.isFinite(cents) || cents <= 0) throw new HttpError(400, 'validation', `Enter a ${label.toLowerCase()}.`);
     const amountCents = Math.round(cents);
-    if (current) return { ...current, amountCents };
-    return { amountCents, lowCents: null, highCents: null, sourceName: 'Entered during review', notes: 'Confirmed during review.' };
+    const source = claimed && typeof claimed === 'object' ? (claimed as Partial<ReviewedSource>) : null;
+    const sourceName = textOrNull(source?.sourceName, 80);
+    if (sourceName && sourceName !== REVIEW_MANUAL_SOURCE) {
+        const same = current != null && current.sourceName === sourceName && current.amountCents === amountCents;
+        return { amountCents, lowCents: same ? current.lowCents : null, highCents: same ? current.highCents : null, sourceName, notes: textOrNull(source?.notes, 1000) ?? '' };
+    }
+    if (current && current.amountCents === amountCents) return current;
+    return { amountCents, lowCents: null, highCents: null, sourceName: REVIEW_MANUAL_SOURCE, notes: '' };
+}
+
+// a typed-in review value is saved as a manual entry, without a provider name
+function valuationSource(v: NonNullable<CaptureDraft['suggestedValue']>) {
+    const manual = v.sourceName === REVIEW_MANUAL_SOURCE;
+    return { source: manual ? ('user' as const) : ('provider' as const), sourceName: manual ? null : v.sourceName, notes: v.notes || null };
 }
 
 async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<string> {
@@ -484,6 +500,12 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
     } catch {
         details = {};
     }
+    // check before creating anything, so a rejected save never leaves a half-made asset behind
+    if (draft.purchasePriceCents == null || !draft.suggestedValue || draft.suggestedValue.amountCents <= 0 || !draft.quickSale || draft.quickSale.amountCents <= 0) {
+        throw new HttpError(400, 'validation', 'Fair market, quick-sale, and cost basis are all required.');
+    }
+    const fair = draft.suggestedValue;
+    const quick = draft.quickSale;
     const created = await Asset.create({
         ownerId,
         name: (draft.name || 'Untitled item').slice(0, 120),
@@ -501,34 +523,27 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
         photos: draft.photos,
         isSample: false
     });
-    if (draft.purchasePriceCents == null || !draft.suggestedValue || draft.suggestedValue.amountCents <= 0 || !draft.quickSale || draft.quickSale.amountCents <= 0) {
-        throw new HttpError(400, 'validation', 'Fair market, quick-sale, and cost basis are all required.');
-    }
     await Valuation.create({
         ownerId,
         assetId: created._id,
         valueType: 'fair_market',
-        amountCents: draft.suggestedValue.amountCents,
-        lowCents: draft.suggestedValue.lowCents,
-        highCents: draft.suggestedValue.highCents,
+        amountCents: fair.amountCents,
+        lowCents: fair.lowCents,
+        highCents: fair.highCents,
         currency: 'USD',
         observedAt: todayUtc(),
-        source: draft.suggestedValue.sourceName === 'Entered during review' ? 'user' : 'provider',
-        sourceName: draft.suggestedValue.sourceName,
-        notes: draft.suggestedValue.notes
+        ...valuationSource(fair)
     });
     await Valuation.create({
         ownerId,
         assetId: created._id,
         valueType: 'liquidation',
-        amountCents: draft.quickSale.amountCents,
-        lowCents: draft.quickSale.lowCents,
-        highCents: draft.quickSale.highCents,
+        amountCents: quick.amountCents,
+        lowCents: quick.lowCents,
+        highCents: quick.highCents,
         currency: 'USD',
         observedAt: todayUtc(),
-        source: draft.quickSale.sourceName === 'Entered during review' ? 'user' : 'provider',
-        sourceName: draft.quickSale.sourceName,
-        notes: draft.quickSale.notes
+        ...valuationSource(quick)
     });
     return String((created.toObject() as WithId<AssetDoc>)._id);
 }

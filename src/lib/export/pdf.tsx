@@ -8,7 +8,6 @@ import { representativeCents } from '@shared/money.ts';
 import {
     CONDITION_LABELS,
     OBSERVED_VALUE_TYPES,
-    VALUATION_SOURCE_LABELS,
     VALUE_TYPE_LABELS,
     VALUE_TYPES,
     type ValuationRecord
@@ -16,6 +15,7 @@ import {
 import { APP_NAME } from '@/config.ts';
 import { formatDate, formatMoney, todayIso } from '@/lib/format.ts';
 import { totalsFor, type PortfolioItem } from '@/lib/portfolio.ts';
+import { valueSourceText } from '@/lib/valueOrigin.ts';
 import { downloadBlob, exportFilename } from './download.ts';
 
 // the built-in pdf fonts only cover basic latin, so keep text to plain characters
@@ -66,7 +66,7 @@ function valueLine(v: ValuationRecord | null): string {
     if (!v) return 'Not entered';
     const amount = money(representativeCents(v));
     const range = v.lowCents != null && v.highCents != null ? ` (range ${money(v.lowCents)} to ${money(v.highCents)})` : '';
-    return `${amount}${range}, ${formatDate(v.observedAt)}, ${v.sourceName ?? VALUATION_SOURCE_LABELS[v.source]}`;
+    return `${amount}${range}, ${formatDate(v.observedAt)}, ${valueSourceText(v)}`;
 }
 
 function detailPairs(item: PortfolioItem): { k: string; v: string }[] {

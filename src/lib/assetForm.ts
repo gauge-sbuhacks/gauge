@@ -83,23 +83,25 @@ export function formValuesFromItem(item: PortfolioItem): AssetFormValues {
     };
 }
 
-function estimateFromSuggest(
-    valueType: ObservedValueType,
-    amountCents: number,
-    observedAt: string,
-    from: { sourceName: string; notes: string } | null | undefined
-): AssetCreateInput['estimate'] {
-    const fromProvider = from?.sourceName && from.sourceName !== PRICE_CHECK_SOURCE;
-    return {
-        valueType,
-        amountCents,
-        observedAt,
-        source: fromProvider ? 'provider' : 'provider',
-        sourceName: from?.sourceName ?? (valueType === 'fair_market' ? 'Entered during add' : 'Entered during add'),
-        method: fromProvider ? from!.sourceName : PRICE_CHECK_SOURCE,
-        notes: from?.notes ?? null,
-        vehicleTrim: null
-    };
+// a value the add flow filled in for you (melt, card prices, VinAudit, the AI price check)
+export type SuggestedAmount = { amountCents: number; sourceName: string; notes: string } | null | undefined;
+
+// the amount keeps the suggestion's source only while it is still the suggested amount. a number you
+// typed, or changed, is saved as a manual entry
+function estimateFor(valueType: ObservedValueType, amountCents: number, observedAt: string, suggested: SuggestedAmount): NonNullable<AssetCreateInput['estimate']> {
+    if (suggested && suggested.amountCents === amountCents) {
+        return {
+            valueType,
+            amountCents,
+            observedAt,
+            source: 'provider',
+            sourceName: suggested.sourceName,
+            method: suggested.sourceName === PRICE_CHECK_SOURCE ? PRICE_CHECK_SOURCE : suggested.sourceName,
+            notes: suggested.notes,
+            vehicleTrim: null
+        };
+    }
+    return { valueType, amountCents, observedAt, source: 'user', sourceName: null, method: null, notes: null, vehicleTrim: null };
 }
 
 // string inputs -> typed details for the chosen category (hidden fields are dropped)
@@ -131,10 +133,7 @@ export function toDetails(category: CategoryId, raw: Record<string, string>): Re
     return out;
 }
 
-export function toPayload(
-    values: AssetFormValues,
-    suggest?: { fairMarket?: { sourceName: string; notes: string } | null; quickSale?: { sourceName: string; notes: string } | null } | null
-): AssetCreateInput {
+export function toPayload(values: AssetFormValues, suggest?: { fairMarket?: SuggestedAmount; quickSale?: SuggestedAmount } | null): AssetCreateInput {
     const category = values.category as CategoryId;
     const amount = parseMoneyInput(values.estimateAmount);
     const quick = parseMoneyInput(values.quickSaleAmount);
@@ -155,8 +154,8 @@ export function toPayload(
         serialNumber: usesCommonField(category, 'serialNumber') ? values.serialNumber.trim() || null : null,
         notes: values.notes.trim() || null,
         details: toDetails(category, values.details) as Details,
-        estimate: amount != null ? estimateFromSuggest(values.estimateType, amount, observedAt, suggest?.fairMarket) : null,
-        liquidationEstimate: quick != null ? estimateFromSuggest('liquidation', quick, quickObserved, suggest?.quickSale) : null
+        estimate: amount != null ? estimateFor(values.estimateType, amount, observedAt, values.estimateType === 'fair_market' ? suggest?.fairMarket : suggest?.quickSale) : null,
+        liquidationEstimate: quick != null ? estimateFor('liquidation', quick, quickObserved, suggest?.quickSale) : null
     };
 }
 

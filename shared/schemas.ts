@@ -59,7 +59,7 @@ export const VALUATION_SOURCES = ['user', 'appraisal', 'provider', 'sample'] as 
 export type ValuationSource = (typeof VALUATION_SOURCES)[number];
 
 export const VALUATION_SOURCE_LABELS: Record<ValuationSource, string> = {
-    user: 'User entered',
+    user: 'Manual entry',
     appraisal: 'Professional appraisal',
     provider: 'Data provider',
     sample: 'Test data'
@@ -126,6 +126,8 @@ const assetFields = {
 export const assetCreateSchema = z.object({
     name: z.string().trim().min(1, 'Give it a name').max(120, 'Keep the name under 120 characters'),
     category: z.enum(CATEGORY_IDS, { error: 'Pick a category' }),
+    // the walkthrough's example item is saved as test data, so "remove test data" clears it
+    isSample: z.boolean().optional(),
     ...assetFields
 });
 export type AssetCreateInput = z.input<typeof assetCreateSchema>;

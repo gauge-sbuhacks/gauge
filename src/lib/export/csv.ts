@@ -3,8 +3,9 @@
 
 import { getCategory, isFieldVisible } from '@shared/categories.ts';
 import { centsToInput, representativeCents } from '@shared/money.ts';
-import { CONDITION_LABELS, VALUATION_SOURCE_LABELS, type ValuationRecord } from '@shared/schemas.ts';
+import { CONDITION_LABELS, type ValuationRecord } from '@shared/schemas.ts';
 import type { PortfolioItem } from '@/lib/portfolio.ts';
+import { valueSourceText } from '@/lib/valueOrigin.ts';
 import { downloadBlob, exportFilename } from './download.ts';
 
 // spreadsheet apps run cells that start with = + - @ as formulas. a leading ' keeps them as text
@@ -23,7 +24,7 @@ const dollars = (cents: number | null | undefined) => (cents == null ? null : (c
 function valueCells(v: ValuationRecord | null): (string | null)[] {
     if (!v) return [null, null, null];
     const range = v.lowCents != null && v.highCents != null ? ` (range ${centsToInput(v.lowCents)} to ${centsToInput(v.highCents)})` : '';
-    return [dollars(representativeCents(v)), v.observedAt, `${v.sourceName ?? VALUATION_SOURCE_LABELS[v.source]}${range}`];
+    return [dollars(representativeCents(v)), v.observedAt, `${valueSourceText(v)}${range}`];
 }
 
 export function detailsText(item: PortfolioItem): string {

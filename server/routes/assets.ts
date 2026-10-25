@@ -194,10 +194,22 @@ assetsRouter.post('/assets', async (req, res) => {
         if (!estimate) estimate = suggested.fair;
         if (!liquidation) liquidation = suggested.liquidation;
     }
-    const tracking = estimate ? settingsAfterVehicleValue({
-        category: input.category, currency: input.currency ?? 'USD', isSample: false,
+    const isSample = input.isSample === true;
+    // test data never refreshes on its own
+    if (isSample) {
+        if (estimate) estimate = { ...estimate, monthlyVehicleUpdates: false };
+        if (liquidation) liquidation = { ...liquidation, monthlyVehicleUpdates: false };
+    }
+    // a VinAudit retail (fair market) and trade-in (quick-sale) can both turn on monthly updates
+    const vehicle = {
+        category: input.category, currency: input.currency ?? 'USD', isSample,
         brand: input.brand ?? null, model: input.model ?? null, condition: input.condition ?? null, details
-    }, estimate, new Date()) : null;
+    };
+    const now = new Date();
+    let tracking: ReturnType<typeof settingsAfterVehicleValue> = null;
+    for (const value of [estimate, liquidation]) {
+        if (value) tracking = settingsAfterVehicleValue({ ...vehicle, vehicleValueUpdates: tracking }, value, now);
+    }
 
     const created = await Asset.create({
         ownerId,
@@ -213,7 +225,7 @@ assetsRouter.post('/assets', async (req, res) => {
         serialNumber: input.serialNumber ?? null,
         notes: input.notes ?? null,
         details,
-        isSample: false,
+        isSample,
         vehicleValueUpdates: tracking
     });
     if (estimate) await addEstimate(ownerId, created._id, estimate, false);

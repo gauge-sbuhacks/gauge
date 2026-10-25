@@ -363,6 +363,35 @@ export function isCategoryId(id: string): id is CategoryId {
     return byId.has(id as CategoryId);
 }
 
+// ---------- what each answer is for ----------
+// the form tags every optional box: "helps the estimate" means a value lookup (VinAudit, RentCast,
+// card prices, melt value, the AI price check) prices from it; "for your records" means it's kept for
+// insurance, selling, and upkeep but doesn't move the value. only the category and a name are required.
+
+export type FieldRole = 'value' | 'record';
+
+const VALUE_FIELDS: Record<CategoryId, string[]> = {
+    vehicle: ['vin', 'year', 'trim', 'mileage', 'titleStatus'],
+    property: ['addressLine1', 'city', 'state', 'postalCode', 'propertyType', 'squareFeet', 'bedrooms', 'bathrooms', 'yearBuilt'],
+    watch: ['referenceNumber', 'year', 'movement', 'hasBox', 'hasPapers'],
+    jewelry: ['kind', 'metal', 'purity', 'weightGrams', 'quantity', 'gemstone'],
+    collectible: ['kind', 'game', 'setCode', 'finish', 'setName', 'cardNumber', 'edition', 'grader', 'grade', 'artist', 'year'],
+    electronics: ['modelNumber', 'specs'],
+    household: ['kind', 'material', 'year'],
+    equipment: ['modelNumber'],
+    other: []
+};
+
+// a category field's role
+export function fieldRole(category: string, key: string): FieldRole {
+    return (VALUE_FIELDS[getCategory(category).id] ?? []).includes(key) ? 'value' : 'record';
+}
+
+// the shared questions: brand, model, and condition are priced from; the rest is for your records
+export function commonFieldRole(field: 'brand' | 'model' | 'condition' | 'location' | 'serialNumber' | 'purchase' | 'notes'): FieldRole {
+    return field === 'brand' || field === 'model' || field === 'condition' ? 'value' : 'record';
+}
+
 // is this field visible given the other detail values? (progressive disclosure)
 export function isFieldVisible(field: CategoryField, details: Record<string, unknown>): boolean {
     if (!field.showWhen) return true;

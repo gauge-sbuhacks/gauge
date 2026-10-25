@@ -4,7 +4,7 @@
 
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { LoaderCircle, ScanSearch } from 'lucide-react';
-import { getCategory, isFieldVisible, type CategoryField, type CategoryId, type Details } from '@shared/categories.ts';
+import { fieldRole, getCategory, isFieldVisible, type CategoryField, type CategoryId, type Details } from '@shared/categories.ts';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import type { AssetFormValues } from '@/lib/assetForm.ts';
@@ -135,6 +135,7 @@ export function CategoryFields({
                     label={f.label}
                     htmlFor={`detail-${f.key}`}
                     error={errors?.[f.key]?.message}
+                    tag={fieldRole(category, f.key)}
                     help={f.help ?? (f.sensitive && f.key === 'addressLine1' ? 'Private to your account. Only sent to RentCast if you run a value lookup.' : undefined)}
                     className={cn(f.wide && 'sm:col-span-2')}
                 >

@@ -224,7 +224,10 @@ async function finish(item: IdentifiedItem, deps: LookupDeps, result: Enrichment
     if (result.category === 'property') return result;
     let next = result;
     if (!next.suggestedValue?.amountCents) {
-        const guess = await deps.estimatePrices({ ...item, category: next.category, name: next.name, brand: next.brand, model: next.model, condition: next.condition, details: next.details });
+        // a slow or failed price check leaves the value blank to type in; it never fails the photo upload
+        const guess = await deps
+            .estimatePrices({ ...item, category: next.category, name: next.name, brand: next.brand, model: next.model, condition: next.condition, details: next.details })
+            .catch(() => null);
         const fair = guess?.fairMarketCents
             ? priced(guess.fairMarketCents, PRICE_CHECK_SOURCE, 'Rough estimate from an AI price check of the details entered. Not a quote or appraisal.')
             : null;

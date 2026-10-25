@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, ArrowUpRight, FileText, LoaderCircle, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, isFieldVisible, usesCommonField, type CategoryField } from '@shared/categories.ts';
-import { CONDITION_LABELS, VALUATION_SOURCE_LABELS, VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
+import { CONDITION_LABELS, VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { AssetHistory } from '@/components/assets/AssetHistory.tsx';
 import { AuthImage } from '@/components/assets/AuthImage.tsx';
 import { CapturePairing } from '@/components/assets/CapturePairing.tsx';
@@ -15,6 +15,7 @@ import { ValuationDialog, type ValuationFormValues } from '@/components/assets/V
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
 import { MoneyValue, NotEntered } from '@/components/common/ValueDisplay.tsx';
+import { ValueOriginTag } from '@/components/common/ValueOriginTag.tsx';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog.tsx';
 import { Badge } from '@/components/ui/badge.tsx';
@@ -23,6 +24,7 @@ import { useAuthInfo } from '@/context/AuthContext.tsx';
 import { useAssetItem, useDeleteAsset } from '@/hooks/usePortfolio.ts';
 import { formatAge, formatDate, formatNumber } from '@/lib/format.ts';
 import { latestOf, valueOf, type PortfolioItem } from '@/lib/portfolio.ts';
+import { valueOriginOf, valueSourceText } from '@/lib/valueOrigin.ts';
 import NotFoundView from './NotFoundView.tsx';
 
 function DetailRow({ label, children, mono }: { label: string; children: ReactNode; mono?: boolean }) {
@@ -65,10 +67,13 @@ function ValueCard({ item, type, onAdd }: { item: PortfolioItem; type: ValueType
                         </Link>
                     )
                 ) : latest ? (
-                    <>
-                        {formatAge(latest.observedAt)} · {latest.sourceName ?? VALUATION_SOURCE_LABELS[latest.source]}
-                        {latest.lowCents != null && latest.highCents != null && latest.amountCents == null && ' · midpoint'}
-                    </>
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                        <ValueOriginTag origin={valueOriginOf(latest)} label={valueSourceText(latest)} />
+                        <span>
+                            {formatAge(latest.observedAt)}
+                            {latest.lowCents != null && latest.highCents != null && latest.amountCents == null && ' · midpoint'}
+                        </span>
+                    </span>
                 ) : (
                     <button type="button" onClick={onAdd} className="font-medium text-foreground hover:underline">
                         Record one

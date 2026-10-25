@@ -1,11 +1,49 @@
 // small form helpers: a labeled field wrapper, a $ money input, and a select that allows "not entered"
 
 import type { ComponentProps, ReactNode } from 'react';
-import { Cog } from 'lucide-react';
+import { Asterisk, Cog, Gauge, NotebookPen } from 'lucide-react';
+import type { FieldRole } from '@shared/categories.ts';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { cn } from '@/lib/utils.ts';
+
+// what a box is for: required, priced from ("helps the estimate"), or kept for your records
+export type FieldTag = 'required' | FieldRole;
+
+const TAGS: Record<FieldTag, { label: string; short: string; icon: typeof Gauge; className: string }> = {
+    required: { label: 'Required', short: 'Required', icon: Asterisk, className: 'border-loss/40 text-loss' },
+    value: { label: 'Helps the estimate', short: 'Helps estimate', icon: Gauge, className: 'border-brass/40 bg-brass-soft text-brass' },
+    record: { label: 'For your records', short: 'For your records', icon: NotebookPen, className: 'border-border text-muted-foreground' }
+};
+
+export function FieldTagChip({ tag, long = false, className }: { tag: FieldTag; long?: boolean; className?: string }) {
+    const t = TAGS[tag];
+    const Icon = t.icon;
+    return (
+        <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-px text-[11px] leading-4 font-medium whitespace-nowrap', t.className, className)}>
+            <Icon className="size-3" aria-hidden />
+            {long ? t.label : t.short}
+        </span>
+    );
+}
+
+// the key to the chips, shown once at the top of the add flow
+export function FieldTagLegend({ className }: { className?: string }) {
+    return (
+        <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground', className)}>
+            <span className="inline-flex items-center gap-1.5">
+                <FieldTagChip tag="required" /> only the name
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+                <FieldTagChip tag="value" long /> the value is based on these
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+                <FieldTagChip tag="record" long /> just for you: insurance, selling, notes
+            </span>
+        </div>
+    );
+}
 
 export function Field({
     label,
@@ -13,6 +51,7 @@ export function Field({
     error,
     help,
     optional,
+    tag,
     className,
     children
 }: {
@@ -21,15 +60,20 @@ export function Field({
     error?: string;
     help?: ReactNode;
     optional?: boolean;
+    // a chip beside the label saying what the box is for
+    tag?: FieldTag;
     className?: string;
     children: ReactNode;
 }) {
     return (
         <div className={cn('flex flex-col gap-1.5', className)}>
-            <Label htmlFor={htmlFor} className="text-sm">
-                {label}
-                {optional === false && <span className="text-loss">*</span>}
-            </Label>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+                <Label htmlFor={htmlFor} className="text-sm">
+                    {label}
+                    {optional === false && tag !== 'required' && <span className="text-loss">*</span>}
+                </Label>
+                {tag && <FieldTagChip tag={tag} />}
+            </div>
             {children}
             {error ? (
                 <p className="text-xs font-medium text-destructive" role="alert">

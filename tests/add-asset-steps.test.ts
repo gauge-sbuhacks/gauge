@@ -44,3 +44,23 @@ test('the name fills itself in from what was typed', () => {
     assert.equal(suggestedName(base('vehicle', { brand: 'Cadillac', model: 'XT6', details: { year: '2020' } })), '2020 Cadillac XT6');
     assert.equal(suggestedName(base('property', { details: { addressLine1: '89 Carnation Road' } })), '89 Carnation Road');
 });
+
+test('a typed-in value is saved as a manual entry, not an AI price check', () => {
+    const p = toPayload(base('electronics', { estimateAmount: '900', quickSaleAmount: '700' }));
+    assert.equal(p.estimate?.source, 'user');
+    assert.equal(p.estimate?.sourceName, null);
+    assert.equal(p.liquidationEstimate?.source, 'user');
+});
+
+test('a suggested value keeps its source only while the amount is unchanged', () => {
+    const suggest = {
+        fairMarket: { amountCents: 100000, sourceName: 'AI price check', notes: 'Rough estimate' },
+        quickSale: { amountCents: 85000, sourceName: 'AI price check', notes: '85%' }
+    };
+    const kept = toPayload(base('electronics', { estimateAmount: '1000', quickSaleAmount: '850' }), suggest);
+    assert.equal(kept.estimate?.source, 'provider');
+    assert.equal(kept.estimate?.sourceName, 'AI price check');
+    const changed = toPayload(base('electronics', { estimateAmount: '1200', quickSaleAmount: '850' }), suggest);
+    assert.equal(changed.estimate?.source, 'user');
+    assert.equal(changed.liquidationEstimate?.source, 'provider');
+});

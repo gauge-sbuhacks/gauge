@@ -113,7 +113,19 @@ export interface CaptureApproval {
     purchasePriceCents?: number | null;
     valueCents?: number | null;
     quickSaleCents?: number | null;
+    // where a value came from when the review screen filled it in (an AI price check run after the
+    // item was corrected). null or missing means you typed it: a manual entry
+    valueSource?: ReviewedSource | null;
+    quickSaleSource?: ReviewedSource | null;
 }
+
+export interface ReviewedSource {
+    sourceName: string;
+    notes: string;
+}
+
+// the source name a review-screen value gets when you type it yourself
+export const REVIEW_MANUAL_SOURCE = 'Entered during review';
 
 function detailStep(category: ReturnType<typeof getCategory> | null, key: string, raw: unknown): ReviewStep {
     const field = category?.fields.find((item) => item.key === key);

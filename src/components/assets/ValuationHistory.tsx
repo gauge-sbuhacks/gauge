@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { representativeCents } from '@shared/money.ts';
-import { CONDITION_LABELS, OBSERVED_VALUE_TYPES, VALUATION_SOURCE_LABELS, VALUE_TYPE_SHORT, type ObservedValueType, type ValuationRecord } from '@shared/schemas.ts';
+import { CONDITION_LABELS, OBSERVED_VALUE_TYPES, VALUE_TYPE_SHORT, type ObservedValueType, type ValuationRecord } from '@shared/schemas.ts';
+import { ValueOriginTag } from '@/components/common/ValueOriginTag.tsx';
+import { valueOriginOf, valueSourceText } from '@/lib/valueOrigin.ts';
 import { HistoryChart } from '@/components/charts/HistoryChart.tsx';
 import { Segmented } from '@/components/common/Segmented.tsx';
 import {
@@ -95,7 +97,7 @@ export function ValuationHistory({ item }: { item: PortfolioItem }) {
                                     <TableCell className="whitespace-nowrap">{VALUE_TYPE_SHORT[v.valueType]}</TableCell>
                                     <TableCell className="text-right whitespace-nowrap tabular-nums">{amountText(v)}</TableCell>
                                     <TableCell className="whitespace-nowrap">
-                                        {v.sourceName ?? VALUATION_SOURCE_LABELS[v.source]}
+                                        <ValueOriginTag origin={valueOriginOf(v)} label={valueSourceText(v)} />
                                         {v.conditionAssumption && <div className="text-xs text-muted-foreground">Assumes {CONDITION_LABELS[v.conditionAssumption].toLowerCase()}</div>}
                                     </TableCell>
                                     <TableCell className="hidden max-w-64 truncate text-muted-foreground md:table-cell" title={v.notes ?? undefined}>

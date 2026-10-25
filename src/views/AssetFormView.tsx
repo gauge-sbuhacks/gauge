@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Check, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
+import { commonFieldRole, getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
 import {
     CONDITION_HINTS,
@@ -193,7 +193,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                     </Link>
                 }
                 title={editing ? 'Edit asset' : 'Add an asset'}
-                description="Only the name and category are required. Fill in the rest whenever you have it."
+                description="Only the name and category are required. Boxes tagged Helps the estimate are what the value is based on; the rest are for your records."
             />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
@@ -216,6 +216,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                 label="Name"
                                 htmlFor="name"
                                 optional={false}
+                                tag="required"
                                 error={errors.name?.message}
                                 help={nameSuggestion ? undefined : 'What you call it, like "Grandpa\'s Omega" or "2021 Toyota RAV4"'}
                             >
@@ -225,10 +226,10 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
 
                             {def?.brandLabel && (
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    <Field label={def.brandLabel} htmlFor="brand" error={errors.brand?.message}>
+                                    <Field label={def.brandLabel} htmlFor="brand" tag={commonFieldRole('brand')} error={errors.brand?.message}>
                                         <Input id="brand" {...register('brand')} maxLength={80} autoComplete="off" />
                                     </Field>
-                                    <Field label={def.modelLabel ?? 'Model'} htmlFor="model" error={errors.model?.message}>
+                                    <Field label={def.modelLabel ?? 'Model'} htmlFor="model" tag={commonFieldRole('model')} error={errors.model?.message}>
                                         <Input id="model" {...register('model')} maxLength={120} autoComplete="off" />
                                     </Field>
                                 </div>
@@ -236,7 +237,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
 
                             <div className="grid gap-4 sm:grid-cols-2">
                                 {(!category || usesCommonField(category, 'condition')) && (
-                                <Field label="Condition" error={errors.condition?.message} help={values.condition ? CONDITION_HINTS[values.condition] : 'Condition drives resale value'}>
+                                <Field label="Condition" tag={commonFieldRole('condition')} error={errors.condition?.message} help={values.condition ? CONDITION_HINTS[values.condition] : 'Condition drives resale value'}>
                                     <Controller
                                         control={control}
                                         name="condition"
@@ -265,7 +266,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                 </Field>
                                 )}
                                 {(!category || usesCommonField(category, 'location')) && (
-                                    <Field label="Location" htmlFor="location" error={errors.location?.message} help="Where it's kept">
+                                    <Field label="Location" htmlFor="location" tag={commonFieldRole('location')} error={errors.location?.message} help="Where it's kept">
                                         <Input id="location" list="location-options" {...register('location')} maxLength={80} autoComplete="off" placeholder="Home office" />
                                         <datalist id="location-options">
                                             {locationOptions.map((l) => (
@@ -312,10 +313,10 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                         </CardHeader>
                         <CardContent className="space-y-5">
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <Field label="Purchase date" htmlFor="purchaseDate" error={errors.purchaseDate?.message}>
+                                <Field label="Purchase date" htmlFor="purchaseDate" tag={commonFieldRole('purchase')} error={errors.purchaseDate?.message}>
                                     <Input id="purchaseDate" type="date" max={todayIso()} {...register('purchaseDate')} aria-invalid={Boolean(errors.purchaseDate) || undefined} />
                                 </Field>
-                                <Field label="Purchase price" htmlFor="purchasePrice" error={errors.purchasePrice?.message} help="Your cost basis">
+                                <Field label="Purchase price" htmlFor="purchasePrice" tag={commonFieldRole('purchase')} error={errors.purchasePrice?.message} help="Your cost basis, used to show gain or loss">
                                     <MoneyInput id="purchasePrice" {...register('purchasePrice')} aria-invalid={Boolean(errors.purchasePrice) || undefined} />
                                 </Field>
                             </div>
@@ -367,6 +368,7 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                             <Field
                                 label="Serial number or other ID"
                                 htmlFor="serialNumber"
+                                tag={commonFieldRole('serialNumber')}
                                 error={errors.serialNumber?.message}
                                 help={def?.fields.some((f) => f.identifier) ? `Or use the ${def.fields.find((f) => f.identifier)!.label} field above` : undefined}
                             >

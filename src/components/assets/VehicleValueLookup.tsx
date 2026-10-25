@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gauge, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, Check, Gauge, LoaderCircle } from 'lucide-react';
 import { vehicleValueQuerySchema, type VehicleValueQuery, type VehicleValueResult } from '@shared/schemas.ts';
 import { centsToInput } from '@shared/money.ts';
 import { Button } from '@/components/ui/button.tsx';
@@ -12,13 +12,30 @@ import type { ValuationFormValues } from './ValuationDialog.tsx';
 
 const signedMoney = (cents: number) => `${cents > 0 ? '+' : '−'}${formatMoney(Math.abs(cents))}`;
 
-type Props = { query: VehicleValueQuery; onRecord: (initial: Partial<ValuationFormValues>) => void; actionLabel?: string; allowMonthlyUpdates?: boolean };
+type Props = {
+    query: VehicleValueQuery;
+    onRecord: (initial: Partial<ValuationFormValues>) => void;
+    // when set, a "Use both" button hands over retail (fair market) and trade-in (quick-sale) together
+    onRecordBoth?: (both: Partial<ValuationFormValues>[]) => void;
+    // when set, the "needs year, make, and model" note gets a button back to those boxes
+    onEditDetails?: () => void;
+    actionLabel?: string;
+    allowMonthlyUpdates?: boolean;
+};
+
+// "Add the year, or use a full VIN. Add the make, ..." reads badly, so name what's missing once
+function missingText(issues: { path: PropertyKey[] }[]): string {
+    const missing = (['year', 'make', 'model'] as const).filter((f) => issues.some((i) => i.path[0] === f));
+    if (missing.length === 0) return 'Check the VIN, year, and mileage to get an estimate.';
+    const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')}${missing.length > 2 ? ',' : ''} and ${missing[missing.length - 1]}`;
+    return `Add the ${list} (or a full 17-character VIN) to get an estimate.`;
+}
 
 export function VehicleValueLookup(props: Props) {
     return <VehicleValueLookupBody key={JSON.stringify(props.query)} {...props} />;
 }
 
-function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', allowMonthlyUpdates = true }: Props) {
+function VehicleValueLookupBody({ query, onRecord, onRecordBoth, onEditDetails, actionLabel = 'Record as', allowMonthlyUpdates = true }: Props) {
     const { vin, mileage } = query;
     const [selectedTrim, setSelectedTrim] = useState(query.trim ?? '');
     const [monthlyUpdates, setMonthlyUpdates] = useState(allowMonthlyUpdates);
@@ -33,10 +50,11 @@ function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', al
         if (!parsed.success) return;
         lookup.mutate(parsed.data, { onSuccess: (value) => setResponse({ trim: selectedTrim, value }) });
     };
-    const record = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'liquidation') => {
+    const record = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'liquidation') => onRecord(valuationFor(r, kind, valueType));
+    const valuationFor = (r: VehicleValueResult, kind: 'retail' | 'tradeIn', valueType: 'fair_market' | 'liquidation'): Partial<ValuationFormValues> => {
         const v = r[kind]!;
         const what = kind === 'retail' ? 'Retail' : 'Trade-in';
-        onRecord({
+        return {
             valueType,
             mode: 'amount',
             amount: centsToInput(v.valueCents),
@@ -57,7 +75,7 @@ function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', al
                 .filter(Boolean)
                 .join('. ')
                 .slice(0, 1000)
-        });
+        };
     };
 
     return (
@@ -69,7 +87,15 @@ function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', al
                     Needs a VinAudit API key (<code className="text-xs">VINAUDIT_API_KEY</code>). VIN-free estimates also need Vehicle Selections access. See Setup.
                 </p>
             ) : !parsed.success ? (
-                <p className="text-sm text-muted-foreground">{parsed.error.issues.map((issue) => issue.message).join('. ')}. Go back or edit the vehicle details to get an estimate.</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <p className="text-sm text-muted-foreground">{missingText(parsed.error.issues)}</p>
+                    {onEditDetails && (
+                        <Button type="button" size="sm" variant="outline" onClick={onEditDetails}>
+                            <ArrowLeft data-icon="inline-start" />
+                            Edit vehicle details
+                        </Button>
+                    )}
+                </div>
             ) : (
                 <div className="space-y-3">
                     {mileage == null && <p className="text-xs text-muted-foreground">No mileage entered, so the estimate will assume average mileage.</p>}
@@ -99,7 +125,7 @@ function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', al
                             </div>
                             {[
                                 { kind: 'retail' as const, label: 'Retail', value: result.retail, actions: [['Fair market', 'fair_market']] as const },
-                                { kind: 'tradeIn' as const, label: 'Trade-in', value: result.tradeIn, actions: [['Liquidation', 'liquidation']] as const }
+                                { kind: 'tradeIn' as const, label: 'Trade-in', value: result.tradeIn, actions: [['Quick-sale', 'liquidation']] as const }
                             ].map(({ kind, label, value, actions }) => (
                                 <div key={kind} className="space-y-1.5 border-t pt-3 first-of-type:border-t-0 first-of-type:pt-0">
                                     <div className="flex items-baseline justify-between gap-2">
@@ -127,6 +153,19 @@ function VehicleValueLookupBody({ query, onRecord, actionLabel = 'Record as', al
                                     )}
                                 </div>
                             ))}
+                            {onRecordBoth && result.retail && result.tradeIn && (
+                                <div className="border-t pt-3">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => onRecordBoth([valuationFor(result, 'retail', 'fair_market'), valuationFor(result, 'tradeIn', 'liquidation')])}
+                                    >
+                                        <Check data-icon="inline-start" />
+                                        Use both
+                                    </Button>
+                                    <p className="mt-1.5 text-xs text-muted-foreground">Retail becomes the fair market value and trade-in the quick-sale value.</p>
+                                </div>
+                            )}
                             {result.adjustments.length > 0 && (
                                 <ul className="space-y-0.5 border-t pt-2 text-xs">
                                     {result.adjustments.map((a) => (

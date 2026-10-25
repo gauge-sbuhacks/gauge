@@ -2,9 +2,9 @@
 // things to know arrive one after another. every piece uses fill-mode-both so it stays hidden
 // until its own delay comes up.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowRight, FlaskConical, LoaderCircle } from 'lucide-react';
+import { ArrowRight, FlaskConical, LoaderCircle, PenLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { PURPOSE_HINTS, type Purpose } from '@shared/schemas.ts';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
@@ -48,6 +48,48 @@ function WelcomeGauge() {
     );
 }
 
+// one of the three ways to start, as a card you click
+function StartChoice({
+    icon,
+    title,
+    text,
+    badge,
+    busy,
+    onClick,
+    ...rest
+}: {
+    icon: ReactNode;
+    title: string;
+    text: string;
+    badge?: string;
+    busy?: boolean;
+    onClick?: () => void;
+} & Omit<ComponentProps<'button'>, 'title'>) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={busy}
+            className={cn(
+                'group flex h-full w-full flex-col items-start gap-2 rounded-xl border bg-card p-4 text-left transition-colors outline-none hover:border-brass/60 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60',
+                badge && 'border-brass/50'
+            )}
+            {...rest}
+        >
+            <span className="flex w-full items-center justify-between gap-2">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-brass-soft text-brass">{busy ? <LoaderCircle className="size-4 animate-spin" /> : icon}</span>
+                {badge && <span className="rounded-full bg-brass-soft px-2 py-0.5 text-[11px] font-semibold text-brass">{badge}</span>}
+            </span>
+            <span className="font-medium">{title}</span>
+            <span className="text-sm leading-relaxed text-muted-foreground">{text}</span>
+            <span className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-foreground">
+                Start
+                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </span>
+        </button>
+    );
+}
+
 export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpose: Purpose }) {
     const navigate = useNavigate();
     const loadSample = useLoadSample();
@@ -62,20 +104,33 @@ export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpos
             onError: (err) => toast.error("Couldn't load test data", { description: err.message })
         });
 
-    const testDataButton = (
-        <Button size="lg" variant={exploring ? 'default' : 'outline'} className="h-10 px-4" onClick={exploreWithTestData} disabled={loadSample.isPending}>
-            {loadSample.isPending ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <FlaskConical data-icon="inline-start" />}
-            Explore with test data
-        </Button>
+    const walkthrough = (
+        <StartChoice
+            key="guide"
+            icon={<Gus pose="calm" size={28} className="h-auto w-6" />}
+            title="Walk me through it"
+            text="Gus walks you through adding an example car, one step at a time. About two minutes."
+            badge={exploring ? undefined : 'Recommended'}
+            onClick={() => navigate('/assets/new?guide=1', { replace: true })}
+        />
     );
-    const addButton = (
-        <AddAssetDialog>
-            <Button type="button" size="lg" variant={exploring ? 'outline' : 'default'} className="h-10 px-4">
-                Add your first asset
-                <ArrowRight data-icon="inline-end" />
-            </Button>
+    const testData = (
+        <StartChoice
+            key="sample"
+            icon={<FlaskConical className="size-4" />}
+            title="Load test data"
+            text="10 sample items with value history to click around. Remove them any time."
+            badge={exploring ? 'Recommended' : undefined}
+            busy={loadSample.isPending}
+            onClick={exploreWithTestData}
+        />
+    );
+    const addOwn = (
+        <AddAssetDialog key="own">
+            <StartChoice icon={<PenLine className="size-4" />} title="Add my own" text="Start with something you own. Type it in, or snap a photo." />
         </AddAssetDialog>
     );
+    const choices = exploring ? [testData, walkthrough, addOwn] : [walkthrough, testData, addOwn];
 
     return (
         <div>
@@ -105,13 +160,11 @@ export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpos
             </ol>
 
             <Arrive at={1150 + STEPS.length * 220 + 200}>
-                <div className="mt-10 flex flex-wrap items-center gap-3">
-                    {exploring ? testDataButton : addButton}
-                    {exploring ? addButton : testDataButton}
-                    <Button size="lg" variant="ghost" className="h-10 px-3" onClick={() => navigate('/', { replace: true })}>
-                        Go to the dashboard
-                    </Button>
-                </div>
+                <h2 className="mt-12 font-medium">How do you want to start?</h2>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">{choices}</div>
+                <Button size="sm" variant="ghost" className="mt-3 -ml-2 text-muted-foreground" onClick={() => navigate('/', { replace: true })}>
+                    Skip to the dashboard
+                </Button>
             </Arrive>
         </div>
     );

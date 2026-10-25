@@ -6,19 +6,17 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Controller, useForm, useWatch, type Path, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useBlocker, useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle, Sparkles } from 'lucide-react';
+import { Link, useBlocker, useNavigate, useSearchParams } from 'react-router';
+import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
+import { commonFieldRole, getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { parseMoneyInput } from '@shared/money.ts';
 import {
     CONDITION_HINTS,
     CONDITION_LABELS,
     CONDITIONS,
-    OBSERVED_VALUE_TYPES,
     PRICE_CHECK_SOURCE,
     VALUE_TYPE_HINTS,
-    VALUE_TYPE_LABELS,
     type EstimateInput,
     type LookupSuggestion,
     type ObservedValueType,
@@ -31,12 +29,14 @@ import { MascotQuestion } from '@/components/brand/MascotQuestion.tsx';
 import { RailProgress } from '@/components/brand/Railway.tsx';
 import { Gus, type GusPose } from '@/components/brand/Mascots.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
-import { Field, MoneyInput, NameSuggestion, OptionalSelect } from '@/components/assets/FormBits.tsx';
+import { Field, FieldTagLegend, MoneyInput, NameSuggestion } from '@/components/assets/FormBits.tsx';
 import { PropertyValueLookup } from '@/components/assets/PropertyValueLookup.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
 import { VehicleValueLookup } from '@/components/assets/VehicleValueLookup.tsx';
 import type { ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
+import { ValueOriginTag } from '@/components/common/ValueOriginTag.tsx';
+import { GuideCard } from '@/components/onboarding/GuideCard.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import {
     AlertDialog,
@@ -50,10 +50,12 @@ import {
 } from '@/components/ui/alert-dialog.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
-import { useCreateAsset, usePortfolio, useSuggestValues, useVinLookup } from '@/hooks/usePortfolio.ts';
+import { useCreateAsset, useHealth, usePortfolio, useSuggestValues, useVinLookup } from '@/hooks/usePortfolio.ts';
 import type { SuggestValuesResult } from '@shared/schemas.ts';
 import { centsToInput } from '@shared/money.ts';
 import { suggestQueryFromForm } from '@/lib/suggestValues.ts';
+import type { ValueOrigin } from '@/lib/valueOrigin.ts';
+import { GUIDE_PARAM, applyExample, exampleFor, guideTipFor } from '@/lib/walkthrough.ts';
 import { DEFAULT_LOCATIONS, assetFormSchema, emptyFormValues, formFieldForServerKey, suggestedName, toPayload, type AssetFormValues } from '@/lib/assetForm.ts';
 import {
     detailKeys,
@@ -90,6 +92,11 @@ function providerSignatureFor(v: AssetFormValues): string {
     return JSON.stringify(v.category === 'property' ? propertyValueQueryFor(v.details) : vehicleValueQueryFor(v));
 }
 
+// a provider estimate picked for one value type, and the details it was priced from
+type ProviderPick = { signature: string; estimate: EstimateInput };
+// where the amount in a value box came from right now, for the chip under it
+type BoxOrigin = { origin: ValueOrigin; label?: string; note: string };
+
 // Gus asks every question: calm while asking, alarmed when an answer needs fixing, and stamping the
 // certificate on the last step
 function gusPoseFor(step: StepId, isLast: boolean, hasError: boolean): GusPose {
@@ -110,8 +117,22 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const create = useCreateAsset();
     const vinLookup = useVinLookup();
     const suggestValues = useSuggestValues();
+    const health = useHealth();
     const [vinResult, setVinResult] = useState<VinLookupResult | null>(null);
     const saved = useRef(false);
+
+    // the walkthrough from onboarding: Gus explains each step and can fill in an example car
+    const [params, setParams] = useSearchParams();
+    const guided = params.get(GUIDE_PARAM) === '1';
+    const [exampleUsed, setExampleUsed] = useState(false);
+    const exitGuide = () =>
+        setParams(
+            (p) => {
+                p.delete(GUIDE_PARAM);
+                return p;
+            },
+            { replace: true }
+        );
 
     const form = useForm<AssetFormValues>({ defaultValues: emptyFormValues(), resolver: zodResolver(assetFormSchema), mode: 'onTouched' });
     const { register, control, setValue, getValues, setError, trigger, clearErrors, formState } = form;
@@ -120,7 +141,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const category = values.category as CategoryId | '';
     const vehicleQuery = vehicleValueQueryFor(values);
     const vehicleSignature = JSON.stringify(vehicleQuery);
-    const [providerEstimate, setProviderEstimate] = useState<{ signature: string; estimate: EstimateInput } | null>(null);
+    // one pick per value type, so using the trade-in as quick-sale never replaces the retail fair market
+    const [providerEstimates, setProviderEstimates] = useState<Partial<Record<ObservedValueType, ProviderPick>>>({});
     const def = category ? getCategory(category) : null;
 
     // ---------- steps and transitions (same feel as onboarding) ----------
@@ -131,7 +153,9 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const timer = useRef<number | undefined>(undefined);
     const stage = useRef<HTMLDivElement>(null);
     const suggestSigRef = useRef('');
+    // what the automatic lookup suggested. the ref is read while saving; the state drives the chips
     const suggestMetaRef = useRef<Pick<SuggestValuesResult, 'fairMarket' | 'quickSale'> | null>(null);
+    const [suggestMeta, setSuggestMeta] = useState<Pick<SuggestValuesResult, 'fairMarket' | 'quickSale'> | null>(null);
     const [valueHint, setValueHint] = useState<string | null>(null);
     // the fair market amount we filled in and where it came from, so the step can call it a rough estimate
     const [autoFilled, setAutoFilled] = useState<{ cents: number; sourceName: string; quickIs85: boolean } | null>(null);
@@ -139,6 +163,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
 
     const applySuggestedValues = (result: SuggestValuesResult) => {
         suggestMetaRef.current = { fairMarket: result.fairMarket, quickSale: result.quickSale };
+        setSuggestMeta(suggestMetaRef.current);
         let fairFilled = false;
         let quickFilled = false;
         if (parseMoneyInput(getValues('estimateAmount')) == null && result.fairMarket) {
@@ -237,7 +262,17 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const pickCategory = (id: CategoryId) => {
         setValue('category', id, { shouldDirty: true, shouldValidate: true });
         setVinResult(null);
+        setProviderEstimates({});
         go('identity');
+    };
+
+    // a picked provider estimate still applies while its amount is in the box and the details it was
+    // priced from haven't changed. then it's saved with its source; otherwise the number is a manual entry
+    const livePick = (type: ObservedValueType, v: AssetFormValues): ProviderPick | null => {
+        const pick = providerEstimates[type];
+        if (!pick || (v.category !== 'vehicle' && v.category !== 'property')) return null;
+        const cents = parseMoneyInput((type === 'fair_market' ? v.estimateAmount : v.quickSaleAmount) ?? '');
+        return cents === pick.estimate.amountCents && pick.signature === providerSignatureFor(v) ? pick : null;
     };
 
     // ---------- save ----------
@@ -271,21 +306,30 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 }
             }
             const payload = toPayload(current, suggestMetaRef.current);
-            const selected = providerEstimate?.estimate;
-            if (
-                (current.category === 'vehicle' || current.category === 'property') &&
-                providerEstimate?.signature === providerSignatureFor(current) &&
-                selected &&
-                payload.estimate?.amountCents === selected.amountCents &&
-                payload.estimate.valueType === selected.valueType &&
-                payload.estimate.observedAt === selected.observedAt
-            ) {
-                payload.estimate = selected;
-            }
+            // the VinAudit / RentCast pick keeps its source, notes, and monthly-update choice. the date
+            // comes from the box, in case it was changed
+            const fairPick = livePick('fair_market', current);
+            if (fairPick && payload.estimate) payload.estimate = { ...fairPick.estimate, observedAt: payload.estimate.observedAt };
+            const quickPick = livePick('liquidation', current);
+            if (quickPick && payload.liquidationEstimate) payload.liquidationEstimate = { ...quickPick.estimate, observedAt: payload.liquidationEstimate.observedAt };
+            // the walkthrough's example car is test data, so it never counts toward a real net worth
+            const asExample = guided && exampleUsed;
+            if (asExample) payload.isSample = true;
             const res = await create.mutateAsync(payload);
             saved.current = true;
-            toast.success(`${res.asset.name} added`, { icon: <Gus pose="certify" size={22} /> });
-            navigate(`/assets/${res.asset.id}`);
+            if (guided) {
+                toast.success(`${res.asset.name} is in your portfolio`, {
+                    icon: <Gus pose="certify" size={22} />,
+                    description: asExample
+                        ? 'It is marked Test data. Remove it any time from Settings → Test data.'
+                        : 'That is the whole flow. Add the next one whenever you are ready.',
+                    duration: 8000
+                });
+                navigate('/');
+            } else {
+                toast.success(`${res.asset.name} added`, { icon: <Gus pose="certify" size={22} /> });
+                navigate(`/assets/${res.asset.id}`);
+            }
         } catch (err) {
             if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
                 let target: StepId | null = null;
@@ -330,29 +374,47 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     };
 
     const busy = create.isPending;
-    const applyVehicleEstimate = (initial: Partial<ValuationFormValues>) => {
-        if (!initial.amount || !initial.valueType || !initial.observedAt) return;
-        const amountCents = parseMoneyInput(initial.amount);
-        if (amountCents == null) return;
-        setValue('estimateAmount', initial.amount, { shouldDirty: true, shouldValidate: true });
-        setValue('estimateType', initial.valueType, { shouldDirty: true });
-        setValue('estimateDate', initial.observedAt, { shouldDirty: true });
-        setProviderEstimate({
-            signature: vehicleSignature,
-            estimate: {
-                valueType: initial.valueType,
-                amountCents,
-                observedAt: initial.observedAt,
-                source: 'provider',
-                sourceName: initial.sourceName,
-                monthlyVehicleUpdates: initial.monthlyVehicleUpdates,
-                vehicleTrim: initial.vehicleTrim,
-                method: initial.method,
-                conditionAssumption: values.condition || null,
-                notes: initial.notes
+    // retail goes in the fair market box and trade-in in the quick-sale box. each fills only its own
+    // box, so using one never wipes out the other
+    const applyVehicleEstimates = (picks: Partial<ValuationFormValues>[]) => {
+        const used: ObservedValueType[] = [];
+        const next: Partial<Record<ObservedValueType, ProviderPick>> = {};
+        for (const initial of picks) {
+            if (!initial.amount || !initial.valueType || !initial.observedAt) continue;
+            const amountCents = parseMoneyInput(initial.amount);
+            if (amountCents == null) continue;
+            const type = initial.valueType;
+            if (type === 'liquidation') {
+                setValue('quickSaleAmount', initial.amount, { shouldDirty: true, shouldValidate: true });
+                setValue('quickSaleDate', initial.observedAt, { shouldDirty: true, shouldValidate: true });
+            } else {
+                setValue('estimateType', 'fair_market', { shouldDirty: true });
+                setValue('estimateAmount', initial.amount, { shouldDirty: true, shouldValidate: true });
+                setValue('estimateDate', initial.observedAt, { shouldDirty: true, shouldValidate: true });
             }
-        });
-        toast.success('Estimate filled in. Save the vehicle to record it.');
+            next[type] = {
+                signature: vehicleSignature,
+                estimate: {
+                    valueType: type,
+                    amountCents,
+                    observedAt: initial.observedAt,
+                    source: 'provider',
+                    sourceName: initial.sourceName,
+                    // test data can't refresh monthly
+                    monthlyVehicleUpdates: guided && exampleUsed ? false : initial.monthlyVehicleUpdates,
+                    vehicleTrim: initial.vehicleTrim,
+                    method: initial.method,
+                    conditionAssumption: values.condition || null,
+                    notes: initial.notes
+                }
+            };
+            used.push(type);
+        }
+        if (used.length === 0) return;
+        setProviderEstimates((prev) => ({ ...prev, ...next }));
+        const what =
+            used.length === 2 ? 'Retail and trade-in filled in as fair market and quick-sale' : used[0] === 'liquidation' ? 'Trade-in filled in as the quick-sale value' : 'Retail filled in as the fair market value';
+        toast.success(`${what}. Save the vehicle to record ${used.length === 2 ? 'them' : 'it'}.`, { id: 'vehicle-estimate' });
     };
     const applyPropertyEstimate = (r: PropertyValueResult) => {
         if (r.valueCents == null) return;
@@ -360,7 +422,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         setValue('estimateType', 'fair_market', { shouldDirty: true });
         setValue('estimateAmount', centsToInput(r.valueCents), { shouldDirty: true, shouldValidate: true });
         setValue('estimateDate', observedAt, { shouldDirty: true, shouldValidate: true });
-        setProviderEstimate({
+        const pick: ProviderPick = {
             signature: providerSignatureFor(getValues()),
             estimate: {
                 valueType: 'fair_market',
@@ -381,10 +443,61 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     .join('. ')
                     .slice(0, 1000)
             }
-        });
+        };
+        setProviderEstimates((prev) => ({ ...prev, fair_market: pick }));
         toast.success('Home estimate filled in. Save the property to record it.');
     };
     const canSaveEarly = index >= 2 && Boolean(values.name?.trim());
+
+    // the chip under a value box: market data you picked, the automatic estimate, or your own number
+    const originOf = (type: ObservedValueType): BoxOrigin | null => {
+        const cents = parseMoneyInput((type === 'fair_market' ? values.estimateAmount : values.quickSaleAmount) ?? '');
+        if (cents == null) return null;
+        const pick = livePick(type, values);
+        if (pick) {
+            const name = pick.estimate.sourceName ?? 'Market data';
+            return { origin: 'market', label: name, note: name.startsWith('VinAudit') ? "From VinAudit's market data for similar vehicles." : 'From comparable homes nearby.' };
+        }
+        const stale = providerEstimates[type];
+        const suggested = type === 'fair_market' ? suggestMeta?.fairMarket : suggestMeta?.quickSale;
+        if (suggested && suggested.amountCents === cents) {
+            const ai = suggested.sourceName === PRICE_CHECK_SOURCE;
+            const note =
+                type === 'liquidation' && autoFilled?.quickIs85 ? 'About 85% of the fair market estimate. Change it if you know better.' : `${roughEstimateNote(suggested.sourceName)} Change it if you know better.`;
+            return { origin: ai ? 'ai' : 'market', label: ai ? undefined : suggested.sourceName, note };
+        }
+        if (stale && stale.estimate.amountCents === cents) {
+            return { origin: 'manual', note: 'The details changed after this estimate, so it saves as your own number. Get a new estimate to keep it as market data.' };
+        }
+        return { origin: 'manual', note: 'Your own number. It is saved and labeled as a manual entry.' };
+    };
+
+    // ---------- the walkthrough ----------
+    const vinauditReady = health.data?.providers.find((p) => p.id === 'vinaudit')?.status === 'ready';
+    const example = guided ? exampleFor(stepId, category) : null;
+    const fillExample = () => {
+        if (!example) return;
+        const setText = setValue as (name: Path<AssetFormValues>, value: string, opts: { shouldDirty: boolean; shouldValidate: boolean }) => void;
+        const filled = applyExample(
+            example,
+            (field) => getValues(field as Path<AssetFormValues>),
+            (field, value) => setText(field as Path<AssetFormValues>, value, { shouldDirty: true, shouldValidate: true })
+        );
+        setExampleUsed(true);
+        if (filled === 0) toast('Those boxes already have your answers, so nothing was changed.');
+    };
+    const guideCard = guided ? (
+        <GuideCard
+            className="mt-6"
+            tip={guideTipFor(stepId, category, vinauditReady)}
+            step={index + 1}
+            total={steps.length}
+            onExit={exitGuide}
+            fillLabel={stepId === 'category' ? 'Use the example car' : undefined}
+            onFill={stepId === 'category' ? () => pickCategory('vehicle') : example ? fillExample : undefined}
+            footnote={isLast && exampleUsed ? 'This uses example details, so it saves as Test data. You can remove it with the rest of the test data.' : null}
+        />
+    ) : null;
 
     // does this step have a mistake showing? (Gus looks alarmed until it's fixed)
     const stepHasError = fieldsForStep(stepId, values).some((field) => {
@@ -429,6 +542,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     label="Name"
                     htmlFor="name"
                     optional={false}
+                    tag="required"
                     error={errors.name?.message}
                     help={nameSuggestion ? undefined : 'What you will see in your list, like "Grandpa\'s Omega"'}
                 >
@@ -450,7 +564,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         body = (
             <div className="space-y-6">
                 {askCondition && (
-                    <Field label="Condition" error={errors.condition?.message} help={values.condition ? CONDITION_HINTS[values.condition] : 'Tap again to clear'}>
+                    <Field label="Condition" tag={commonFieldRole('condition')} error={errors.condition?.message} help={values.condition ? CONDITION_HINTS[values.condition] : 'Tap again to clear'}>
                         <Controller
                             control={control}
                             name="condition"
@@ -477,7 +591,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     </Field>
                 )}
                 {askLocation && (
-                    <Field label="Where it's kept" htmlFor="location" error={errors.location?.message}>
+                    <Field label="Where it's kept" htmlFor="location" tag={commonFieldRole('location')} error={errors.location?.message}>
                         <Input id="location" list="location-options" {...register('location')} maxLength={80} autoComplete="off" placeholder="Home office" />
                         <datalist id="location-options">
                             {locations.map((l) => (
@@ -497,50 +611,38 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         body = (
             <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Purchase price" htmlFor="purchasePrice" error={errors.purchasePrice?.message} help="Your cost basis">
+                    <Field label="Purchase price" htmlFor="purchasePrice" tag={commonFieldRole('purchase')} error={errors.purchasePrice?.message} help="Your cost basis, used to show gain or loss">
                         <MoneyInput id="purchasePrice" {...register('purchasePrice')} aria-invalid={Boolean(errors.purchasePrice) || undefined} />
                     </Field>
-                    <Field label="Purchase date" htmlFor="purchaseDate" error={errors.purchaseDate?.message}>
+                    <Field label="Purchase date" htmlFor="purchaseDate" tag={commonFieldRole('purchase')} error={errors.purchaseDate?.message}>
                         <Input id="purchaseDate" type="date" max={todayIso()} {...register('purchaseDate')} aria-invalid={Boolean(errors.purchaseDate) || undefined} />
                     </Field>
                 </div>
-                {category === 'vehicle' && <VehicleValueLookup query={vehicleQuery} onRecord={applyVehicleEstimate} actionLabel="Use estimate as" />}
+                {category === 'vehicle' && (
+                    <VehicleValueLookup
+                        query={vehicleQuery}
+                        onRecord={(pick) => applyVehicleEstimates([pick])}
+                        onRecordBoth={applyVehicleEstimates}
+                        onEditDetails={() => go('identity')}
+                        actionLabel="Use as"
+                        allowMonthlyUpdates={!(guided && exampleUsed)}
+                    />
+                )}
                 {category === 'property' && <PropertyValueLookup query={propertyValueQueryFor(values.details ?? {})} onUse={applyPropertyEstimate} />}
                 <div className="rounded-xl border p-4">
-                    <p className="text-sm font-medium">Current value</p>
+                    <p className="text-sm font-medium">Fair market value</p>
                     <p className="text-xs text-muted-foreground">
+                        {VALUE_TYPE_HINTS.fair_market}.{' '}
                         {category === 'property'
-                            ? 'Use the home estimate above, or type your own. Saved as the first point in its value history.'
+                            ? 'Use the home estimate above, or type your own.'
                             : suggestValues.isPending
                               ? 'Looking up a rough estimate from what you entered…'
-                              : 'We fill in a rough estimate when we can (metal melt, VinAudit, card prices, or an AI price check). Saved as the first point in its value history.'}
+                              : 'We fill in a rough estimate when we can (metal melt, VinAudit, card prices, or an AI price check), or type your own.'}{' '}
+                        Saved as the first point in its value history.
                     </p>
-                    {autoFilled && !suggestValues.isPending && parseMoneyInput(values.estimateAmount) === autoFilled.cents && (
-                        <div className="mt-3 flex gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-                            <p>
-                                <span className="font-semibold text-foreground">Rough estimate.</span> {roughEstimateNote(autoFilled.sourceName)}
-                                {autoFilled.quickIs85 ? ' Quick-sale is set to about 85% of it.' : ''} Change it if you know better.
-                            </p>
-                        </div>
-                    )}
-                    {valueHint && !suggestValues.isPending && <p className="mt-2 text-xs text-muted-foreground">{valueHint}</p>}
-                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                        <Field label="Value type" htmlFor="estimateType" help={VALUE_TYPE_HINTS[values.estimateType]}>
-                            <Controller
-                                control={control}
-                                name="estimateType"
-                                render={({ field }) => (
-                                    <OptionalSelect
-                                        id="estimateType"
-                                        value={field.value}
-                                        onChange={(v) => field.onChange(v as ObservedValueType)}
-                                        allowNone={false}
-                                        options={OBSERVED_VALUE_TYPES.map((t) => ({ value: t, label: VALUE_TYPE_LABELS[t] }))}
-                                    />
-                                )}
-                            />
-                        </Field>
+                    {/* "no automatic price" stops mattering once there's a number in the box */}
+                    {valueHint && !suggestValues.isPending && parseMoneyInput(values.estimateAmount ?? '') == null && <p className="mt-2 text-xs text-muted-foreground">{valueHint}</p>}
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <Field label="Amount" htmlFor="estimateAmount" error={errors.estimateAmount?.message}>
                             <MoneyInput id="estimateAmount" {...register('estimateAmount')} aria-invalid={Boolean(errors.estimateAmount) || undefined} />
                         </Field>
@@ -548,6 +650,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                             <Input id="estimateDate" type="date" max={todayIso()} {...register('estimateDate')} aria-invalid={Boolean(errors.estimateDate) || undefined} />
                         </Field>
                     </div>
+                    <OriginLine origin={suggestValues.isPending ? null : originOf('fair_market')} />
                 </div>
                 <div className="rounded-xl border p-4">
                     <p className="text-sm font-medium">Quick-sale value</p>
@@ -560,6 +663,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                             <Input id="quickSaleDate" type="date" max={todayIso()} {...register('quickSaleDate')} aria-invalid={Boolean(errors.quickSaleDate) || undefined} />
                         </Field>
                     </div>
+                    <OriginLine origin={suggestValues.isPending ? null : originOf('liquidation')} />
                 </div>
             </div>
         );
@@ -570,11 +674,11 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         body = (
             <div className="space-y-5">
                 {askSerial && (
-                    <Field label="Serial number or other ID" htmlFor="serialNumber" error={errors.serialNumber?.message}>
+                    <Field label="Serial number or other ID" htmlFor="serialNumber" tag={commonFieldRole('serialNumber')} error={errors.serialNumber?.message}>
                         <Input id="serialNumber" {...register('serialNumber')} maxLength={80} autoComplete="off" spellCheck={false} className="font-mono" />
                     </Field>
                 )}
-                <Field label="Notes" htmlFor="notes" error={errors.notes?.message}>
+                <Field label="Notes" htmlFor="notes" tag={commonFieldRole('notes')} error={errors.notes?.message}>
                     <Textarea id="notes" {...register('notes')} rows={4} maxLength={4000} placeholder="Where you bought it, repairs, stories" />
                 </Field>
             </div>
@@ -605,6 +709,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
 
             <div ref={stage} key={stepId} className={cn('py-10 motion-reduce:animate-none sm:py-14', stageClass)}>
                 <MascotQuestion pose={gusPoseFor(stepId, isLast, stepHasError)} question={question} help={help} />
+                {guideCard}
+                {stepId === 'identity' && <FieldTagLegend className="mt-6" />}
 
                 <div className="mt-8">{body}</div>
 
@@ -693,10 +799,10 @@ function IdentityInputs({ form, category, onDecodeVin, decoding }: { form: UseFo
             // brand and model sit side by side
             out.push(
                 <div key="brand-model" className="grid gap-4 sm:grid-cols-2">
-                    <Field label={def.brandLabel} htmlFor="brand" error={errors.brand?.message}>
+                    <Field label={def.brandLabel} htmlFor="brand" tag={commonFieldRole('brand')} error={errors.brand?.message}>
                         <Input id="brand" {...form.register('brand')} maxLength={80} autoComplete="off" />
                     </Field>
-                    <Field label={def.modelLabel} htmlFor="model" error={errors.model?.message}>
+                    <Field label={def.modelLabel} htmlFor="model" tag={commonFieldRole('model')} error={errors.model?.message}>
                         <Input id="model" {...form.register('model')} maxLength={120} autoComplete="off" />
                     </Field>
                 </div>
@@ -705,11 +811,22 @@ function IdentityInputs({ form, category, onDecodeVin, decoding }: { form: UseFo
         } else {
             const key = g as 'brand' | 'model';
             out.push(
-                <Field key={key} label={key === 'brand' ? def.brandLabel : def.modelLabel} htmlFor={key} error={errors[key]?.message}>
+                <Field key={key} label={key === 'brand' ? def.brandLabel : def.modelLabel} htmlFor={key} tag={commonFieldRole(key)} error={errors[key]?.message}>
                     <Input id={key} {...form.register(key)} maxLength={120} autoComplete="off" />
                 </Field>
             );
         }
     }
     return <div className="space-y-5">{out}</div>;
+}
+
+// under a value box: where the amount came from (market data, AI estimate, or a manual entry) in one line
+function OriginLine({ origin }: { origin: BoxOrigin | null }) {
+    if (!origin) return null;
+    return (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted-foreground" aria-live="polite">
+            <ValueOriginTag origin={origin.origin} label={origin.label} />
+            <span>{origin.note}</span>
+        </p>
+    );
 }

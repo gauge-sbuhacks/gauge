@@ -259,3 +259,17 @@ test('a trading card uses the matched market price', async () => {
     assert.equal(card.suggestedValue?.amountCents, 170000);
     assert.equal(card.lookupStatus, 'ready');
 });
+
+test('a failed price check leaves the value blank instead of failing the photo', async () => {
+    const out = await enrichIdentification(
+        item({ category: 'electronics', name: 'MacBook Pro', brand: 'Apple', model: 'MacBook Pro 14' }),
+        deps({
+            estimatePrices: async () => {
+                throw new Error('Gemini timed out');
+            }
+        })
+    );
+    assert.equal(out.category, 'electronics');
+    assert.equal(out.suggestedValue, null);
+    assert.equal(out.quickSale, null);
+});
