@@ -96,7 +96,7 @@ export function captureStatus(input: { revokedAt: string | null; expiresAt: stri
 
 export interface ReviewStep {
     key: string;
-    kind: 'category' | 'name' | 'brand' | 'model' | 'serialNumber' | 'condition' | 'detail' | 'purchase' | 'value' | 'quickSale';
+    kind: 'category' | 'name' | 'brand' | 'model' | 'serialNumber' | 'condition' | 'detail' | 'purchase';
     label: string;
     detailKey?: string;
     value: string;
@@ -132,7 +132,7 @@ function detailStep(category: ReturnType<typeof getCategory> | null, key: string
     return { key: `detail:${key}`, kind: 'detail', detailKey: key, label: field?.label ?? key, value: raw == null || raw === '' ? '' : String(raw) };
 }
 
-// category first, then every question that category asks, then the three values.
+// category first, then every question that category asks, then what you paid.
 // identity questions stay even when blank so a missed year or make can be typed in.
 export function reviewSteps(draft: Pick<CaptureDraft, 'category' | 'name' | 'brand' | 'model' | 'serialNumber' | 'condition' | 'details' | 'suggestedValue'> & Partial<Pick<CaptureDraft, 'quickSale' | 'purchasePriceCents'>>): ReviewStep[] {
     const category = draft.category && isCategoryId(draft.category) ? getCategory(draft.category) : null;
@@ -166,8 +166,8 @@ export function reviewSteps(draft: Pick<CaptureDraft, 'category' | 'name' | 'bra
             steps.push(detailStep(category, field.key, raw));
         }
     }
+    // the photo's point is that Gemini prices it, so fair market and quick-sale are never asked. only what
+    // you paid is, since no photo can tell that
     steps.push({ key: 'purchase', kind: 'purchase', label: 'Purchase price', value: draft.purchasePriceCents != null ? String(draft.purchasePriceCents) : '' });
-    steps.push({ key: 'value', kind: 'value', label: 'Fair market value', value: draft.suggestedValue && draft.suggestedValue.amountCents > 0 ? String(draft.suggestedValue.amountCents) : '' });
-    steps.push({ key: 'quickSale', kind: 'quickSale', label: 'Quick-sale value', value: draft.quickSale && draft.quickSale.amountCents > 0 ? String(draft.quickSale.amountCents) : '' });
     return steps;
 }

@@ -22,6 +22,7 @@ import {
 import { CONDITIONS } from '../../shared/schemas.js';
 import { ownerIdOf } from '../auth.js';
 import { enrichIdentification } from '../capture/pipeline.js';
+import { suggestValuesForAsset } from '../capture/suggest.js';
 import { geminiConfigured, identifyPhotos } from '../capture/identify.js';
 import { readCapturePhoto, saveCapturePhoto } from '../capture/store.js';
 import { hashCaptureToken, newCaptureToken, validTokenShape } from '../capture/token.js';
@@ -462,9 +463,11 @@ function applyApproval(draft: CaptureDraft, body: unknown) {
     }
     if (input.details && typeof input.details === 'object') draft.details = coerceDetails(draft.category, input.details);
     if ('purchasePriceCents' in input) {
+        // optional: blank (null) shows as "Not entered", since no photo can tell what you paid
         const paid = input.purchasePriceCents;
-        if (typeof paid !== 'number' || !Number.isFinite(paid) || paid < 0) throw new HttpError(400, 'validation', 'Enter what you paid. Use 0 if it was a gift.');
-        draft.purchasePriceCents = Math.round(paid);
+        if (paid == null) draft.purchasePriceCents = null;
+        else if (typeof paid !== 'number' || !Number.isFinite(paid) || paid < 0) throw new HttpError(400, 'validation', 'Enter what you paid, or leave it blank.');
+        else draft.purchasePriceCents = Math.round(paid);
     }
     if ('valueCents' in input) draft.suggestedValue = reviewedPrice(draft.suggestedValue, input.valueCents, input.valueSource, 'Fair market value');
     if ('quickSaleCents' in input) draft.quickSale = reviewedPrice(draft.quickSale, input.quickSaleCents, input.quickSaleSource, 'Quick-sale value');
@@ -500,12 +503,21 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
     } catch {
         details = {};
     }
-    // check before creating anything, so a rejected save never leaves a half-made asset behind
-    if (draft.purchasePriceCents == null || !draft.suggestedValue || draft.suggestedValue.amountCents <= 0 || !draft.quickSale || draft.quickSale.amountCents <= 0) {
-        throw new HttpError(400, 'validation', 'Fair market, quick-sale, and cost basis are all required.');
+    // the values are Gemini's (or a provider's) price
+    let fair = draft.suggestedValue && draft.suggestedValue.amountCents > 0 ? draft.suggestedValue : null;
+    let quick = draft.quickSale && draft.quickSale.amountCents > 0 ? draft.quickSale : null;
+    if ((!fair || !quick) && category !== 'property') {
+        // one more price check before saving, in case the earlier ones didn't come back. a value it still
+        // can't find is saved as "not entered" (never $0) and can be recorded later from the asset page
+        try {
+            const s = await suggestValuesForAsset({ category, name: draft.name || 'Untitled item', brand: draft.brand, model: draft.model, condition, details });
+            const asValue = (part: NonNullable<typeof s.fairMarket>) => ({ amountCents: part.amountCents, lowCents: null, highCents: null, sourceName: part.sourceName, notes: part.notes });
+            if (!fair && s.fairMarket) fair = asValue(s.fairMarket);
+            if (!quick && s.quickSale) quick = asValue(s.quickSale);
+        } catch {
+            /* saved without a value */
+        }
     }
-    const fair = draft.suggestedValue;
-    const quick = draft.quickSale;
     const created = await Asset.create({
         ownerId,
         name: (draft.name || 'Untitled item').slice(0, 120),
@@ -523,27 +535,22 @@ async function createFromDraft(ownerId: string, draft: CaptureDraft): Promise<st
         photos: draft.photos,
         isSample: false
     });
-    await Valuation.create({
-        ownerId,
-        assetId: created._id,
-        valueType: 'fair_market',
-        amountCents: fair.amountCents,
-        lowCents: fair.lowCents,
-        highCents: fair.highCents,
-        currency: 'USD',
-        observedAt: todayUtc(),
-        ...valuationSource(fair)
-    });
-    await Valuation.create({
-        ownerId,
-        assetId: created._id,
-        valueType: 'liquidation',
-        amountCents: quick.amountCents,
-        lowCents: quick.lowCents,
-        highCents: quick.highCents,
-        currency: 'USD',
-        observedAt: todayUtc(),
-        ...valuationSource(quick)
-    });
+    for (const [valueType, v] of [
+        ['fair_market', fair],
+        ['liquidation', quick]
+    ] as const) {
+        if (!v) continue;
+        await Valuation.create({
+            ownerId,
+            assetId: created._id,
+            valueType,
+            amountCents: v.amountCents,
+            lowCents: v.lowCents,
+            highCents: v.highCents,
+            currency: 'USD',
+            observedAt: todayUtc(),
+            ...valuationSource(v)
+        });
+    }
     return String((created.toObject() as WithId<AssetDoc>)._id);
 }

@@ -66,8 +66,8 @@ export default function CreateAssetView() {
     );
 }
 
-const MONEY_KINDS = new Set<ReviewStep['kind']>(['purchase', 'value', 'quickSale']);
-const isMoney = (step: ReviewStep) => MONEY_KINDS.has(step.kind);
+// the only money question is what you paid. Gemini's price fills fair market and quick-sale
+const isMoney = (step: ReviewStep) => step.kind === 'purchase';
 
 // money steps arrive as cents ("15000"); the boxes hold what you type ("150"), like the add form
 function startingAnswer(step: ReviewStep): string {
@@ -120,12 +120,12 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
 
     // ---------- the price check ----------
     // the photo's identification usually priced the item already. if it couldn't, or you corrected what
-    // the item is, the AI price check runs again (as on the add form) once you reach the money questions
+    // the item is, the AI price check runs again (as on the add form) when you reach the last question
     const suggest = useSuggestValues();
     const [auto, setAuto] = useState<AutoValues>(() => ({ value: autoFrom(draft.suggestedValue), quickSale: autoFrom(draft.quickSale) }));
     const [priceNote, setPriceNote] = useState<string | null>(null);
-    const latest = useRef({ answers, auto });
-    latest.current = { answers, auto };
+    const latest = useRef({ auto });
+    latest.current = { auto };
     // what the photo was already priced as. with both values and nothing changed, there's nothing to redo
     const pricedFor = useRef<string | null>(null);
     if (pricedFor.current === null) {
@@ -144,28 +144,14 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
         setPriceNote(null);
         suggest.mutate(query, {
             onSuccess: (result) => {
-                const { answers: now, auto: before } = latest.current;
-                const next = { ...before };
-                const fills: Record<string, string> = {};
-                for (const [key, part] of [
-                    ['value', result.fairMarket],
-                    ['quickSale', result.quickSale]
-                ] as const) {
-                    if (!part) continue;
-                    const typed = parseMoneyInput(now[key] ?? '');
-                    // fill an empty box, or replace the old automatic price. never overwrite a number you typed
-                    if (typed == null || typed === before[key]?.amountCents) {
-                        fills[key] = centsToInput(part.amountCents);
-                        next[key] = part;
-                    }
-                }
-                setAuto(next);
-                if (Object.keys(fills).length) setAnswers((prev) => ({ ...prev, ...fills }));
-                if (!result.fairMarket && !result.quickSale) setPriceNote(result.lookupMessage ?? 'No automatic price for this one. Type your own.');
+                // the newest price wins, since it was priced from the details you just confirmed
+                const before = latest.current.auto;
+                setAuto({ value: result.fairMarket ?? before.value, quickSale: result.quickSale ?? before.quickSale });
+                if (!result.fairMarket && !result.quickSale) setPriceNote(result.lookupMessage ?? 'No automatic price for this one yet.');
             },
-            onError: (err) => setPriceNote(`Couldn't get an automatic price (${err.message}). Type your own.`)
+            onError: (err) => setPriceNote(`Couldn't get an automatic price (${err.message}).`)
         });
-        // runs when you reach a money question, or the item's questions change
+        // runs when you reach the last question, or the item's questions change
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step.kind, leaving, steps]);
 
@@ -185,16 +171,14 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
         const value = answerFor(step);
         if (step.kind === 'name' && !value.trim()) return setError('Add a name.');
         if (step.kind === 'category' && !isCategoryId(value)) return setError('Pick a category.');
-        if (step.kind === 'purchase' && !paidOk(value)) return setError('Enter what you paid, like 150 or 1,250.00. Use 0 if it was a gift.');
-        if ((step.kind === 'value' || step.kind === 'quickSale') && !priceOk(value)) {
-            return setError(suggest.isPending ? 'Still looking up a price. One moment.' : `Enter a ${step.label.toLowerCase()}, like 150 or 1,250.00.`);
-        }
+        if (step.kind === 'purchase' && value.trim() && !paidOk(value)) return setError('Enter what you paid, like 150 or 1,250.00, or leave it blank.');
         if (index < steps.length - 1) return go(index + 1);
         onSave(approvalFrom(steps, allAnswers(), auto));
     };
 
-    const valueStep = step.kind === 'value' || step.kind === 'quickSale';
-    const origin = step.kind === 'value' || step.kind === 'quickSale' ? originFor(answerFor(step), auto[step.kind]) : null;
+    const isLast = index === steps.length - 1;
+    // saving waits for a price check that's still running, so the item is saved with its value
+    const pricing = isLast && suggest.isPending;
 
     return (
         <div>
@@ -215,7 +199,9 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
                     <label htmlFor={step.key} className="block text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
                         {answerFor(step) ? `Is the ${step.label.toLowerCase()} right?` : `What is the ${step.label.toLowerCase()}?`}
                     </label>
-                    <p className="mt-3 text-muted-foreground">Change it if it is wrong, then continue.</p>
+                    <p className="mt-3 text-muted-foreground">
+                        {step.kind === 'purchase' ? 'Your cost basis, so you can see a gain or loss. Leave it blank if you are not sure.' : 'Change it if it is wrong, then continue.'}
+                    </p>
                     <div className="mt-8">
                         <StepField
                             step={step}
@@ -227,24 +213,12 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
                             }}
                         />
                     </div>
-                    {valueStep && suggest.isPending && (
-                        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                            <LoaderCircle className="size-4 animate-spin" />
-                            Running an AI price check on the details you confirmed…
-                        </p>
-                    )}
-                    {origin && !suggest.isPending && (
-                        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground" aria-live="polite">
-                            <ValueOriginTag origin={origin.origin} label={origin.label} />
-                            <span>{origin.note}</span>
-                        </p>
-                    )}
-                    {valueStep && priceNote && !origin && !suggest.isPending && <p className="mt-3 text-sm text-muted-foreground">{priceNote}</p>}
+                    {isLast && <PriceSummary auto={auto} pending={suggest.isPending} note={priceNote} />}
                     {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
                     <div className="mt-8 flex items-center gap-2">
-                        <Button type="submit" size="lg" className="h-10 px-4" disabled={busy}>
-                            {index === steps.length - 1 ? (busy ? 'Saving' : 'Add asset') : 'Continue'}
-                            {busy ? <LoaderCircle data-icon="inline-end" className="animate-spin" /> : <ArrowRight data-icon="inline-end" />}
+                        <Button type="submit" size="lg" className="h-10 px-4" disabled={busy || pricing}>
+                            {isLast ? (busy ? 'Saving' : pricing ? 'Pricing' : 'Add asset') : 'Continue'}
+                            {busy || pricing ? <LoaderCircle data-icon="inline-end" className="animate-spin" /> : <ArrowRight data-icon="inline-end" />}
                         </Button>
                         {index > 0 && (
                             <Button type="button" variant="ghost" size="lg" className="h-10 px-3" onClick={() => go(index - 1)} disabled={busy}>
@@ -259,19 +233,47 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
     );
 }
 
-// the chip under a value: still the automatic price, or a number you typed
-function originFor(raw: string, auto: AutoValue): { origin: ValueOrigin; label?: string; note: string } | null {
-    const cents = parseMoneyInput(raw);
-    if (cents == null) return null;
-    if (auto && auto.amountCents === cents) {
-        const ai = auto.sourceName === PRICE_CHECK_SOURCE;
-        return {
-            origin: ai ? 'ai' : 'market',
-            label: ai ? undefined : auto.sourceName,
-            note: ai ? 'A ballpark from an AI price check, not a quote. Change it if you know better.' : `From ${auto.sourceName}. Change it if you know better.`
-        };
+// Gemini's price (or a provider's, like VinAudit), shown on the last step and saved with the asset
+function PriceSummary({ auto, pending, note }: { auto: AutoValues; pending: boolean; note: string | null }) {
+    if (pending) {
+        return (
+            <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin" />
+                Pricing it from the details you confirmed…
+            </p>
+        );
     }
-    return { origin: 'manual', note: 'Your own number. It is saved as a manual entry.' };
+    const main = auto.value ?? auto.quickSale;
+    if (!main) {
+        return (
+            <p className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
+                {note ?? 'No automatic price for this one yet.'} It saves as "Not entered". You can record a value later from the asset page.
+            </p>
+        );
+    }
+    const ai = main.sourceName === PRICE_CHECK_SOURCE;
+    const origin: ValueOrigin = ai ? 'ai' : 'market';
+    return (
+        <div className="mt-6 rounded-xl border p-4" aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">What it's worth</p>
+                <ValueOriginTag origin={origin} label={ai ? undefined : main.sourceName} />
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-4">
+                <div>
+                    <dt className="text-xs text-muted-foreground">Fair market value</dt>
+                    <dd className="text-xl font-semibold tabular-nums">{auto.value ? formatMoney(auto.value.amountCents) : 'Not entered'}</dd>
+                </div>
+                <div>
+                    <dt className="text-xs text-muted-foreground">Quick-sale value</dt>
+                    <dd className="text-xl font-semibold tabular-nums">{auto.quickSale ? formatMoney(auto.quickSale.amountCents) : 'Not entered'}</dd>
+                </div>
+            </dl>
+            <p className="mt-3 text-xs text-muted-foreground">
+                {ai ? 'A ballpark from an AI price check, not a quote. ' : ''}Saved with the asset. You can record a different value later from the asset page.
+            </p>
+        </div>
+    );
 }
 
 function StepField({ step, category, value, onChange }: { step: ReviewStep; category: string; value: string; onChange: (value: string) => void }) {
@@ -312,7 +314,7 @@ function StepField({ step, category, value, onChange }: { step: ReviewStep; cate
         const cents = parseMoneyInput(value);
         return (
             <div className="space-y-2">
-                <MoneyInput id={step.key} value={value} onChange={(event) => onChange(event.target.value)} className="h-12 pl-7 text-lg" />
+                <MoneyInput id={step.key} value={value} placeholder="Leave blank if unsure" onChange={(event) => onChange(event.target.value)} className="h-12 pl-7 text-lg" />
                 {cents != null && cents > 0 && <p className="text-sm text-muted-foreground">{formatMoney(cents, { exact: cents % 100 !== 0 })}</p>}
             </div>
         );
@@ -373,20 +375,22 @@ function approvalFrom(steps: ReviewStep[], answers: Record<string, string>, auto
         } else if (field?.type === 'boolean') details[step.detailKey] = raw === 'true';
         else details[step.detailKey] = raw;
     }
-    const value = parseMoneyInput(answers.value ?? '') ?? null;
-    const quickSale = parseMoneyInput(answers.quickSale ?? '') ?? null;
-    // a value keeps its source only while it's still the automatic amount; otherwise it's a manual entry
-    const sourceOf = (cents: number | null, a: AutoValue) => (a && cents === a.amountCents ? { sourceName: a.sourceName, notes: a.notes } : null);
     const approval: CaptureApproval = {
         category,
         name: answers.name?.trim() ?? '',
         details,
-        purchasePriceCents: parseMoneyInput(answers.purchase ?? '') ?? null,
-        valueCents: value,
-        quickSaleCents: quickSale,
-        valueSource: sourceOf(value, auto.value),
-        quickSaleSource: sourceOf(quickSale, auto.quickSale)
+        // blank means "not entered": no photo can tell what you paid
+        purchasePriceCents: parseMoneyInput(answers.purchase ?? '') ?? null
     };
+    // the values are the automatic price, sent with its source so it's labeled that way
+    if (auto.value) {
+        approval.valueCents = auto.value.amountCents;
+        approval.valueSource = { sourceName: auto.value.sourceName, notes: auto.value.notes };
+    }
+    if (auto.quickSale) {
+        approval.quickSaleCents = auto.quickSale.amountCents;
+        approval.quickSaleSource = { sourceName: auto.quickSale.sourceName, notes: auto.quickSale.notes };
+    }
     if (steps.some((step) => step.kind === 'brand')) approval.brand = answers.brand?.trim() || null;
     if (steps.some((step) => step.kind === 'model')) approval.model = answers.model?.trim() || null;
     if (steps.some((step) => step.kind === 'serialNumber')) approval.serialNumber = answers.serialNumber?.trim() || null;
@@ -399,9 +403,4 @@ function approvalFrom(steps: ReviewStep[], answers: Record<string, string>, auto
 function paidOk(value: string | undefined): boolean {
     const cents = parseMoneyInput(value ?? '');
     return cents != null && cents >= 0;
-}
-
-function priceOk(value: string | undefined): boolean {
-    const cents = parseMoneyInput(value ?? '');
-    return cents != null && cents > 0;
 }

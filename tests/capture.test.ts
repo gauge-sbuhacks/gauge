@@ -30,7 +30,7 @@ test('capture links expire and revoke', () => {
     assert.equal(captureStatus({ revokedAt: '2026-10-24T00:00:00Z', expiresAt: '2026-10-25T00:09:00Z' }, now), 'revoked');
 });
 
-test('review steps include the category questions and the three values', () => {
+test('review steps ask the category questions and what you paid, never the values', () => {
     const steps = reviewSteps({
         category: 'vehicle',
         name: 'XT6',
@@ -41,7 +41,7 @@ test('review steps include the category questions and the three values', () => {
         details: { mileage: 61000, trim: '' },
         suggestedValue: { amountCents: 2_800_000, lowCents: null, highCents: null, sourceName: 'VinAudit retail', notes: '' }
     });
-    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'detail:year', 'brand', 'model', 'detail:trim', 'detail:vin', 'condition', 'detail:mileage', 'purchase', 'value', 'quickSale']);
+    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'detail:year', 'brand', 'model', 'detail:trim', 'detail:vin', 'condition', 'detail:mileage', 'purchase']);
     assert.equal(steps.find((step) => step.key === 'brand')?.label, 'Make');
 
     const bare = reviewSteps({
@@ -54,7 +54,7 @@ test('review steps include the category questions and the three values', () => {
         details: {},
         suggestedValue: null
     });
-    assert.deepEqual(bare.map((step) => step.kind), ['category', 'name', 'purchase', 'value', 'quickSale']);
+    assert.deepEqual(bare.map((step) => step.kind), ['category', 'name', 'purchase']);
 });
 
 test('tokens are stored as a hash, not the raw value', () => {
