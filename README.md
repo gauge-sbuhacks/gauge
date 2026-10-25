@@ -1,8 +1,106 @@
-# Gauge
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo/pipe-g-lockup-on-dark.svg">
+    <img src="public/brand/logo/pipe-g-lockup-on-light.svg" alt="Gauge" width="320">
+  </picture>
+</p>
 
-Understand the value of what you own and prepare to sell it. Gauge combines a physical-asset portfolio, location-aware marketplace searches, comparable asking-price research, and practical selling tools. Track purchase cost, fair market estimates, and quick-sale estimates, with value history and inventory exports.
+<p align="center"><strong>Know what everything you own is worth.</strong></p>
 
-You can type an asset in, or add one from a photo: **Add an asset** offers a manual form or a QR code. The phone opens that code with no extra sign-in, and the picture comes back to the same session.
+<p align="center">
+  <a href="https://gaugeit.us">Live site</a> ·
+  <a href="https://gauge-gauge4.vercel.app">Backup link</a> ·
+  Built at <strong>SBU Hacks 2026</strong>
+</p>
+
+---
+
+## The idea
+
+Your digital assets already have great dashboards. Any brokerage or crypto app shows what you paid, what it's worth right now, whether you're up or down, and a chart of how it changed.
+
+Your **physical assets** get none of that. For most people, a car, a home, a watch, or a card collection is worth more than their brokerage account, yet nobody can tell them what those things are worth today. That matters when you sell something, file an insurance claim, or just want to know your real net worth.
+
+**Gauge gives the things you can touch the same treatment as the things on a screen:** a current value, a cost basis, gains and losses, liquidity, and a history over time.
+
+## What it does
+
+- **Add anything, one question at a time.** Pick a category (vehicles, real estate, watches, jewelry and metals, collectibles, electronics, home goods, tools) and Gus, our boiler-inspector mascot, asks only what that category needs.
+- **Real market values, filled in for you.**
+  - **Cars:** paste a VIN and Gauge decodes the year, make, and model, then pulls retail and trade-in values. Values can refresh every month on their own.
+  - **Homes:** an address becomes an estimate from comparable homes nearby, with a likely range.
+  - **Trading cards:** live market prices for Pokémon and Magic cards.
+  - **Gold, silver, platinum, palladium:** melt value from the live spot price.
+  - **Everything else:** an AI price check gives a ballpark, clearly labeled as a rough estimate.
+- **A portfolio view for physical things.** Total value, what you paid versus what it's worth now, a breakdown by category, and a value history.
+- **Liquidity, not just price.** Every item tracks **fair market value** (a fair sale between a willing buyer and seller) and **quick-sale value** (what a dealer, pawn shop, or gold buyer would pay today).
+- **Snap it from your phone.** Scan a QR code and photos taken on your phone go straight to your desktop session, where AI helps identify the item.
+- **Ready for an insurance claim.** Export your whole inventory as a PDF or CSV.
+- **Selling help.** Each item has a sell panel with listing links for the right marketplaces and a copyable listing draft.
+
+## Try it (for judges)
+
+1. Open **[gaugeit.us](https://gaugeit.us)** and click **Create your account**. Sign up with any email or Google.
+2. Answer the three quick onboarding questions.
+3. On the welcome screen, either:
+   - click **Explore with test data** to load a sample portfolio of 10 items (a RAV4, a house, a Rolex, a graded Charizard, gold coins, and more) with value history, or
+   - click **Add your first asset** and try one of these:
+
+| Try adding | What to enter | What happens |
+| --- | --- | --- |
+| A car | Vehicles → year, make, model, mileage (or a VIN and **Decode**) | **Get market value** returns retail and trade-in prices |
+| A house | Real estate → street, city, state, ZIP | **Get home estimate** returns a value, a range, and nearby comparables |
+| A Charizard | Collectibles → Trading card → Pokémon, Base Set, 4/102, name "Charizard" | The price fills in from live card market data |
+| A MacBook | Electronics → brand Apple, model "MacBook Pro 14 M3" | The AI price check fills in a rough estimate |
+| A gold necklace | Jewelry & metals → Jewelry, Gold, purity 12k, weight 10 g | Melt value from today's gold price |
+
+Every account is private. You only ever see the things you added.
+
+## Where the numbers come from
+
+| Asset | Source | What it gives |
+| --- | --- | --- |
+| Vehicles | [NHTSA vPIC](https://vpic.nhtsa.dot.gov/api/) + [VinAudit](https://www.vinaudit.com/) | VIN decoding and recalls; retail and trade-in market values |
+| Real estate | [RentCast](https://www.rentcast.io/) | Automated home value with nearby comparable homes |
+| Trading cards | [TCGdex](https://tcgdex.dev/) (Pokémon), [Scryfall](https://scryfall.com/) and [MTGJSON](https://mtgjson.com/) (Magic) | Current market prices and Magic price history |
+| Precious metals | [gold-api.com](https://gold-api.com/) | Live spot prices for melt value |
+| Everything else | Google Gemini | Photo identification and an AI price check when no market source has a price |
+
+Gauge is honest about its numbers:
+
+- **Every value says where it came from** and when, so you can tell a market price from a rough estimate.
+- **Nothing is invented.** A value you haven't entered shows as "Not entered", never $0. History is built from real dated values, not made-up past prices.
+- **Melt value is a floor.** For jewelry, Gauge says so, since design, brand, or stones can make a piece worth more.
+
+## How it's built
+
+```mermaid
+flowchart LR
+    browser["React web app"] -->|"/api"| api["Express API<br/>(Vercel function)"]
+    phone["Phone (QR capture)"] --> api
+    api --> db[("MongoDB Atlas")]
+    api --> clerk["Clerk sign-in"]
+    api --> providers["Value providers<br/>NHTSA · VinAudit · RentCast<br/>TCGdex · Scryfall · gold-api.com · Gemini"]
+    cron["Vercel cron (daily)"] --> api
+```
+
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, React Router, TanStack Query, React Hook Form + Zod, Recharts, and @react-pdf/renderer for the PDF inventory.
+- **Backend:** Express 5 in TypeScript with Mongoose on MongoDB Atlas. The same app runs locally and as a Vercel serverless function. A daily Vercel cron job refreshes vehicle values that are due for their monthly update.
+- **Auth and privacy:** Clerk sign-in. Every database query is filtered by the signed-in owner. VINs and addresses are sent in request bodies, never in URLs, and an address only goes to RentCast when you ask for an estimate.
+- **Data model:** money is stored in integer cents. Each value is a dated observation, so editing a value adds a new point to its history instead of overwriting the old one.
+- **Protecting free quotas:** repeat lookups reuse recent answers in the browser and on the server, and paid lookups have per-person hourly limits.
+
+## Team
+
+- **Ashton Reyes:** frontend, design, and the Gauge brand
+- **Sri Atragada:** backend, value providers, and phone capture
+- **Bryce Whiteside:** backend, value history, and resale dashboards
+
+---
+
+# For developers
+
+Everything below is for running and working on Gauge yourself.
 
 ## to run it
 
@@ -18,7 +116,7 @@ That starts two things together:
 - the site on http://localhost:5180 (vite)
 - the api on http://localhost:3180 (express). vite forwards every `/api` request to it
 
-Open the site, go to **Setup → Developer setup & test data** to load the sample portfolio (2020 Cadillac XT6, 89 Carnation Road, and 8 more), and click around. The **Setup** page in the app shows what's connected and what still needs a key.
+Open the site and load the sample portfolio (a 2021 Toyota RAV4, a family home, and 8 more) with **Explore with test data** after onboarding, or from the Setup page. The **Setup** page (`/settings`, not linked in the menu) shows what's connected and what still needs a key.
 
 With no `.env.local` at all, the app uses MongoDB on your own computer (`mongodb://127.0.0.1:27017/gauge`) and signs you in as the "local dev user". Once the team has the shared keys (below), you don't need MongoDB installed.
 
@@ -40,9 +138,12 @@ Copy `.env.example` to `.env.local`, fill in what you have, and restart `npm run
 | `VITE_CLERK_PUBLISHABLE_KEY` | turns on the Clerk sign-in screen (browser side) |
 | `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` | lets the api check who's calling. Set all three Clerk keys together |
 | `RENTCAST_API_KEY` | home value estimates on real estate assets (free plan: 50 a month) |
+| `VINAUDIT_API_KEY` | vehicle retail/trade-in values; VIN-free estimates also need Specifications / Vehicle Selections access |
+| `GEMINI_API_KEY` | identifying items from phone photos, and the AI price check when no provider has a price |
+| `CRON_SECRET` | protects the daily cron that refreshes monthly vehicle values (Vercel production only) |
 | `GOLD_API_KEY` | historical daily metal benchmarks; free plan, 10 history/OHLC requests per hour |
 | `EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET` | comparable active listings; no historical sold-price access |
-| `VINAUDIT_API_KEY` | vehicle retail/trade-in values; VIN-free estimates also need Specifications / Vehicle Selections access |
+| `THEWATCH_API_KEY` | optional. The add flow no longer uses The Watch API; watches are priced by the AI price check |
 | `GAUGE_ALLOW_DEV_AUTH` | `true` skips sign-in on a Vercel deploy. Everyone shares one account, so test data only |
 
 Only `VITE_` variables reach the browser. Everything else stays on the api side.
@@ -65,7 +166,7 @@ Only `VITE_` variables reach the browser. Everything else stays on the api side.
 
 4. **Configure, SSO connections**: turn on Google, GitHub, and Apple. The free plan allows 3 social connections. The sign-in and sign-up pages show whatever is switched on here, so there's no code change when you swap one
 
-The `test` keys are fine for the hackathon, locally and on the vercel.app URL. With Clerk on, each teammate signs up in the app with their own email and gets their own portfolio, even on the shared database.
+The `test` keys are fine for the hackathon, locally, on the vercel.app URL, and on gaugeit.us. With Clerk on, each teammate signs up in the app with their own email and gets their own portfolio, even on the shared database.
 
 With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sign-in` or `/sign-up`, and answer three onboarding questions (`/onboarding`) the first time. Without Clerk keys, the local dev user goes straight to onboarding, and the landing page is still at `/home`. To see onboarding again locally, delete your profile: `mongosh gauge --eval 'db.profiles.deleteMany({})'`.
 
@@ -74,7 +175,7 @@ With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sig
 1. Go to the API dashboard at https://app.rentcast.io/app/api and sign in (this creates the account)
 2. **Select Plan** and pick the free one (50 requests a month; it may ask for a card because extra requests are billed)
 3. **Create API Key** and set `RENTCAST_API_KEY`
-4. On a real estate asset, open **Lookups, Get an estimate**. Each lookup uses one request; the same address is cached for a day
+4. When adding a house, click **Get home estimate** on the value step. On a saved house, open **Find a current value, Get an estimate**. Each lookup uses one request; the same address is cached for a day, and each person can run 5 an hour
 
 ### VinAudit (vehicle market values, optional)
 
@@ -82,7 +183,7 @@ With Clerk on, signed-out visitors see the landing page at `/`, sign in at `/sig
 2. Set `VINAUDIT_API_KEY`
 3. Enter **year, make, model, and mileage** when adding a vehicle. On the value step, choose **Get market value**, then use the retail or trade-in estimate. The same lookup is available on a saved vehicle's **Lookups** panel. A full 17-character VIN remains an optional shortcut and takes precedence when provided
 4. Trim is optional. Without it, Gauge chooses a provider-listed reference trim (Base when available), prominently labels the assumption, and offers trim choices to refine the estimate. It does not infer individual vehicle history or save the assumed trim as an actual vehicle detail. The source and assumptions are kept with an estimate the user applies
-5. A lookup uses two price requests, plus a selections request when no VIN is supplied. Both selections and results are cached for a day. A key with only Market Values access can still price a VIN; selections access failures show a setup message
+5. A lookup uses two price requests, plus a selections request when no VIN is supplied. Both selections and results are cached for a day, and each person can run 10 an hour
 
 Run `npm exec -- tsx scripts/check-vehicle-value.ts` for a live VIN-free smoke test, or `npm exec -- tsx scripts/check-vehicle-value.ts --vin` for the VIN path. These use your locally configured key and provider quota; output contains only the result summary, never credentials. If VIN pricing works but Vehicle Selections returns HTTP 401, ask VinAudit to enable Specifications / Vehicle Selections for that key.
 
@@ -104,6 +205,12 @@ The **Depreciation** card on vehicles needs no key. It uses the purchase price a
 - **Trading cards**: on a collectible with type Trading card, **Lookups, Card prices** searches by name, set, and number. Pokémon comes from TCGdex (the Pokémon TCG API was failing when we tested it), Magic from Scryfall. Both return TCGplayer market prices for ungraded copies
 - **Gold, silver, platinum, palladium**: on a Jewelry & metals asset with the metal, total weight, and purity filled in, **Lookups, Melt value** multiplies the live spot price from gold-api.com by the weight and purity
 
+### Automatic values and lookup limits
+
+- On the add flow's value step, Gauge fills in fair market and quick-sale when it can: VinAudit for cars, card prices, melt value for metals, eBay asking prices when connected, and otherwise the Gemini **AI price check**. The step labels a filled-in value as a rough estimate and says where it came from. Quick-sale defaults to about 85% of fair market when the source doesn't give one.
+- The same lookup with the same inputs reuses its answer in the browser for 10 minutes, so repeat clicks don't call the provider again. AI price checks are cached on the server for 6 hours.
+- Per-person limits on the server: 30 lookups a minute overall, plus 5 home estimates an hour, 10 vehicle estimates an hour, and 20 automatic price checks every 10 minutes.
+
 ## deploying (vercel)
 
 One Vercel project, same idea as GradientV: the vite site is static, and `api/index.ts` runs the express app as a function. `vercel.json` sends `/api/*` to that function and everything else to `index.html`.
@@ -115,6 +222,8 @@ One Vercel project, same idea as GradientV: the vite site is static, and `api/in
 Without Clerk keys the deployed api refuses requests on purpose (unless `GAUGE_ALLOW_DEV_AUTH=true`), so a public URL never exposes a shared account.
 
 **Vercel free (Hobby) plan and teammates:** Hobby only supports teammates' pushes deploying on **public** repos. On a private repo, only the Vercel account owner's commits deploy. Hobby is also for non-commercial use, which a hackathon is.
+
+**Custom domain:** gaugeit.us is registered at Porkbun. Its DNS has an `A` record for the root domain and a `CNAME` for `www`, both copied from Vercel's **Settings, Domains** page. The root domain redirects to `www`.
 
 ## working as a team
 
@@ -147,6 +256,7 @@ server/         express api
   db/             mongoose connection + models (assets, valuationSnapshots, profiles)
   routes/         assets, valuations, profile, sample data, lookups, health
   lookups/        nhtsa (vin + recalls), cards (tcgdex + scryfall), metals (gold-api.com), all free; rentcast and vinaudit (need keys)
+  capture/        phone photo identification and the automatic pricing pipeline (providers first, then the AI price check)
 api/index.ts    vercel entry point (just exports server/app.ts)
 src/            react site
   config.ts       app name and the clerk switch
@@ -156,7 +266,7 @@ src/            react site
   lib/            portfolio math, formatting, the asset form's logic, csv + pdf export
   views/          one file per page (LandingView, AuthView, OnboardingView, then the app pages)
   components/     charts, asset pieces, landing diagrams, onboarding, layout (AppGate decides who sees what), shadcn ui
-  css/index.css   design tokens (colors live here for the steel and steam pass later)
+  css/index.css   design tokens
 ```
 
 ## how the numbers work
@@ -172,7 +282,7 @@ src/            react site
 
 **Add an asset** opens a choice: enter it manually, or upload a photo. The photo path shows a QR code and waits until a picture arrives. The code carries the capture session, so the phone does not sign in again. The upload is stored on that same account. A one-item link lasts 10 minutes. **Add photos** on an existing asset lasts 45 minutes. Cancel closes the link. The raw token is returned once and only its hash is stored.
 
-Photos upload as JPEG and are stored in MongoDB for that account. Identification is two passes: first the category, then every question that category asks (for a car, make, model, and year, then mileage and the rest). A VIN, card, metal, or watch reference is priced from its own source. Watch prices use [The Watch API](https://www.thewatchapi.com/documentation) (`THEWATCH_API_KEY`). If no provider returns a fair market value, a short Gemini price check estimates fair market only. Saving the draft requires fair market, quick-sale, and what you paid (cost basis). Adding photos to an asset that already exists only attaches the pictures. A one-item session closes after its draft is saved or discarded.
+Photos upload as JPEG and are stored in MongoDB for that account. Identification is two passes: first the category, then every question that category asks (for a car, make, model, and year, then mileage and the rest). A VIN, card, or metal is priced from its own source. Watches no longer use The Watch API (it never returned usable prices); they go to the AI price check like any other item. If no provider returns a fair market value, a short Gemini price check estimates fair market only. Saving the draft requires fair market, quick-sale, and what you paid (cost basis). Adding photos to an asset that already exists only attaches the pictures. A one-item session closes after its draft is saved or discarded.
 
 Lookups follow what Gemini guessed: a 17-character VIN is decoded (and priced with VinAudit when that key is set), trading cards use TCGdex or Scryfall, jewelry with metal, weight, and purity uses the melt value, and other goods use eBay asking prices when that connection exists. Homes are photos only until you add an address. Vehicle depreciation still appears on the asset page after confirm, and only if you also have a purchase price. It is not invented from the photo.
 
