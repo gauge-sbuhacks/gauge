@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import { BRAND_BASE, cx } from './status.ts';
 
 export type GusPose = 'calm' | 'alarm' | 'certify';
-export type BoylePose = 'watch' | 'alarm';
-export type PuffPose = 'happy' | 'wink' | 'whoosh';
 
 /** Calm below 75, venting steam at 75 and up. Use 'certify' for the save moment. */
 export function gusPoseFor(pressure: number): GusPose {
@@ -31,33 +29,6 @@ export function Gus({ pose, pressure = 0, size = 96, className, base = BRAND_BAS
             alt={GUS_ALT[p]}
             width={size}
             height={Math.round((size * 400) / 320)}
-            draggable={false}
-            className={cx('shrink-0 select-none', className)}
-        />
-    );
-}
-
-export function Boyle({ pose = 'watch', size = 96, className, base = BRAND_BASE }: MascotBase & { pose?: BoylePose }) {
-    return (
-        <img
-            src={`${base}/mascot/boyle-${pose}.svg`}
-            alt={pose === 'watch' ? 'Boyle the owl, on watch' : 'Boyle the owl, alarmed'}
-            width={size}
-            height={Math.round((size * 400) / 320)}
-            draggable={false}
-            className={cx('shrink-0 select-none', className)}
-        />
-    );
-}
-
-export function Puff({ pose = 'happy', size = 72, className, base = BRAND_BASE }: MascotBase & { pose?: PuffPose }) {
-    return (
-        <img
-            src={`${base}/mascot/puff-${pose}.svg`}
-            alt=""
-            aria-hidden
-            width={size}
-            height={Math.round((size * 200) / 220)}
             draggable={false}
             className={cx('shrink-0 select-none', className)}
         />

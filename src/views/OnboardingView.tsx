@@ -12,7 +12,8 @@ import { FullPageLoading } from '@/components/common/QueryStates.tsx';
 import { WelcomeIntro } from '@/components/onboarding/WelcomeIntro.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
 import { Backdrop } from '@/components/brand/Backdrop.tsx';
-import { MascotQuestion, type Speaker } from '@/components/brand/MascotQuestion.tsx';
+import { MascotQuestion } from '@/components/brand/MascotQuestion.tsx';
+import type { GusPose } from '@/components/brand/Mascots.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
@@ -110,7 +111,6 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     if (step === 0) {
         stage = (
             <Question
-                speaker={{ who: 'boyle', pose: 'watch' }}
                 id="name"
                 question="First, what should we call you?"
                 help={`This is how your name appears in ${APP_NAME} and on the inventories you export.`}
@@ -136,7 +136,6 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     } else if (step === 1) {
         stage = (
             <Question
-                speaker={{ who: 'gus', pose: 'calm' }}
                 id="city"
                 question="Where will you be selling from?"
                 help="Your city and postal code help us research relevant markets. You can update this later. No street address needed."
@@ -171,7 +170,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
     } else if (step === 2) {
         stage = (
             <Question
-                speaker={{ who: 'puff', pose: 'wink' }}
+                pose="certify"
                 id="purpose"
                 question={`What brings you to ${APP_NAME}?`}
                 help="Pick the one closest to why you're here."
@@ -263,7 +262,7 @@ function OnboardingFlow({ initial, suggestedName }: { initial: ProfileRecord | n
 }
 
 function Question({
-    speaker,
+    pose = 'calm',
     id,
     question,
     help,
@@ -276,8 +275,8 @@ function Question({
     submitLabel = 'Continue',
     enterHint = true
 }: {
-    // the mascot asking it
-    speaker: Speaker;
+    // Gus's pose: calm while asking, alarm on a mistake, certify on the last question
+    pose?: GusPose;
     id: string;
     question: string;
     help: string;
@@ -293,7 +292,7 @@ function Question({
 }) {
     return (
         <form onSubmit={onSubmit} noValidate>
-            <MascotQuestion speaker={speaker} question={question} help={help} labelFor={id} />
+            <MascotQuestion pose={error ? 'alarm' : pose} question={question} help={help} labelFor={id} />
 
             <div className="mt-8">{children}</div>
             {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

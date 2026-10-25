@@ -42,7 +42,7 @@ export function RivetCard({
     );
 }
 
-/** Engraved section label: Archivo 700 at 125% width, caps, tracked, in copper. */
+/** Engraved section label: Barlow 700, caps, tracked, in copper. */
 export function EngravedLabel({ children, className }: { children: ReactNode; className?: string }) {
     return <span className={cx('text-[11px] font-bold uppercase tracking-[0.14em] text-label [font-stretch:125%]', className)}>{children}</span>;
 }

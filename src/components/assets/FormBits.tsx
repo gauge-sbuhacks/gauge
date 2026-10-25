@@ -1,6 +1,7 @@
 // small form helpers: a labeled field wrapper, a $ money input, and a select that allows "not entered"
 
 import type { ComponentProps, ReactNode } from 'react';
+import { Cog } from 'lucide-react';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
@@ -99,5 +100,23 @@ export function OptionalSelect({
                 ))}
             </SelectContent>
         </Select>
+    );
+}
+
+// one click to use a suggested name ("2020 Cadillac XT6", "Seiko 5 Sports"). it sits under the name
+// box rather than in the help line, so it stays put when "Give it a name" shows. pressing it doesn't
+// take focus from the box either: leaving the empty box would mark it missing mid-click and the
+// click would land on nothing
+export function NameSuggestion({ name, onUse }: { name: string; onUse: () => void }) {
+    return (
+        <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onUse}
+            className="inline-flex w-fit items-center gap-1 rounded-sm text-xs font-medium text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+            <Cog className="size-3.5 text-label" />
+            Use "{name}"
+        </button>
     );
 }

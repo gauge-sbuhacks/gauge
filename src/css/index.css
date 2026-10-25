@@ -13,11 +13,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* fonts load from google fonts (index.html): Big Shoulders for display, Archivo for everything else */
+/* fonts load from google fonts (index.html): Big Shoulders for display, Barlow (highway-sign lettering) for everything else */
 @theme {
-    --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-heading: "Big Shoulders", Impact, "Arial Narrow", sans-serif;
     --font-display: "Big Shoulders", Impact, "Arial Narrow", sans-serif;
+    /* the landing page's headings: a clean editorial grotesk, sentence case */
+    --font-editorial: "Schibsted Grotesk", "Barlow", ui-sans-serif, system-ui, sans-serif;
     --font-stencil: "Big Shoulders Stencil", "Big Shoulders", Impact, sans-serif;
     --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -134,10 +136,10 @@
     /* Type */
     --font-display: "Big Shoulders", "Big Shoulders Display", Impact, "Arial Narrow", sans-serif;
     --font-stencil: "Big Shoulders Stencil", "Big Shoulders", Impact, sans-serif;
-    --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-    --number-stretch: 78%;      /* Archivo 800 at 78% width for totals, tabular figures */
-    --label-stretch: 125%;      /* engraved labels: Archivo 700, caps, +14% tracking */
+    --number-stretch: 78%;      /* only applies to fonts with a width axis */
+    --label-stretch: 125%;      /* engraved labels: 700, caps, +14% tracking */
     --label-tracking: 0.14em;
 
     --radius: 14px;  /* cards; tailwind-theme.css derives sm (4px) and md (8px) from it */
@@ -445,6 +447,34 @@
 @media (prefers-reduced-motion: reduce) {
     .mascot-bob {
         animation: none;
+    }
+}
+
+/* steam rising off the pipes behind the app (Backdrop). faint, slow, and still under reduced motion */
+@keyframes steam-rise {
+    0% {
+        transform: translateY(40px) scale(0.85);
+        opacity: 0;
+    }
+    35% {
+        opacity: 0.16;
+    }
+    70% {
+        opacity: 0.1;
+    }
+    100% {
+        transform: translateY(-260px) scale(1.35);
+        opacity: 0;
+    }
+}
+.steam-plume {
+    opacity: 0;
+    animation: steam-rise 22s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .steam-plume {
+        animation: none;
+        opacity: 0.08;
     }
 }
 

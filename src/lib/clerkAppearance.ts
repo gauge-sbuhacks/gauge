@@ -20,8 +20,8 @@ export const clerkAppearance = {
         colorDanger: 'var(--destructive)',
         colorRing: 'var(--ring)',
         borderRadius: '0.5rem',
-        fontFamily: "'Archivo', system-ui, sans-serif",
-        fontFamilyButtons: "'Big Shoulders', 'Archivo', sans-serif"
+        fontFamily: "'Barlow', system-ui, sans-serif",
+        fontFamilyButtons: "'Big Shoulders', 'Barlow', sans-serif"
     },
     options: {
         // full-width "Continue with Google" rows instead of a strip of bare icons

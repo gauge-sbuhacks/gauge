@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Controller, useForm, useWatch, type Path, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate } from 'react-router';
-import { ArrowLeft, ArrowRight, Check, Cog, CornerDownLeft, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CornerDownLeft, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { parseMoneyInput } from '@shared/money.ts';
@@ -25,10 +25,10 @@ import {
 } from '@shared/schemas.ts';
 import { ApiError } from '@/api/api.ts';
 import { CategoryFields } from '@/components/assets/CategoryFields.tsx';
-import { MascotQuestion, type Speaker } from '@/components/brand/MascotQuestion.tsx';
-import { Puff } from '@/components/brand/Mascots.tsx';
+import { MascotQuestion } from '@/components/brand/MascotQuestion.tsx';
+import { Gus, type GusPose } from '@/components/brand/Mascots.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
-import { Field, MoneyInput, OptionalSelect } from '@/components/assets/FormBits.tsx';
+import { Field, MoneyInput, NameSuggestion, OptionalSelect } from '@/components/assets/FormBits.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
 import { VehicleValueLookup } from '@/components/assets/VehicleValueLookup.tsx';
 import type { ValuationFormValues } from '@/components/assets/ValuationDialog.tsx';
@@ -77,16 +77,12 @@ import { vehicleValueQueryFor } from '@/lib/vehicleValue.ts';
 
 const LEAVE_MS = 220;
 
-// who asks each question: Gus the boiler inspector runs the inspection, Boyle the owl keeps watch
-// over the details, Puff turns up for the money, and Gus stamps the certificate at the end
-const SPEAKERS: Record<StepId, Speaker> = {
-    category: { who: 'gus', pose: 'calm' },
-    identity: { who: 'boyle', pose: 'watch' },
-    details: { who: 'gus', pose: 'calm' },
-    condition: { who: 'boyle', pose: 'watch' },
-    money: { who: 'puff', pose: 'happy' },
-    proof: { who: 'gus', pose: 'certify' }
-};
+// Gus asks every question: calm while asking, alarmed when an answer needs fixing, and stamping the
+// certificate on the last step
+function gusPoseFor(step: StepId, isLast: boolean, hasError: boolean): GusPose {
+    if (hasError) return 'alarm';
+    return isLast && step !== 'category' ? 'certify' : 'calm';
+}
 
 export default function AddAssetView() {
     const portfolio = usePortfolio();
@@ -271,7 +267,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             }
             const res = await create.mutateAsync(payload);
             saved.current = true;
-            toast.success(`${res.asset.name} added`, { icon: <Puff pose="happy" size={22} /> });
+            toast.success(`${res.asset.name} added`, { icon: <Gus pose="certify" size={22} /> });
             navigate(`/assets/${res.asset.id}`);
         } catch (err) {
             if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
@@ -409,6 +405,13 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     };
     const canSaveEarly = index >= 2 && Boolean(values.name?.trim());
 
+    // does this step have a mistake showing? (Gus looks alarmed until it's fixed)
+    const stepHasError = fieldsForStep(stepId, values).some((field) => {
+        const [head, key] = field.split('.');
+        const err = (errors as Record<string, unknown>)[head];
+        return key ? Boolean((err as Record<string, unknown> | undefined)?.[key]) : Boolean(err);
+    });
+
     // ---------- the questions ----------
     let question: string;
     let help: string;
@@ -473,22 +476,10 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                     htmlFor="name"
                     optional={false}
                     error={errors.name?.message}
-                    help={
-                        nameSuggestion ? (
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-                                onClick={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })}
-                            >
-                                <Cog className="size-3.5 text-label" />
-                                Use "{nameSuggestion}"
-                            </button>
-                        ) : (
-                            'What you will see in your list, like "Grandpa\'s Omega"'
-                        )
-                    }
+                    help={nameSuggestion ? undefined : 'What you will see in your list, like "Grandpa\'s Omega"'}
                 >
                     <Input id="name" {...register('name')} maxLength={120} autoComplete="off" aria-invalid={Boolean(errors.name) || undefined} />
+                    {nameSuggestion && <NameSuggestion name={nameSuggestion} onUse={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })} />}
                 </Field>
             </div>
         );
@@ -687,7 +678,7 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             </div>
 
             <div ref={stage} key={stepId} className={cn('py-10 motion-reduce:animate-none sm:py-14', stageClass)}>
-                <MascotQuestion speaker={SPEAKERS[stepId]} question={question} help={help} />
+                <MascotQuestion pose={gusPoseFor(stepId, isLast, stepHasError)} question={question} help={help} />
 
                 <div className="mt-8">{body}</div>
 

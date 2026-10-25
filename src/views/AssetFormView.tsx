@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch, type Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useBlocker, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Check, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getCategory, usesCommonField, type CategoryId } from '@shared/categories.ts';
 import { centsToInput } from '@shared/money.ts';
@@ -24,7 +24,7 @@ import {
 import { ApiError } from '@/api/api.ts';
 import { CategoryFields } from '@/components/assets/CategoryFields.tsx';
 import { CategoryPicker } from '@/components/assets/CategoryPicker.tsx';
-import { Field, MoneyInput, OptionalSelect } from '@/components/assets/FormBits.tsx';
+import { Field, MoneyInput, NameSuggestion, OptionalSelect } from '@/components/assets/FormBits.tsx';
 import { SuggestionReview } from '@/components/assets/SuggestionReview.tsx';
 import { CompletenessRing } from '@/components/common/CompletenessRing.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
@@ -217,22 +217,10 @@ function AssetForm({ item, allItems }: { item: PortfolioItem | null; allItems: P
                                 htmlFor="name"
                                 optional={false}
                                 error={errors.name?.message}
-                                help={
-                                    nameSuggestion ? (
-                                        <button
-                                            type="button"
-                                            className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-                                            onClick={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })}
-                                        >
-                                            <Sparkles className="size-3" />
-                                            Use "{nameSuggestion}"
-                                        </button>
-                                    ) : (
-                                        'What you call it, like "Grandpa\'s Omega" or "2020 Cadillac XT6"'
-                                    )
-                                }
+                                help={nameSuggestion ? undefined : 'What you call it, like "Grandpa\'s Omega" or "2020 Cadillac XT6"'}
                             >
                                 <Input id="name" {...register('name')} maxLength={120} autoComplete="off" aria-invalid={Boolean(errors.name) || undefined} />
+                                {nameSuggestion && <NameSuggestion name={nameSuggestion} onUse={() => setValue('name', nameSuggestion, { shouldDirty: true, shouldValidate: true })} />}
                             </Field>
 
                             {def?.brandLabel && (

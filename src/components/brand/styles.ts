@@ -33,7 +33,7 @@ export const tabActive =
 /** Unselected tab. */
 export const tabIdle = 'h-9 px-4 rounded-[6px] border-0 bg-transparent text-muted-foreground font-display text-[17px] font-bold uppercase tracking-[0.05em] hover:text-foreground';
 
-/** Big money figures: Archivo 800 at 78% width, tabular so number rolls don't jitter. */
+/** Big money figures: Barlow 800, tabular so number rolls don't jitter. */
 export const totalFigure = 'font-extrabold tabular-nums [font-stretch:78%] tracking-[-0.01em]';
 
 /** Page title. */

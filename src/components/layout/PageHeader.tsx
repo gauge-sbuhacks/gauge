@@ -1,8 +1,8 @@
 // page title row: title + optional description on the left, actions on the right.
-// titles use the kit's Big Shoulders caps; empty states get Boyle the owl keeping watch
+// titles use the kit's Big Shoulders caps; empty states get Gus, waiting for something to inspect
 
 import type { ReactNode } from 'react';
-import { Boyle } from '@/components/brand/Mascots.tsx';
+import { Gus } from '@/components/brand/Mascots.tsx';
 import { cn } from '@/lib/utils.ts';
 
 export function PageHeader({
@@ -41,12 +41,12 @@ export function EmptyState({
     title: string;
     description?: ReactNode;
     actions?: ReactNode;
-    // Boyle the owl stands in for the icon; pass false to show the icon instead
+    // Gus stands in for the icon; pass false to show the icon instead
     mascot?: boolean;
 }) {
     return (
         <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border-strong bg-card/80 px-6 py-12 text-center">
-            {mascot ? <Boyle size={88} className="animate-in fade-in slide-in-from-bottom-2 duration-500 motion-reduce:animate-none" /> : icon && <div className="text-muted-foreground">{icon}</div>}
+            {mascot ? <Gus pose="calm" size={88} className="mascot-bob animate-in fade-in slide-in-from-bottom-2 duration-500 motion-reduce:animate-none" /> : icon && <div className="text-muted-foreground">{icon}</div>}
             <div>
                 <h2 className="font-display text-2xl font-extrabold tracking-[0.02em] uppercase">{title}</h2>
                 {description && <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{description}</p>}

@@ -8,7 +8,7 @@ import { ArrowRight, FlaskConical, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PURPOSE_HINTS, type Purpose } from '@shared/schemas.ts';
 import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
-import { Puff } from '@/components/brand/Mascots.tsx';
+import { Gus } from '@/components/brand/Mascots.tsx';
 import { PressureGauge } from '@/components/brand/PressureGauge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { useLoadSample } from '@/hooks/usePortfolio.ts';
@@ -33,7 +33,7 @@ function Arrive({ at, children, className, as: Tag = 'div' }: { at: number; chil
 }
 
 // the kit's brass boiler gauge: the needle starts in the red and eases down into the green
-// ("keep the pressure off"), with Puff floating beside it
+// ("keep the pressure off"), with Gus stamping you in beside it
 function WelcomeGauge() {
     const [value, setValue] = useState(92);
     useEffect(() => {
@@ -43,7 +43,7 @@ function WelcomeGauge() {
     return (
         <div className="flex items-end gap-2">
             <PressureGauge value={value} variant="boiler" size={150} />
-            <Puff pose="happy" size={64} className="mascot-bob mb-1" />
+            <Gus pose="certify" size={88} className="mascot-bob h-auto w-[88px]" />
         </div>
     );
 }
