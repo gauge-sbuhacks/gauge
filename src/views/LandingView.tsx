@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { ArrowRight, Gem, Landmark, Truck, Wrench, type LucideIcon } from 'lucide-react';
 import { Logo } from '@/components/common/Logo.tsx';
 import { Locomotive, RailDivider } from '@/components/brand/Railway.tsx';
+import { RailwayAmbience } from '@/components/brand/RailwayAmbience.tsx';
 import { DashboardPreview } from '@/components/landing/DashboardPreview.tsx';
 import { FlowDiagram } from '@/components/landing/Diagrams.tsx';
 import { Reveal } from '@/components/landing/Reveal.tsx';
@@ -78,7 +79,7 @@ export default function LandingView() {
     const items = useMemo(() => samplePortfolioItems(), []);
 
     const primaryCta = (
-        <Button asChild size="lg" className="h-10 px-4">
+        <Button asChild size="lg" className="h-10 px-3.5 text-[14px] sm:h-9">
             <Link to={next.to}>
                 {next.label}
                 <ArrowRight data-icon="inline-end" />
@@ -89,7 +90,7 @@ export default function LandingView() {
     return (
         <div className="min-h-svh bg-background">
             <header className="sticky top-0 z-30 border-b bg-background">
-                <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-6">
+                <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-6 px-5 sm:px-6">
                     <Link to={signedIn ? '/home' : '/'} aria-label={`${APP_NAME} home`}>
                         <Logo />
                     </Link>
@@ -124,65 +125,68 @@ export default function LandingView() {
             </header>
 
             <main>
-                {/* ---------- intro: a short pitch, then a live preview of the dashboard with Gus on top ---------- */}
+                {/* ---------- desktop: pitch and dashboard side by side; mobile: a single column ---------- */}
                 <section className="relative isolate overflow-hidden">
                     <div aria-hidden className="absolute inset-0 -z-10 bg-(image:--bg-steamroom) bg-cover bg-center opacity-40" />
                     <div aria-hidden className="absolute inset-0 -z-10 bg-linear-to-b from-background/90 via-background/75 to-background" />
+                    <RailwayAmbience />
 
-                    <div className="mx-auto max-w-2xl px-6 pt-16 text-center sm:pt-24 animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
-                        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-brass/30 bg-brass-soft px-3 py-1.5 text-[11px] font-semibold tracking-[0.12em] text-label uppercase">
-                            <Locomotive className="h-5 w-8 shrink-0" />
-                            Keep your assets on track
-                        </div>
-                        <h1 className="font-editorial text-4xl leading-[1.08] font-semibold tracking-[-0.025em] text-balance sm:text-5xl">Know what everything you own is worth.</h1>
-                        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
-                            Track your car, home, watches, cards, and tools in one portfolio, with value history, resale estimates, and an inventory you can export.
-                        </p>
-                        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-                            {primaryCta}
-                            <Button asChild variant="outline" size="lg" className="h-10 px-4">
-                                <a href="#how" onClick={(e) => scrollToSection(e, 'how')}>
-                                    How it works
-                                </a>
-                            </Button>
-                        </div>
-                        {signedIn ? (
-                            <p className="mt-4 text-sm text-muted-foreground">
-                                Signed in as {profileQuery.data?.profile?.name ?? auth.displayName}.
-                                {auth.signOut && (
-                                    <>
-                                        {' '}
-                                        <button type="button" onClick={() => auth.signOut?.()} className="font-medium text-foreground underline-offset-4 hover:underline">
-                                            Sign out
-                                        </button>
-                                    </>
-                                )}
+                    <div className="landing-hero-grid mx-auto grid max-w-7xl items-center px-5 pt-9 pb-9 sm:px-6 sm:pt-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-12 lg:py-14 xl:gap-16">
+                        <div className="landing-intro mx-auto w-full max-w-2xl text-center lg:mx-0 lg:max-w-none lg:text-left animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-brass/30 bg-brass-soft px-2.5 py-1 text-[10px] font-semibold tracking-[0.12em] text-label uppercase">
+                                <Locomotive className="h-4 w-6 shrink-0" />
+                                Keep your assets on track
+                            </div>
+                            <h1 className="font-editorial text-[2rem] leading-[1.07] font-semibold tracking-[-0.025em] text-balance sm:text-[2.5rem]">Know what everything you own is worth.</h1>
+                            <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-pretty text-muted-foreground sm:text-base lg:mx-0">
+                                Track your car, home, watches, cards, and tools in one portfolio, with value history, resale estimates, and an inventory you can export.
                             </p>
-                        ) : (
-                            <p className="mt-4 text-sm text-muted-foreground">
-                                Already have an account?{' '}
-                                <Link to="/sign-in" className="font-medium text-foreground underline-offset-4 hover:underline">
-                                    Sign in
-                                </Link>
-                            </p>
-                        )}
-                    </div>
+                            <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 lg:justify-start">
+                                {primaryCta}
+                                <Button asChild variant="outline" size="lg" className="h-10 px-3.5 text-[14px] sm:h-9">
+                                    <a href="#how" onClick={(e) => scrollToSection(e, 'how')}>
+                                        How it works
+                                    </a>
+                                </Button>
+                            </div>
+                            {signedIn ? (
+                                <p className="mt-3 text-xs text-muted-foreground">
+                                    Signed in as {profileQuery.data?.profile?.name ?? auth.displayName}.
+                                    {auth.signOut && (
+                                        <>
+                                            {' '}
+                                            <button type="button" onClick={() => auth.signOut?.()} className="font-medium text-foreground underline-offset-4 hover:underline">
+                                                Sign out
+                                            </button>
+                                        </>
+                                    )}
+                                </p>
+                            ) : (
+                                <p className="mt-3 text-xs text-muted-foreground">
+                                    Already have an account?{' '}
+                                    <Link to="/sign-in" className="font-medium text-foreground underline-offset-4 hover:underline">
+                                        Sign in
+                                    </Link>
+                                </p>
+                            )}
+                        </div>
 
-                    <div className="px-6 pt-28 pb-16 sm:pt-32 animate-in fade-in slide-in-from-bottom-3 delay-200 duration-700 fill-mode-both motion-reduce:animate-none">
-                        <DashboardPreview items={items} />
+                        <div className="landing-preview-wrap min-w-0 pt-20 sm:pt-24 lg:pt-16 animate-in fade-in slide-in-from-bottom-3 delay-200 duration-700 fill-mode-both motion-reduce:animate-none">
+                            <DashboardPreview items={items} />
+                        </div>
                     </div>
                 </section>
 
                 {/* ---------- how it works ---------- */}
                 <section id="how" className="scroll-mt-14 border-t bg-card">
-                    <div className="mx-auto max-w-5xl px-6 py-14 lg:py-16">
+                    <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-12">
                         <Reveal className="max-w-2xl">
                             <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">How {APP_NAME} works</h2>
                             <p className="mt-3 text-muted-foreground">
                                 Four stops from your first item to a clear picture of what you own. Add the details, review a value estimate, and choose what to record.
                             </p>
                         </Reveal>
-                        <Reveal className="mt-12" delay={100}>
+                        <Reveal className="mt-8" delay={100}>
                             <FlowDiagram items={items} />
                         </Reveal>
                     </div>
@@ -190,14 +194,14 @@ export default function LandingView() {
 
                 {/* ---------- use cases ---------- */}
                 <section id="use-cases" className="scroll-mt-14 border-t bg-card">
-                    <div className="mx-auto max-w-5xl px-6 py-14 lg:py-16">
+                    <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 lg:py-12">
                         <Reveal className="max-w-2xl">
                             <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em] sm:text-3xl">Where it helps most</h2>
                             <p className="mt-3 text-muted-foreground">The moments when knowing exactly what you own, and what it is worth, stops being a nice-to-have.</p>
                         </Reveal>
-                        <div className="mt-10 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+                        <div className="mt-7 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
                             {USE_CASES.map((u, i) => (
-                                <div key={u.title} className="bg-card p-6">
+                                <div key={u.title} className="bg-card p-5">
                                     <Reveal delay={(i % 3) * 90}>
                                         <u.icon className="size-5 text-label" strokeWidth={1.75} />
                                         <h3 className="mt-4 font-editorial text-lg font-semibold tracking-[-0.01em]">{u.title}</h3>
@@ -213,7 +217,7 @@ export default function LandingView() {
                 {/* ---------- closing ---------- */}
                 <section className="relative isolate overflow-hidden bg-sidebar text-sidebar-foreground">
                     <div aria-hidden className="absolute inset-0 -z-10 bg-(image:--bg-steamroom) bg-cover bg-bottom opacity-80" />
-                    <Reveal className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-6 py-14 md:flex-row md:items-center">
+                    <Reveal className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 px-5 py-10 sm:px-6 md:flex-row md:items-center">
                         <div>
                             <h2 className="font-editorial text-2xl font-semibold tracking-[-0.02em]">Start with one thing you own.</h2>
                             <p className="mt-2 max-w-lg text-sm text-sidebar-foreground/80">It takes about a minute. Or load the test portfolio first and look around.</p>

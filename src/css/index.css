@@ -450,34 +450,6 @@
     }
 }
 
-/* steam rising off the pipes behind the app (Backdrop). faint, slow, and still under reduced motion */
-@keyframes steam-rise {
-    0% {
-        transform: translateY(40px) scale(0.85);
-        opacity: 0;
-    }
-    35% {
-        opacity: 0.16;
-    }
-    70% {
-        opacity: 0.1;
-    }
-    100% {
-        transform: translateY(-260px) scale(1.35);
-        opacity: 0;
-    }
-}
-.steam-plume {
-    opacity: 0;
-    animation: steam-rise 22s ease-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-    .steam-plume {
-        animation: none;
-        opacity: 0.08;
-    }
-}
-
 /* recharts draws its own focus outline on click; the hover layer already shows focus */
 .recharts-wrapper *:focus {
     outline: none;
@@ -537,4 +509,15 @@
 }
 @media (prefers-reduced-motion: reduce) {
     .rail-engine { transition: none; }
+}
+
+/* Short laptop viewports keep the hero and its portfolio preview together at normal zoom. */
+@media (min-width: 768px) and (max-height: 800px) {
+    .landing-hero-grid { padding-top: 24px; padding-bottom: 24px; }
+    .landing-intro h1 { font-size: 2.25rem; }
+    .landing-preview-wrap { padding-top: 5rem; }
+}
+@media (min-width: 1024px) and (max-height: 800px) {
+    .landing-hero-grid { padding-block: 2.5rem; }
+    .landing-preview-wrap { padding-top: 3.5rem; }
 }

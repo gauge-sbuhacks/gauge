@@ -1,0 +1,44 @@
+/* Quiet rising steam. Only the outer edges move; product text and controls stay still. */
+.railway-ambience {
+    --ambient-steam-opacity: .15;
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    contain: paint;
+    mask-image: linear-gradient(90deg, #000 0%, #000 9%, transparent 32%, transparent 68%, #000 91%, #000 100%);
+}
+.railway-ambience-page {
+    --ambient-steam-opacity: .1;
+    z-index: 0;
+}
+.railway-ambient-steam {
+    position: absolute;
+    margin-left: -110px;
+    border-radius: 46% 54% 63% 37%;
+    background:
+        radial-gradient(ellipse at 40% 62%, var(--bg-steam) 0%, transparent 58%),
+        radial-gradient(ellipse at 66% 40%, var(--bg-steam) 0%, transparent 54%);
+    filter: blur(15px);
+    opacity: 0;
+    animation: railway-steam-rise var(--steam-duration, 25s) linear var(--steam-delay, 0s) infinite;
+    will-change: transform, opacity;
+}
+@keyframes railway-steam-rise {
+    0% { transform: translate3d(-14px, 100px, 0) scale(.72); opacity: 0; }
+    20% { opacity: var(--ambient-steam-opacity); }
+    70% { opacity: calc(var(--ambient-steam-opacity) * .7); }
+    100% { transform: translate3d(38px, -330px, 0) scale(1.35); opacity: 0; }
+}
+@media (max-width: 767px) {
+    .railway-ambience { --ambient-steam-opacity: .09; }
+    .railway-ambient-steam:nth-child(2),
+    .railway-ambient-steam:nth-child(3),
+    .railway-ambient-steam:nth-child(5),
+    .railway-ambient-steam:nth-child(6) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .railway-ambient-steam { animation: none; will-change: auto; opacity: .05; transform: none; }
+}
