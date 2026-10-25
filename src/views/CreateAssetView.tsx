@@ -65,7 +65,6 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
     const [leaving, setLeaving] = useState(false);
     const [dir, setDir] = useState<1 | -1>(1);
     const [error, setError] = useState<string | null>(null);
-    const [skipValue, setSkipValue] = useState(false);
     const step = steps[index];
     const stageClass = leaving
         ? cn('animate-out fade-out duration-200 ease-in fill-mode-forwards', dir === 1 ? 'slide-out-to-top-4' : 'slide-out-to-bottom-4')
@@ -86,8 +85,10 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
         event.preventDefault();
         if (step.kind === 'name' && !answers.name?.trim()) return setError('Add a name.');
         if (step.kind === 'category' && !isCategoryId(answers.category ?? '')) return setError('Pick a category.');
+        if (step.kind === 'purchase' && !paidOk(answers.purchase)) return setError('Enter what you paid. Use 0 if it was a gift.');
+        if ((step.kind === 'value' || step.kind === 'quickSale') && !priceOk(answers[step.key])) return setError(`Enter a ${step.label.toLowerCase()}.`);
         if (index < steps.length - 1) return go(index + 1);
-        onSave(approvalFrom(steps, answers, !skipValue));
+        onSave(approvalFrom(steps, answers));
     };
 
     return (
@@ -107,7 +108,7 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
                 <form onSubmit={submit} noValidate>
                     {draft.photos[0] && <AuthImage photoId={draft.photos[0].photoId} alt="" className="mb-6 size-24 rounded-lg object-cover" />}
                     <label htmlFor={step.key} className="block text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
-                        Is the {step.label.toLowerCase()} right?
+                        {step.value ? `Is the ${step.label.toLowerCase()} right?` : `What is the ${step.label.toLowerCase()}?`}
                     </label>
                     <p className="mt-3 text-muted-foreground">Change it if it is wrong, then continue.</p>
                     <div className="mt-8">
@@ -123,21 +124,6 @@ function DraftReview({ draft, busy, onSave, onCancel }: { draft: CaptureDraft; b
                             <Button type="button" variant="ghost" size="lg" className="h-10 px-3" onClick={() => go(index - 1)} disabled={busy}>
                                 <ArrowLeft data-icon="inline-start" />
                                 Back
-                            </Button>
-                        )}
-                        {step.kind === 'value' && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="lg"
-                                className="h-10 px-3 text-muted-foreground"
-                                disabled={busy}
-                                onClick={() => {
-                                    setSkipValue(true);
-                                    onSave(approvalFrom(steps, answers, false));
-                                }}
-                            >
-                                Skip price
                             </Button>
                         )}
                     </div>
@@ -180,12 +166,22 @@ function StepField({ step, category, value, onChange }: { step: ReviewStep; cate
             </Select>
         );
     }
-    if (step.kind === 'value') {
+    if (step.kind === 'value' || step.kind === 'quickSale' || step.kind === 'purchase') {
         const cents = Number(value);
         return (
             <div className="space-y-2">
-                <Input id={step.key} inputMode="decimal" value={Number.isFinite(cents) ? (cents / 100).toFixed(2) : ''} onChange={(event) => onChange(String(Math.round(Number(event.target.value) * 100)))} className="h-12 px-3.5 text-lg" />
-                {Number.isFinite(cents) && cents > 0 && <p className="text-sm text-muted-foreground">{formatMoney(cents)} suggested</p>}
+                <Input
+                    id={step.key}
+                    inputMode="decimal"
+                    value={value === '' ? '' : Number.isFinite(cents) ? (cents / 100).toFixed(2) : ''}
+                    onChange={(event) => {
+                        const raw = event.target.value.trim();
+                        if (raw === '') onChange('');
+                        else if (Number.isFinite(Number(raw))) onChange(String(Math.round(Number(raw) * 100)));
+                    }}
+                    className="h-12 px-3.5 text-lg"
+                />
+                {Number.isFinite(cents) && cents > 0 && <p className="text-sm text-muted-foreground">{formatMoney(cents)}</p>}
             </div>
         );
     }
@@ -211,7 +207,7 @@ function StepField({ step, category, value, onChange }: { step: ReviewStep; cate
     return <Input id={step.key} value={value} onChange={(event) => onChange(event.target.value)} className="h-12 px-3.5 text-lg" />;
 }
 
-function approvalFrom(steps: ReviewStep[], answers: Record<string, string>, saveValue: boolean): CaptureApproval {
+function approvalFrom(steps: ReviewStep[], answers: Record<string, string>): CaptureApproval {
     const category = isCategoryId(answers.category ?? '') ? (answers.category as CategoryId) : 'other';
     const details: Details = {};
     for (const step of steps) {
@@ -225,13 +221,30 @@ function approvalFrom(steps: ReviewStep[], answers: Record<string, string>, save
         } else if (field?.type === 'boolean') details[step.detailKey] = raw === 'true';
         else details[step.detailKey] = raw;
     }
-    const approval: CaptureApproval = { category, name: answers.name?.trim() ?? '', details };
+    const approval: CaptureApproval = {
+        category,
+        name: answers.name?.trim() ?? '',
+        details,
+        purchasePriceCents: Math.round(Number(answers.purchase)),
+        valueCents: Math.round(Number(answers.value)),
+        quickSaleCents: Math.round(Number(answers.quickSale))
+    };
     if (steps.some((step) => step.kind === 'brand')) approval.brand = answers.brand?.trim() || null;
     if (steps.some((step) => step.kind === 'model')) approval.model = answers.model?.trim() || null;
     if (steps.some((step) => step.kind === 'serialNumber')) approval.serialNumber = answers.serialNumber?.trim() || null;
     if (steps.some((step) => step.kind === 'condition')) {
         approval.condition = (CONDITIONS as readonly string[]).includes(answers.condition ?? '') ? (answers.condition as Condition) : null;
     }
-    if (steps.some((step) => step.kind === 'value')) approval.valueCents = saveValue ? Math.round(Number(answers.value)) : null;
     return approval;
+}
+
+function paidOk(value: string | undefined): boolean {
+    if (value == null || value.trim() === '') return false;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0;
+}
+
+function priceOk(value: string | undefined): boolean {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0;
 }

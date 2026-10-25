@@ -90,3 +90,11 @@ export function useCardPriceLookup() {
 export function useMetalValueLookup() {
     return useMutation({ mutationFn: api.metalValue });
 }
+
+export function useWatchSearchLookup() {
+    return useMutation({ mutationFn: api.watchSearch });
+}
+
+export function useWatchValueLookup() {
+    return useMutation({ mutationFn: api.watchValue });
+}

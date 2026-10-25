@@ -4,7 +4,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { cardPriceQuerySchema, metalValueQuerySchema, vehicleValueQuerySchema } from '../../shared/schemas.js';
+import { cardPriceQuerySchema, metalValueQuerySchema, vehicleValueQuerySchema, watchSearchQuerySchema, watchValueQuerySchema } from '../../shared/schemas.js';
 import { ownerIdOf } from '../auth.js';
 import { HttpError } from '../errors.js';
 import { makeRateLimiter } from '../lookups/cache.js';
@@ -13,6 +13,7 @@ import { lookupMetalValue } from '../lookups/metals.js';
 import { decodeVin, lookupRecalls } from '../lookups/nhtsa.js';
 import { lookupPropertyValue } from '../lookups/rentcast.js';
 import { lookupVehicleValue } from '../lookups/vinaudit.js';
+import { lookupWatchValue, searchWatchMatches } from '../lookups/watches.js';
 
 export const lookupsRouter = Router();
 
@@ -67,4 +68,12 @@ lookupsRouter.post('/lookups/card-prices', async (req, res) => {
 
 lookupsRouter.post('/lookups/metal-value', async (req, res) => {
     res.json(await lookupMetalValue(metalValueQuerySchema.parse(req.body)));
+});
+
+lookupsRouter.post('/lookups/watch-search', async (req, res) => {
+    res.json(await searchWatchMatches(watchSearchQuerySchema.parse(req.body)));
+});
+
+lookupsRouter.post('/lookups/watch-value', async (req, res) => {
+    res.json(await lookupWatchValue(watchValueQuerySchema.parse(req.body)));
 });

@@ -40,7 +40,10 @@ import {
 } from '@/components/ui/alert-dialog.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
-import { useCreateAsset, usePortfolio, useVinLookup } from '@/hooks/usePortfolio.ts';
+import { WatchLookupCard } from '@/components/assets/WatchLookupCard.tsx';
+import { useCreateAsset, usePortfolio, useVinLookup, useWatchSearchLookup, useWatchValueLookup } from '@/hooks/usePortfolio.ts';
+import type { WatchSearchResult, WatchValueResult } from '@shared/schemas.ts';
+import { centsToInput } from '@shared/money.ts';
 import { DEFAULT_LOCATIONS, assetFormSchema, emptyFormValues, formFieldForServerKey, suggestedName, toPayload, type AssetFormValues } from '@/lib/assetForm.ts';
 import {
     detailKeys,
@@ -71,7 +74,11 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
     const navigate = useNavigate();
     const create = useCreateAsset();
     const vinLookup = useVinLookup();
+    const watchSearch = useWatchSearchLookup();
+    const watchValue = useWatchValueLookup();
     const [vinResult, setVinResult] = useState<VinLookupResult | null>(null);
+    const [watchSearchResult, setWatchSearchResult] = useState<WatchSearchResult | null>(null);
+    const [watchPriceResult, setWatchPriceResult] = useState<WatchValueResult | null>(null);
     const saved = useRef(false);
 
     const form = useForm<AssetFormValues>({ defaultValues: emptyFormValues(), resolver: zodResolver(assetFormSchema), mode: 'onTouched' });
@@ -202,6 +209,60 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             }
         });
     };
+    const lookupWatchReference = () => {
+        const reference = (getValues('details.referenceNumber') ?? '').trim();
+        const brand = (getValues('brand') ?? '').trim();
+        if (reference.length < 3) {
+            setError('details.referenceNumber', { message: 'Type at least 3 characters of the reference number' });
+            return;
+        }
+        watchSearch.mutate(
+            { brand, reference },
+            {
+                onSuccess: (r) => {
+                    setWatchSearchResult(r);
+                    setWatchPriceResult(null);
+                },
+                onError: (err) => toast.error('Watch search failed', { description: err.message })
+            }
+        );
+    };
+
+    const fetchWatchPrices = () => {
+        const brand = (getValues('brand') ?? '').trim();
+        const reference = (getValues('details.referenceNumber') ?? '').trim();
+        if (!brand || !reference) {
+            toast.error('Add brand and reference first');
+            return;
+        }
+        watchValue.mutate(
+            { brand, reference, model: getValues('model') || undefined },
+            {
+                onSuccess: setWatchPriceResult,
+                onError: (err) => toast.error('Watch price lookup failed', { description: err.message })
+            }
+        );
+    };
+
+    const applyWatchMatch = (index: number) => {
+        const match = watchSearchResult?.matches[index];
+        if (!match) return;
+        setValue('brand', match.brand, { shouldDirty: true, shouldValidate: true });
+        if (match.model) setValue('model', match.model, { shouldDirty: true, shouldValidate: true });
+        setValue('details.referenceNumber', match.referenceNumber, { shouldDirty: true, shouldValidate: true });
+        if (match.movement) setValue('details.movement', match.movement, { shouldDirty: true, shouldValidate: true });
+        if (match.caseSizeMm != null) setValue('details.caseSizeMm', String(match.caseSizeMm), { shouldDirty: true, shouldValidate: true });
+        toast.success('Filled watch details from The Watch API');
+    };
+
+    const applyWatchPrices = () => {
+        if (!watchPriceResult?.fairMarketCents) return;
+        setValue('estimateType', 'fair_market', { shouldDirty: true });
+        setValue('estimateAmount', centsToInput(watchPriceResult.fairMarketCents), { shouldDirty: true, shouldValidate: true });
+        setValue('estimateDate', todayIso(), { shouldDirty: true });
+        toast.success('Applied fair market from The Watch API');
+    };
+
     const applySuggestions = (chosen: LookupSuggestion[]) => {
         const setText = setValue as (name: Path<AssetFormValues>, value: string, opts: { shouldDirty: boolean; shouldValidate: boolean }) => void;
         for (const s of chosen) setText(s.field as Path<AssetFormValues>, String(s.value), { shouldDirty: true, shouldValidate: true });
@@ -234,7 +295,32 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         optional = false;
         body = (
             <div className="space-y-5">
-                <IdentityInputs form={form} category={category} onDecodeVin={decodeVin} decoding={vinLookup.isPending} />
+                <IdentityInputs
+                    form={form}
+                    category={category}
+                    onDecodeVin={decodeVin}
+                    decoding={vinLookup.isPending}
+                    onLookupWatchReference={category === 'watch' ? lookupWatchReference : undefined}
+                    lookingUpWatch={watchSearch.isPending}
+                />
+                {category === 'watch' && (
+                    <WatchLookupCard
+                        brand={values.brand ?? ''}
+                        reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
+                        searching={watchSearch.isPending}
+                        pricing={watchValue.isPending}
+                        searchResult={watchSearchResult}
+                        priceResult={watchPriceResult}
+                        onSearch={lookupWatchReference}
+                        onPrice={fetchWatchPrices}
+                        onApplyMatch={applyWatchMatch}
+                        onApplyPrices={applyWatchPrices}
+                        onDismiss={() => {
+                            setWatchSearchResult(null);
+                            setWatchPriceResult(null);
+                        }}
+                    />
+                )}
                 {vinResult && (
                     <SuggestionReview
                         key={vinResult.fetchedAt + vinResult.vin}
@@ -331,6 +417,24 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 : 'Leave anything you don\'t know blank. It shows as "Not entered", never $0.';
         body = (
             <div className="space-y-6">
+                {category === 'watch' && (
+                    <WatchLookupCard
+                        brand={values.brand ?? ''}
+                        reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
+                        searching={watchSearch.isPending}
+                        pricing={watchValue.isPending}
+                        searchResult={watchSearchResult}
+                        priceResult={watchPriceResult}
+                        onSearch={lookupWatchReference}
+                        onPrice={fetchWatchPrices}
+                        onApplyMatch={applyWatchMatch}
+                        onApplyPrices={applyWatchPrices}
+                        onDismiss={() => {
+                            setWatchSearchResult(null);
+                            setWatchPriceResult(null);
+                        }}
+                    />
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Purchase price" htmlFor="purchasePrice" error={errors.purchasePrice?.message} help="Your cost basis">
                         <MoneyInput id="purchasePrice" {...register('purchasePrice')} aria-invalid={Boolean(errors.purchasePrice) || undefined} />
@@ -491,12 +595,16 @@ function IdentityInputs({
     form,
     category,
     onDecodeVin,
-    decoding
+    decoding,
+    onLookupWatchReference,
+    lookingUpWatch
 }: {
     form: UseFormReturn<AssetFormValues>;
     category: CategoryId;
     onDecodeVin: () => void;
     decoding: boolean;
+    onLookupWatchReference?: () => void;
+    lookingUpWatch?: boolean;
 }) {
     const def = getCategory(category);
     const errors = form.formState.errors;
@@ -515,7 +623,18 @@ function IdentityInputs({
     for (let i = 0; i < groups.length; i++) {
         const g = groups[i];
         if (Array.isArray(g)) {
-            out.push(<CategoryFields key={g.join()} form={form} category={category} keys={g} onDecodeVin={category === 'vehicle' ? onDecodeVin : undefined} decoding={decoding} />);
+            out.push(
+                <CategoryFields
+                    key={g.join()}
+                    form={form}
+                    category={category}
+                    keys={g}
+                    onDecodeVin={category === 'vehicle' ? onDecodeVin : undefined}
+                    decoding={decoding}
+                    onLookupWatchReference={category === 'watch' ? onLookupWatchReference : undefined}
+                    lookingUpWatch={lookingUpWatch}
+                />
+            );
         } else if (g === 'brand' && groups[i + 1] === 'model') {
             // brand and model sit side by side
             out.push(

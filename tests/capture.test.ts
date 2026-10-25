@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { captureStatus, captureTtlMs, reviewSteps, type IdentifiedItem } from '../shared/capture.ts';
-import { parseIdentifyJson } from '../server/capture/identify.ts';
+import { coerceFilledDetails, parseIdentifyJson, questionPrompt } from '../server/capture/identify.ts';
+import { parsePriceJson } from '../server/capture/estimate.ts';
+import { latestReferencePriceCents, mapWatchSearchRow } from '../server/lookups/watches.ts';
 import { enrichIdentification, type LookupDeps } from '../server/capture/pipeline.ts';
 import { hashCaptureToken, newCaptureToken } from '../server/capture/token.ts';
 
@@ -27,7 +29,7 @@ test('capture links expire and revoke', () => {
     assert.equal(captureStatus({ revokedAt: '2026-10-24T00:00:00Z', expiresAt: '2026-10-25T00:09:00Z' }, now), 'revoked');
 });
 
-test('review steps always include name and category, then only filled fields', () => {
+test('review steps include the category questions and the three values', () => {
     const steps = reviewSteps({
         category: 'vehicle',
         name: 'XT6',
@@ -38,7 +40,7 @@ test('review steps always include name and category, then only filled fields', (
         details: { mileage: 61000, trim: '' },
         suggestedValue: { amountCents: 2_800_000, lowCents: null, highCents: null, sourceName: 'VinAudit retail', notes: '' }
     });
-    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'brand', 'condition', 'detail:mileage', 'value']);
+    assert.deepEqual(steps.map((step) => step.key), ['category', 'name', 'detail:vin', 'detail:year', 'brand', 'model', 'detail:trim', 'condition', 'detail:mileage', 'purchase', 'value', 'quickSale']);
     assert.equal(steps.find((step) => step.key === 'brand')?.label, 'Make');
 
     const bare = reviewSteps({
@@ -51,7 +53,7 @@ test('review steps always include name and category, then only filled fields', (
         details: {},
         suggestedValue: null
     });
-    assert.deepEqual(bare.map((step) => step.kind), ['category', 'name']);
+    assert.deepEqual(bare.map((step) => step.kind), ['category', 'name', 'purchase', 'value', 'quickSale']);
 });
 
 test('tokens are stored as a hash, not the raw value', () => {
@@ -78,8 +80,11 @@ function deps(partial: Partial<LookupDeps>): LookupDeps {
         cards: unused as LookupDeps['cards'],
         metal: unused as LookupDeps['metal'],
         research: unused as LookupDeps['research'],
+        watchValue: unused as LookupDeps['watchValue'],
+        estimatePrices: async () => null,
         vinauditConfigured: () => false,
         ebayConfigured: () => false,
+        watchConfigured: () => false,
         ...partial
     };
 }
@@ -133,9 +138,69 @@ test('homes and missing price keys are skipped instead of invented', async () =>
     assert.equal(home.lookupStatus, 'skipped');
     assert.equal(home.suggestedValue, null);
 
-    const watch = await enrichIdentification(item({ category: 'watch', name: 'Submariner', brand: 'Rolex' }), deps({ ebayConfigured: () => false }));
+    const watch = await enrichIdentification(item({ category: 'watch', name: 'Submariner', brand: 'Rolex' }), deps({}));
     assert.equal(watch.suggestedValue, null);
-    assert.match(watch.lookupMessage ?? '', /eBay/);
+    assert.match(watch.lookupMessage ?? '', /The Watch API/);
+});
+
+test('a watch reference uses The Watch API, and a price check only fills missing fair market', async () => {
+    const priced = await enrichIdentification(
+        item({ category: 'watch', name: 'Submariner', brand: 'Rolex', details: { referenceNumber: '126610LN' } }),
+        deps({
+            watchConfigured: () => true,
+            watchValue: async (q) => {
+                assert.equal(q.brand, 'Rolex');
+                assert.equal(q.reference, '126610LN');
+                return {
+                    provider: 'thewatchapi',
+                    providerLabel: 'The Watch API',
+                    fetchedAt: '2026-10-25T00:00:00Z',
+                    brand: 'Rolex',
+                    reference: '126610LN',
+                    fairMarketCents: 1_450_000,
+                    quickSaleCents: 1_232_500,
+                    sourceName: 'The Watch API',
+                    method: 'Reference asking-price average',
+                    notes: ['Asking averages.']
+                };
+            },
+            estimatePrices: async () => ({ fairMarketCents: 9_999_999, quickSaleCents: 1_200_000 })
+        })
+    );
+    assert.equal(priced.suggestedValue?.amountCents, 1_450_000);
+    assert.equal(priced.suggestedValue?.sourceName, 'The Watch API');
+    assert.equal(priced.quickSale?.amountCents, 1_232_500);
+    assert.equal(priced.quickSale?.sourceName, 'The Watch API');
+
+    const guessed = await enrichIdentification(
+        item({ category: 'electronics', name: 'Laptop', brand: 'Apple', model: 'MacBook Pro' }),
+        deps({
+            estimatePrices: async () => ({ fairMarketCents: 800_000, quickSaleCents: 650_000 })
+        })
+    );
+    assert.equal(guessed.suggestedValue?.amountCents, 800_000);
+    assert.equal(guessed.suggestedValue?.sourceName, 'Price check');
+    assert.equal(guessed.quickSale, null);
+});
+
+test('the second identification pass asks a car for make, model, and year', () => {
+    const prompt = questionPrompt('vehicle');
+    assert.match(prompt, /brand \(Make\)/);
+    assert.match(prompt, /model \(Model\)/);
+    assert.match(prompt, /year/);
+    assert.match(prompt, /mileage/);
+    const details = coerceFilledDetails('vehicle', { year: '2020', trim: 'Premium', titleStatus: 'Clean', vin: '1HGCM82633A004352' });
+    assert.equal(details.year, 2020);
+    assert.equal(details.titleStatus, 'clean');
+    assert.equal(details.vin, '1HGCM82633A004352');
+});
+
+test('a price check and The Watch API responses parse without inventing a purchase price', () => {
+    assert.deepEqual(parsePriceJson('{"fairMarketCents":150000,"quickSaleCents":110000}'), { fairMarketCents: 150000, quickSaleCents: 110000 });
+    assert.equal(latestReferencePriceCents({ data: [{ date: '2026-01-01', price: 24653.12 }] }), 2_465_312);
+    const row = mapWatchSearchRow({ brand: 'Rolex', reference_number: '116520', model: 'Rolex Daytona', movement: 'Automatic', case_diameter: '40 mm' });
+    assert.equal(row?.referenceNumber, '116520');
+    assert.equal(row?.model, 'Daytona');
 });
 
 test('a trading card uses the matched market price', async () => {
