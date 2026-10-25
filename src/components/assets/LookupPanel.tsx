@@ -540,12 +540,14 @@ function WatchLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (init
     const reference = typeof item.asset.details.referenceNumber === 'string' ? item.asset.details.referenceNumber : '';
     const search = (event: FormEvent) => {
         event.preventDefault();
-        if (!brand.trim() || !reference.trim()) {
-            toast.error('Add the brand and reference number first');
+        const model = item.asset.model ?? '';
+        const name = item.asset.name ?? '';
+        if (!brand.trim() || (!reference.trim() && model.trim().length < 2 && name.trim().length < 3)) {
+            toast.error('Add the brand and a reference, model, or name first');
             return;
         }
         lookup.mutate(
-            { brand, reference, model: item.asset.model },
+            { brand, reference: reference.trim() || undefined, model: item.asset.model, name: item.asset.name },
             {
                 onSuccess: setResult,
                 onError: (err) => toast.error('Watch lookup failed', { description: err.message })
@@ -553,7 +555,7 @@ function WatchLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (init
         );
     };
     return (
-        <Section icon={<Watch className="size-4" />} title="Market price" description="The Watch API asking-price average for this brand and reference number.">
+        <Section icon={<Watch className="size-4" />} title="Market price" description="The Watch API asking-price average by reference, or by model / name when reference is missing.">
             <form onSubmit={search} className="flex flex-wrap items-end gap-2">
                 <Button type="submit" disabled={lookup.isPending}>
                     {lookup.isPending ? <LoaderCircle className="animate-spin" /> : <ScanSearch />}

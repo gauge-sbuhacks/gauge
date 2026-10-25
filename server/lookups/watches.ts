@@ -74,11 +74,11 @@ export function mapWatchSearchRow(row: unknown): WatchMatch | null {
             : typeof data.referenceNumber === 'string'
               ? data.referenceNumber.trim()
               : '';
-    if (!brand || !referenceNumber) return null;
+    if (!brand) return null;
     const modelRaw = typeof data.model === 'string' ? data.model.trim() : null;
     return {
         brand,
-        referenceNumber,
+        referenceNumber: referenceNumber || '—',
         model: stripBrandFromModel(brand, modelRaw),
         movement: normalizeMovement(data.movement),
         caseSizeMm: parseCaseSizeMm(data.case_diameter ?? data.caseDiameter),
@@ -87,7 +87,15 @@ export function mapWatchSearchRow(row: unknown): WatchMatch | null {
     };
 }
 
-/** Latest asking price from reference/price/history (first row is most recent). */
+function priceModelFromRow(row: unknown, match: WatchMatch): string {
+    const data = asRecord(row);
+    const raw = typeof data?.model === 'string' ? data.model.trim() : '';
+    if (raw) return raw;
+    if (match.model) return `${match.brand} ${match.model}`.trim();
+    return match.brand;
+}
+
+/** Latest asking price from price/history payloads (first row is most recent). */
 export function latestReferencePriceCents(payload: unknown): number | null {
     const root = asRecord(payload);
     if (!root) return null;
@@ -100,6 +108,26 @@ export function latestReferencePriceCents(payload: unknown): number | null {
     return null;
 }
 
+type WatchLookupHints = { brand: string; reference?: string; model?: string | null; name?: string | null };
+
+function searchText(hints: WatchLookupHints): { text: string; byReference: boolean } {
+    const reference = hints.reference?.trim() ?? '';
+    const brand = hints.brand.trim();
+    const model = hints.model?.trim() ?? '';
+    const name = hints.name?.trim() ?? '';
+    if (reference.length >= 3) return { text: reference, byReference: true };
+    if (brand && model.length >= 2) return { text: `${brand} ${model}`, byReference: false };
+    if (model.length >= 3) return { text: model, byReference: false };
+    if (name.length >= 3) return { text: name, byReference: false };
+    if (reference) return { text: reference, byReference: true };
+    return { text: brand, byReference: false };
+}
+
+function brandMatches(wanted: string, actual: string): boolean {
+    if (!wanted.trim()) return true;
+    return wanted.trim().toLowerCase() === actual.trim().toLowerCase();
+}
+
 async function readApiError(res: Response): Promise<{ code?: string; message?: string } | null> {
     try {
         const err = (await res.json()) as { error?: { code?: string; message?: string } };
@@ -109,7 +137,7 @@ async function readApiError(res: Response): Promise<{ code?: string; message?: s
     }
 }
 
-async function apiGet(path: string, params: Record<string, string>, opts: { prices?: boolean } = {}): Promise<unknown> {
+async function apiGet(path: string, params: Record<string, string>, opts: { prices?: boolean; soft?: boolean } = {}): Promise<unknown> {
     const url = new URL(`${baseUrl}/${path.replace(/^\//, '')}`);
     url.searchParams.set('api_token', apiKey());
     for (const [key, value] of Object.entries(params)) {
@@ -126,6 +154,9 @@ async function apiGet(path: string, params: Record<string, string>, opts: { pric
     if (res.status === 401 || res.status === 403) {
         const err = await readApiError(res);
         if (opts.prices && err?.code === 'endpoint_access_restricted') return { restricted: true, message: err.message };
+        if (opts.soft && (err?.code === 'usage_limit_reached' || err?.code === 'endpoint_access_restricted')) {
+            return { softError: true, message: err?.message ?? 'The Watch API is unavailable right now.' };
+        }
         if (res.status === 401 || err?.code === 'invalid_api_token') {
             throw new HttpError(502, 'provider_auth', 'The Watch API rejected the API key. Check THEWATCH_API_KEY.');
         }
@@ -138,71 +169,134 @@ async function apiGet(path: string, params: Record<string, string>, opts: { pric
     return res.json();
 }
 
-async function resolveWatch(brand: string, reference: string): Promise<WatchMatch | null> {
-    const ref = reference.trim();
-    const b = brand.trim();
-    if (ref.length >= 3) {
-        const byRef = await apiGet('reference/search', { search: ref });
-        const root = asRecord(byRef);
-        const rows = root && Array.isArray(root.data) ? root.data : [];
-        for (const row of rows) {
-            const match = mapWatchSearchRow(row);
-            if (!match) continue;
-            if (b && match.brand.toLowerCase() !== b.toLowerCase()) continue;
-            return match;
-        }
-        if (rows.length === 1) {
-            const only = mapWatchSearchRow(rows[0]);
-            if (only) return only;
-        }
-    }
-    if (!b) return null;
-    const detail = await apiGet('model/search', {
-        search: ref || b,
-        search_attributes: 'reference_number,model',
-        brand: b,
-        reference_number: ref
-    });
-    const detailRoot = asRecord(detail);
-    const detailRows = detailRoot && Array.isArray(detailRoot.data) ? detailRoot.data : [];
-    for (const row of detailRows) {
+async function modelSearchRows(search: string, brand?: string): Promise<unknown[]> {
+    const params: Record<string, string> = {
+        search,
+        search_attributes: 'model,description,brand,reference_number'
+    };
+    if (brand?.trim()) params.brand = brand.trim();
+    const payload = await apiGet('model/search', params, { soft: true });
+    const blocked = asRecord(payload);
+    if (blocked?.softError) return [];
+    const root = asRecord(payload);
+    return root && Array.isArray(root.data) ? root.data : [];
+}
+
+function collectMatches(rows: unknown[], hints: WatchLookupHints, byReference: boolean, referenceNeedle: string): WatchMatch[] {
+    const brand = hints.brand.trim();
+    const matches: WatchMatch[] = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
         const match = mapWatchSearchRow(row);
-        if (match && (!ref || match.referenceNumber.toLowerCase() === ref.toLowerCase())) return match;
+        if (!match) continue;
+        const key = `${match.brand}|${match.referenceNumber}|${match.model ?? ''}`.toLowerCase();
+        if (seen.has(key)) continue;
+        if (brand && !brandMatches(brand, match.brand)) continue;
+        if (byReference && referenceNeedle.length >= 3) {
+            const ref = match.referenceNumber.toLowerCase();
+            const needle = referenceNeedle.toLowerCase();
+            if (ref !== '—' && !ref.includes(needle) && !needle.includes(ref)) continue;
+        }
+        seen.add(key);
+        matches.push(match);
+        if (matches.length >= 8) break;
     }
-    return detailRows[0] ? mapWatchSearchRow(detailRows[0]) : null;
+    return matches;
+}
+
+async function searchMatches(hints: WatchLookupHints): Promise<WatchMatch[]> {
+    const { text, byReference } = searchText(hints);
+    if (text.length < 2) return [];
+
+    let rows = await modelSearchRows(text, hints.brand);
+    let matches = collectMatches(rows, hints, byReference, hints.reference?.trim() ?? '');
+
+    if (matches.length === 0 && hints.brand.trim()) {
+        rows = await modelSearchRows(text);
+        matches = collectMatches(rows, hints, byReference, hints.reference?.trim() ?? '');
+    }
+
+    const ref = hints.reference?.trim() ?? '';
+    if (matches.length === 0 && ref.length >= 3) {
+        const byRef = await apiGet('reference/search', { search: ref }, { soft: true });
+        const blocked = asRecord(byRef);
+        if (!blocked?.softError) {
+            const root = asRecord(byRef);
+            const refRows = root && Array.isArray(root.data) ? root.data : [];
+            matches = collectMatches(refRows, hints, true, ref);
+        }
+    }
+
+    return matches;
+}
+
+async function resolveWatch(hints: WatchLookupHints): Promise<{ match: WatchMatch | null; priceModel: string | null }> {
+    const matches = await searchMatches(hints);
+    const ref = hints.reference?.trim() ?? '';
+    if (ref) {
+        const exact = matches.find((m) => m.referenceNumber.toLowerCase() === ref.toLowerCase());
+        if (exact) {
+            const row = (await modelSearchRows(ref, hints.brand))[0];
+            return { match: exact, priceModel: row ? priceModelFromRow(row, exact) : null };
+        }
+    }
+    const first = matches[0] ?? null;
+    if (!first) return { match: null, priceModel: null };
+    const rows = await modelSearchRows(searchText(hints).text, hints.brand);
+    const row = rows[0];
+    return { match: first, priceModel: row ? priceModelFromRow(row, first) : `${first.brand} ${first.model ?? ''}`.trim() };
 }
 
 function quickSaleFromFair(fairCents: number): number {
     return Math.max(1, Math.round(fairCents * 0.85));
 }
 
+async function fetchAskingPriceCents(
+    refForPrice: string | null,
+    priceModel: string | null
+): Promise<{ fairMarketCents: number | null; priceBlocked: boolean; blockMessage: string | null; method: string | null }> {
+    if (refForPrice && refForPrice !== '—') {
+        const history = await apiGet('reference/price/history', { reference_number: refForPrice }, { prices: true });
+        const blocked = asRecord(history)?.restricted === true;
+        if (blocked) {
+            const msg = asRecord(history);
+            return {
+                fairMarketCents: null,
+                priceBlocked: true,
+                blockMessage: typeof msg?.message === 'string' ? msg.message : null,
+                method: null
+            };
+        }
+        const cents = latestReferencePriceCents(history);
+        if (cents) return { fairMarketCents: cents, priceBlocked: false, blockMessage: null, method: 'Reference asking-price average' };
+    }
+
+    if (priceModel) {
+        const history = await apiGet('model/price/history', { model: priceModel }, { prices: true });
+        const blocked = asRecord(history)?.restricted === true;
+        if (blocked) {
+            const msg = asRecord(history);
+            return {
+                fairMarketCents: null,
+                priceBlocked: true,
+                blockMessage: typeof msg?.message === 'string' ? msg.message : null,
+                method: null
+            };
+        }
+        const cents = latestReferencePriceCents(history);
+        if (cents) return { fairMarketCents: cents, priceBlocked: false, blockMessage: null, method: 'Model asking-price average' };
+    }
+
+    return { fairMarketCents: null, priceBlocked: false, blockMessage: null, method: null };
+}
+
 export async function searchWatchMatches(q: WatchSearchQuery): Promise<WatchSearchResult> {
-    const brand = q.brand.trim();
-    const reference = q.reference.trim();
-    const cacheKey = `${brand}|${reference}`.toLowerCase();
+    const hints: WatchLookupHints = { brand: q.brand, reference: q.reference, model: q.model, name: q.name };
+    const cacheKey = `${hints.brand}|${hints.reference ?? ''}|${hints.model ?? ''}|${hints.name ?? ''}`.toLowerCase();
     const cached = searchCache.get(cacheKey);
     if (cached) return cached;
 
-    const params: Record<string, string> = { search: reference, search_attributes: 'reference_number,model,brand' };
-    if (brand) params.brand = brand;
-
-    const payload = await apiGet('model/search', params);
-    const root = asRecord(payload);
-    const rows = root && Array.isArray(root.data) ? root.data : [];
-    const matches: WatchMatch[] = [];
-    const seen = new Set<string>();
-    for (const row of rows) {
-        const match = mapWatchSearchRow(row);
-        if (!match) continue;
-        const key = `${match.brand}|${match.referenceNumber}`.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        if (brand && match.brand.toLowerCase() !== brand.toLowerCase()) continue;
-        if (!match.referenceNumber.toLowerCase().includes(reference.toLowerCase())) continue;
-        matches.push(match);
-        if (matches.length >= 8) break;
-    }
-
+    const matches = await searchMatches(hints);
     const result: WatchSearchResult = {
         provider: 'thewatchapi',
         providerLabel,
@@ -214,36 +308,38 @@ export async function searchWatchMatches(q: WatchSearchQuery): Promise<WatchSear
 }
 
 export async function lookupWatchValue(q: WatchValueQuery): Promise<WatchValueResult> {
-    const brand = q.brand.trim();
-    const reference = q.reference.trim();
-    const cacheKey = `${brand}|${reference}|${q.model ?? ''}`.toLowerCase();
+    const hints: WatchLookupHints = { brand: q.brand, reference: q.reference, model: q.model, name: q.name };
+    const cacheKey = `${hints.brand}|${hints.reference ?? ''}|${hints.model ?? ''}|${hints.name ?? ''}`.toLowerCase();
     const cached = valueCache.get(cacheKey);
     if (cached) return cached;
 
-    const resolved = await resolveWatch(brand, reference);
-    const refForPrice = resolved?.referenceNumber ?? reference;
-    const brandOut = resolved?.brand ?? brand;
+    const { match: resolved, priceModel } = await resolveWatch(hints);
+    const refForPrice =
+        resolved && resolved.referenceNumber !== '—'
+            ? resolved.referenceNumber
+            : hints.reference?.trim() || '';
 
-    const history = await apiGet('reference/price/history', { reference_number: refForPrice }, { prices: true });
-    const priceBlocked = asRecord(history)?.restricted === true;
-    const fairMarketCents = priceBlocked ? null : latestReferencePriceCents(history);
+    const { fairMarketCents, priceBlocked, blockMessage, method } = await fetchAskingPriceCents(
+        refForPrice || null,
+        priceModel
+    );
     const quickSaleCents = fairMarketCents ? quickSaleFromFair(fairMarketCents) : null;
+    const brandOut = resolved?.brand ?? hints.brand.trim();
+    const label = searchText(hints).text || brandOut;
 
     const notes: string[] = [];
     if (priceBlocked) {
-        const blocked = asRecord(history);
-        notes.push(
-            typeof blocked?.message === 'string'
-                ? blocked.message
-                : 'Asking-price history needs a The Watch API plan that includes price endpoints. Reference search still works.'
-        );
+        notes.push(blockMessage ?? 'Asking-price history needs a The Watch API plan that includes price endpoints.');
     } else if (!resolved && !fairMarketCents) {
-        notes.push(`The Watch API has no ${brandOut} ${refForPrice}. Check the reference on the case back.`);
+        notes.push(`The Watch API has no match for "${label}". Try brand + model or the list name if the reference is missing.`);
     } else if (fairMarketCents) {
         notes.push('Average asking prices in USD from The Watch API (updated daily from online listings). Not a completed-sale appraisal.');
+        if (method === 'Model asking-price average') {
+            notes.push('Price is for the closest model match, not necessarily your exact reference.');
+        }
         if (quickSaleCents) notes.push('Quick-sale value is a typical ~85% of asking averages when you need a fast sale.');
     } else if (resolved) {
-        notes.push('The Watch API recognized the reference but did not return a recent asking price.');
+        notes.push('The Watch API found a match but did not return a recent asking price.');
     }
 
     const result: WatchValueResult = {
@@ -251,11 +347,11 @@ export async function lookupWatchValue(q: WatchValueQuery): Promise<WatchValueRe
         providerLabel,
         fetchedAt: new Date().toISOString(),
         brand: brandOut,
-        reference: refForPrice,
+        reference: refForPrice || resolved?.referenceNumber || '—',
         fairMarketCents,
         quickSaleCents,
         sourceName: fairMarketCents ? providerLabel : null,
-        method: fairMarketCents ? 'Reference asking-price average' : null,
+        method: fairMarketCents ? method : null,
         notes
     };
     if (fairMarketCents) valueCache.set(cacheKey, result);

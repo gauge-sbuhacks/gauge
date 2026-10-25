@@ -230,39 +230,49 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
             }
         });
     };
+    const watchLookupQuery = () => ({
+        brand: (getValues('brand') ?? '').trim(),
+        reference: (getValues('details.referenceNumber') ?? '').trim() || undefined,
+        model: (getValues('model') ?? '').trim() || undefined,
+        name: (getValues('name') ?? '').trim() || undefined
+    });
+
     const lookupWatchReference = () => {
-        const reference = (getValues('details.referenceNumber') ?? '').trim();
-        const brand = (getValues('brand') ?? '').trim();
-        if (reference.length < 3) {
-            setError('details.referenceNumber', { message: 'Type at least 3 characters of the reference number' });
+        const q = watchLookupQuery();
+        if (!q.brand) {
+            toast.error('Add the brand first');
             return;
         }
-        watchSearch.mutate(
-            { brand, reference },
-            {
-                onSuccess: (r) => {
-                    setWatchSearchResult(r);
-                    setWatchPriceResult(null);
-                },
-                onError: (err) => toast.error('Watch search failed', { description: err.message })
-            }
-        );
+        const ref = q.reference?.trim() ?? '';
+        const model = q.model?.trim() ?? '';
+        const name = q.name?.trim() ?? '';
+        if (ref.length < 3 && model.length < 2 && name.length < 3) {
+            setError('details.referenceNumber', { message: 'Add a reference, model, or name to search' });
+            return;
+        }
+        watchSearch.mutate(q, {
+            onSuccess: (r) => {
+                setWatchSearchResult(r);
+                setWatchPriceResult(null);
+            },
+            onError: (err) => toast.error('Watch search failed', { description: err.message })
+        });
     };
 
     const fetchWatchPrices = () => {
-        const brand = (getValues('brand') ?? '').trim();
-        const reference = (getValues('details.referenceNumber') ?? '').trim();
-        if (!brand || !reference) {
-            toast.error('Add brand and reference first');
+        const q = watchLookupQuery();
+        if (!q.brand) {
+            toast.error('Add the brand first');
             return;
         }
-        watchValue.mutate(
-            { brand, reference, model: getValues('model') || undefined },
-            {
-                onSuccess: setWatchPriceResult,
-                onError: (err) => toast.error('Watch price lookup failed', { description: err.message })
-            }
-        );
+        if (!(q.reference || (q.model && q.model.length >= 2) || (q.name && q.name.length >= 3))) {
+            toast.error('Add a reference, model, or name to price');
+            return;
+        }
+        watchValue.mutate(q, {
+            onSuccess: setWatchPriceResult,
+            onError: (err) => toast.error('Watch price lookup failed', { description: err.message })
+        });
     };
 
     const applyWatchMatch = (index: number) => {
@@ -270,7 +280,9 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
         if (!match) return;
         setValue('brand', match.brand, { shouldDirty: true, shouldValidate: true });
         if (match.model) setValue('model', match.model, { shouldDirty: true, shouldValidate: true });
-        setValue('details.referenceNumber', match.referenceNumber, { shouldDirty: true, shouldValidate: true });
+        if (match.referenceNumber !== '—') {
+            setValue('details.referenceNumber', match.referenceNumber, { shouldDirty: true, shouldValidate: true });
+        }
         if (match.movement) setValue('details.movement', match.movement, { shouldDirty: true, shouldValidate: true });
         if (match.caseSizeMm != null) setValue('details.caseSizeMm', String(match.caseSizeMm), { shouldDirty: true, shouldValidate: true });
         toast.success('Filled watch details from The Watch API');
@@ -351,6 +363,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 {category === 'watch' && (
                     <WatchLookupCard
                         brand={values.brand ?? ''}
+                        model={values.model ?? ''}
+                        name={values.name ?? ''}
                         reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
                         searching={watchSearch.isPending}
                         pricing={watchValue.isPending}
@@ -465,6 +479,8 @@ function AddAssetFlow({ locations }: { locations: string[] }) {
                 {category === 'watch' && (
                     <WatchLookupCard
                         brand={values.brand ?? ''}
+                        model={values.model ?? ''}
+                        name={values.name ?? ''}
                         reference={typeof values.details?.referenceNumber === 'string' ? values.details.referenceNumber : ''}
                         searching={watchSearch.isPending}
                         pricing={watchValue.isPending}

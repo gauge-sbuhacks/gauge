@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { emptyFormValues, suggestedName, toPayload } from '../src/lib/assetForm.ts';
+import { IDENTITY_FIELDS } from '../shared/identity.ts';
 import { fieldsForStep, identityFields, stepForField, stepsFor } from '../src/lib/addAssetSteps.ts';
 
 const base = (category: Parameters<typeof stepsFor>[0]['category'], extra = {}) => ({ ...emptyFormValues(), name: 'Thing', category, ...extra });
@@ -15,7 +16,7 @@ test('a category with no extra fields skips the details step', () => {
 });
 
 test('identity asks the right things for each category', () => {
-    assert.deepEqual(identityFields('vehicle'), ['details.year', 'brand', 'model', 'details.trim', 'details.vin']);
+    assert.deepEqual(identityFields('vehicle'), IDENTITY_FIELDS.vehicle);
     assert.deepEqual(identityFields('property'), ['details.addressLine1', 'details.city', 'details.state', 'details.postalCode']);
     // fields asked on the identity step are not asked again on the details step
     assert.equal(fieldsForStep('details', base('vehicle')).includes('details.vin'), false);

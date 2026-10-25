@@ -313,10 +313,24 @@ export interface VehicleMarketValue {
     certainty: number | null;
 }
 
-export const watchSearchQuerySchema = z.object({
-    brand: z.string().trim().min(1, 'Pick the brand first'),
-    reference: z.string().trim().min(3, 'Type at least 3 characters of the reference number')
-});
+export const watchSearchQuerySchema = z
+    .object({
+        brand: z.string().trim().min(1, 'Pick the brand first'),
+        reference: z.string().trim().optional(),
+        model: z.string().trim().nullish(),
+        name: z.string().trim().nullish()
+    })
+    .superRefine((q, ctx) => {
+        const ref = q.reference?.trim() ?? '';
+        const model = q.model?.trim() ?? '';
+        const name = q.name?.trim() ?? '';
+        if (ref.length >= 3 || model.length >= 2 || name.length >= 3) return;
+        ctx.addIssue({
+            code: 'custom',
+            path: ['reference'],
+            message: 'Add a reference, model, or name to search (at least 3 characters, or brand + model).'
+        });
+    });
 export type WatchSearchQuery = z.input<typeof watchSearchQuerySchema>;
 
 export interface WatchMatch {
@@ -337,18 +351,31 @@ export interface WatchSearchResult {
     matches: WatchMatch[];
 }
 
-export const watchValueQuerySchema = z.object({
-    brand: z.string().trim().min(1, 'Add the brand first'),
-    reference: z.string().trim().min(1, 'Add the reference number first'),
-    model: z.string().trim().nullish(),
-    condition: z.enum(CONDITIONS).nullish(),
-    movement: z.string().trim().nullish(),
-    caseSizeMm: z.number().nullish(),
-    caseMaterial: z.string().trim().nullish(),
-    year: z.number().int().nullish(),
-    hasBox: z.boolean().nullish(),
-    hasPapers: z.boolean().nullish()
-});
+export const watchValueQuerySchema = z
+    .object({
+        brand: z.string().trim().min(1, 'Add the brand first'),
+        reference: z.string().trim().optional(),
+        model: z.string().trim().nullish(),
+        name: z.string().trim().nullish(),
+        condition: z.enum(CONDITIONS).nullish(),
+        movement: z.string().trim().nullish(),
+        caseSizeMm: z.number().nullish(),
+        caseMaterial: z.string().trim().nullish(),
+        year: z.number().int().nullish(),
+        hasBox: z.boolean().nullish(),
+        hasPapers: z.boolean().nullish()
+    })
+    .superRefine((q, ctx) => {
+        const ref = q.reference?.trim() ?? '';
+        const model = q.model?.trim() ?? '';
+        const name = q.name?.trim() ?? '';
+        if (ref.length >= 1 || model.length >= 2 || name.length >= 3) return;
+        ctx.addIssue({
+            code: 'custom',
+            path: ['reference'],
+            message: 'Add a reference, model, or name so The Watch API can look up a price.'
+        });
+    });
 export type WatchValueQuery = z.input<typeof watchValueQuerySchema>;
 
 export interface WatchValueResult {

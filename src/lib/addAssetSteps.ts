@@ -37,7 +37,7 @@ const COPY: Record<CategoryId, CategoryCopy> = {
     watch: {
         identity: {
             question: 'Which watch is it?',
-            help: 'Add brand and reference, then use The Watch API to match the reference and pull asking-price averages.',
+            help: 'Reference is best when you have it. Otherwise brand + model or the list name still searches The Watch API.',
             fields: IDENTITY_FIELDS.watch
         },
         details: { question: 'Box, papers, and specs.', help: 'A full set, with box and papers, is worth noticeably more.' }

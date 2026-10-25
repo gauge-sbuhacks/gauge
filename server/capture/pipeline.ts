@@ -169,10 +169,15 @@ export async function enrichIdentification(input: IdentifiedItem, deps: LookupDe
             if (!deps.watchConfigured()) {
                 return finish(item, deps, { ...base(), lookupMessage: 'A watch price needs a The Watch API key (THEWATCH_API_KEY).' });
             }
-            if (!brand || !reference) {
-                return finish(item, deps, { ...base(), lookupMessage: 'Needs a brand and reference number before The Watch API can price it.' });
+            const model = item.model?.trim() || '';
+            const name = item.name?.trim() || '';
+            if (!brand || (!reference && !model && !name)) {
+                return finish(item, deps, {
+                    ...base(),
+                    lookupMessage: 'Needs a brand and a reference, model, or name before The Watch API can price it.'
+                });
             }
-            const value = await deps.watchValue({ brand, reference, model: item.model });
+            const value = await deps.watchValue({ brand, reference: reference || undefined, model: item.model, name: item.name });
             const fair = value.fairMarketCents
                 ? {
                       amountCents: value.fairMarketCents,
