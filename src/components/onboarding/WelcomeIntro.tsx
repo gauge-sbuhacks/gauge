@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router';
 import { ArrowRight, FlaskConical, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PURPOSE_HINTS, type Purpose } from '@shared/schemas.ts';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { useLoadSample } from '@/hooks/usePortfolio.ts';
 import { APP_NAME } from '@/config.ts';
@@ -74,10 +75,12 @@ export function WelcomeIntro({ firstName, purpose }: { firstName: string; purpos
         </Button>
     );
     const addButton = (
-        <Button size="lg" variant={exploring ? 'outline' : 'default'} className="h-10 px-4" onClick={() => navigate('/assets/new', { replace: true })}>
-            Add your first asset
-            <ArrowRight data-icon="inline-end" />
-        </Button>
+        <AddAssetDialog>
+            <Button type="button" size="lg" variant={exploring ? 'outline' : 'default'} className="h-10 px-4">
+                Add your first asset
+                <ArrowRight data-icon="inline-end" />
+            </Button>
+        </AddAssetDialog>
     );
 
     return (

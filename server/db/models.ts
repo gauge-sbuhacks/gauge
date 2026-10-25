@@ -1,6 +1,7 @@
 // mongoose models: assets, and valuation snapshots (dated observations of what an asset is worth).
 // every document carries ownerId, and every query in the routes filters on it.
 
+import type { AssetPhoto } from '../../shared/capture.js';
 import type { MarketLocation } from '../../shared/marketplace.js';
 import mongoose, { Schema, type Types } from 'mongoose';
 import { CATEGORY_IDS, type CategoryId, type Details } from '../../shared/categories.js';
@@ -35,6 +36,7 @@ export interface AssetDoc {
     serialNumber: string | null;
     notes: string | null;
     details: Details;
+    photos: AssetPhoto[];
     isSample: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -62,6 +64,7 @@ const assetSchema = new Schema<AssetDoc>(
         serialNumber: nullableString,
         notes: nullableString,
         details: { type: Schema.Types.Mixed, default: {} },
+        photos: { type: [new Schema({ photoId: String, kind: String, capturedAt: String }, { _id: false })], default: [] },
         isSample: { type: Boolean, default: false }
     },
     // minimize: false keeps an empty details object instead of dropping it
@@ -162,6 +165,7 @@ export function toAssetRecord(doc: WithId<AssetDoc>): AssetRecord {
         serialNumber: doc.serialNumber ?? null,
         notes: doc.notes ?? null,
         details: doc.details ?? {},
+        photos: doc.photos ?? [],
         isSample: Boolean(doc.isSample),
         createdAt: new Date(doc.createdAt).toISOString(),
         updatedAt: new Date(doc.updatedAt).toISOString()

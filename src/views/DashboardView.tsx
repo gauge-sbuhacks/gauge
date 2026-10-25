@@ -4,6 +4,7 @@ import { Boxes, Plus } from 'lucide-react';
 import { VALUE_TYPE_SHORT, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { LiquidityDashboard } from '@/components/charts/LiquidityDashboard.tsx';
 import { HistoryChart, clipHistory } from '@/components/charts/HistoryChart.tsx';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { SellAssetButton } from '@/components/assets/SellAssetButton.tsx';
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
@@ -33,7 +34,7 @@ export default function DashboardView() {
     },[items,valueType]);
     if (isLoading) return <LoadingBlock label="Loading your portfolio"/>;
     if (error) return <ErrorPanel error={error} onRetry={() => refetch()}/>;
-    const add = <Button asChild><Link to="/assets/new"><Plus/>Add asset</Link></Button>;
+    const add = <AddAssetDialog><Button type="button"><Plus/>Add asset</Button></AddAssetDialog>;
     if (!items?.length) return <div className="space-y-6"><PageHeader title="Portfolio"/><EmptyState icon={<Boxes className="size-8"/>} title="Start with something you own" description="Track its value and find the right place to sell." actions={add}/></div>;
     const {totals,history,top} = model;
     return <div className="space-y-6">

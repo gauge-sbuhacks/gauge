@@ -3,6 +3,7 @@
 
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Boxes, LayoutDashboard, Plus } from 'lucide-react';
+import { AddAssetDialog } from '@/components/assets/AddAssetDialog.tsx';
 import { Logo } from '@/components/common/Logo.tsx';
 import { AccountMenu } from '@/components/layout/AccountMenu.tsx';
 import { SiteFooter } from '@/components/layout/SiteFooter.tsx';
@@ -25,7 +26,8 @@ function NavTabs({ className }: { className?: string }) {
                     end={end}
                     className={({ isActive }) => {
                         // /assets/new has its own button, so "Assets" doesn't light up for it
-                        const active = isActive && !(to === '/assets' && location.pathname === '/assets/new');
+                        const adding = location.pathname === '/assets/new' || location.pathname.startsWith('/assets/review/');
+                        const active = isActive && !(to === '/assets' && adding);
                         return cn(
                             'relative flex items-center justify-center gap-2 px-6 text-sm font-medium transition-colors outline-none focus-visible:bg-sidebar-accent',
                             active ? 'text-sidebar-accent-foreground' : 'text-sidebar-foreground/70 hover:text-sidebar-accent-foreground',
@@ -54,12 +56,12 @@ export default function AppShell() {
                     <NavTabs className="hidden w-80 md:grid" />
 
                     <div className="col-start-3 flex items-center justify-end gap-2">
-                        <Button asChild size="sm" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
-                            <NavLink to="/assets/new" aria-label="Add asset">
+                        <AddAssetDialog>
+                            <Button type="button" size="sm" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90" aria-label="Add asset">
                                 <Plus data-icon="inline-start" />
                                 <span className="hidden sm:inline">Add asset</span>
-                            </NavLink>
-                        </Button>
+                            </Button>
+                        </AddAssetDialog>
                         <AccountMenu tone="dark" />
                     </div>
                 </div>

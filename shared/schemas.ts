@@ -3,6 +3,7 @@
 // because a half-finished edit and an uncertain suggestion have different rules than a saved record.
 
 import { z } from 'zod';
+import type { AssetPhoto } from './capture.js';
 import { marketLocationSchema, type MarketLocation } from './marketplace.js';
 import { CATEGORY_IDS, type CategoryId, type Details } from './categories.js';
 import { MAX_CENTS, SUPPORTED_CURRENCIES, type Currency } from './money.js';
@@ -175,6 +176,7 @@ export interface AssetRecord {
     serialNumber: string | null;
     notes: string | null;
     details: Details;
+    photos?: AssetPhoto[];
     isSample: boolean;
     createdAt: string;
     updatedAt: string;

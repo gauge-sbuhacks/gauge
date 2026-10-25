@@ -44,7 +44,8 @@ const ENV_VARS: { name: string; where: 'server' | 'browser'; needed: string; wha
     { name: 'CLERK_SECRET_KEY', where: 'server', needed: 'For sign-in', what: 'Clerk secret key (sk_...). Lets the API verify who is calling.' },
     { name: 'RENTCAST_API_KEY', where: 'server', needed: 'Optional', what: 'Home value estimates. Free plan: 50 requests a month.' },
     { name: 'VINAUDIT_API_KEY', where: 'server', needed: 'Optional', what: 'Vehicle market values. Trial: 100 queries, 2 per lookup.' },
-    { name: 'GAUGE_ALLOW_DEV_AUTH', where: 'server', needed: 'Optional', what: 'Set to true on a preview deploy to skip sign-in. Everyone shares one account, so test data only.' }
+    { name: 'GAUGE_ALLOW_DEV_AUTH', where: 'server', needed: 'Optional', what: 'Set to true on a preview deploy to skip sign-in. Everyone shares one account, so test data only.' },
+    { name: 'GEMINI_API_KEY', where: 'server', needed: 'For photo identification', what: 'Gemini API key. Fills a photo draft. You approve each field before it is saved.' }
 ];
 
 function HealthCards({ health }: { health: HealthResponse }) {

@@ -39,6 +39,7 @@ export const router = createBrowserRouter([
                 }
             },
             { path: 'onboarding', lazy: page(() => import('@/views/OnboardingView.tsx')) },
+            { path: 'capture/:token', lazy: page(() => import('@/views/CaptureView.tsx')) },
             // legal pages, readable without signing in
             ...(['privacy', 'terms', 'accessibility'] as const).map((doc) => ({
                 path: doc,
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
                     { path: 'assets', lazy: page(() => import('@/views/AssetsView.tsx')) },
                     // adding is a step-by-step flow; editing keeps the full form
                     { path: 'assets/new', lazy: page(() => import('@/views/AddAssetView.tsx')) },
+                    { path: 'assets/review/:sessionId', lazy: page(() => import('@/views/CreateAssetView.tsx')) },
                     { path: 'assets/:id', lazy: page(() => import('@/views/AssetDetailView.tsx')) },
                     {
                         path: 'assets/:id/edit',

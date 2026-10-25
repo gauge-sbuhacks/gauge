@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { getCategory, isFieldVisible, usesCommonField, type CategoryField } from '@shared/categories.ts';
 import { CONDITION_LABELS, VALUATION_SOURCE_LABELS, VALUE_TYPE_HINTS, VALUE_TYPE_LABELS, VALUE_TYPES, type ValueType } from '@shared/schemas.ts';
 import { AssetHistory } from '@/components/assets/AssetHistory.tsx';
+import { AuthImage } from '@/components/assets/AuthImage.tsx';
+import { CapturePairing } from '@/components/assets/CapturePairing.tsx';
 import { DepreciationCard } from '@/components/assets/DepreciationCard.tsx';
 import { LookupPanel } from '@/components/assets/LookupPanel.tsx';
 import { SellingPanel } from '@/components/assets/SellingPanel.tsx';
@@ -117,6 +119,22 @@ function AssetDetail({ item }: { item: PortfolioItem }) {
         <SellingPanel item={item}/>
         {supportsLookup && <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer text-sm font-semibold">Find a current value</summary><div className="mt-5 max-w-2xl"><LookupPanel item={item} onRecord={openRecord}/></div></details>}
         {asset.category==='vehicle' && <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer text-sm font-semibold">Vehicle projection</summary><div className="mt-5"><DepreciationCard item={item}/></div></details>}
+        <details className="rounded-xl border bg-card p-5" open={(asset.photos?.length ?? 0) > 0}>
+            <summary className="cursor-pointer text-sm font-semibold">Photos</summary>
+            <div className="mt-4 space-y-4">
+                <CapturePairing assetId={asset.id} />
+                {(asset.photos?.length ?? 0) > 0 && (
+                    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        {asset.photos?.map((photo) => (
+                            <li key={photo.photoId}>
+                                <AuthImage photoId={photo.photoId} alt={photo.kind} className="aspect-square w-full rounded-lg object-cover" />
+                                <p className="mt-1 text-xs capitalize text-muted-foreground">{photo.kind}</p>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+        </details>
         <details className="rounded-xl border bg-card p-5">
             <summary className="cursor-pointer text-sm font-semibold">Item details & documents</summary>
             <dl className="mt-4 divide-y divide-border">
