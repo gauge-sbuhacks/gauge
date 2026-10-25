@@ -5,6 +5,7 @@
 import express from 'express';
 import { authMiddleware, requireUser } from './auth.js';
 import { HttpError, errorHandler } from './errors.js';
+import { historyRouter } from './routes/history.js';
 import { marketplaceRouter } from './routes/marketplace.js';
 import { assetsRouter } from './routes/assets.js';
 import { healthHandler } from './routes/health.js';
@@ -32,6 +33,7 @@ app.use('/api', ...authMiddleware(), requireUser);
 app.use('/api', profileRouter);
 app.use('/api', assetsRouter);
 app.use('/api', marketplaceRouter);
+app.use('/api', historyRouter);
 app.use('/api', sampleRouter);
 app.use('/api', lookupsRouter);
 

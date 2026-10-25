@@ -1,7 +1,7 @@
 // one asset's value history: a step chart per value type (with cost basis as a reference line)
 // and the full table of observations underneath, newest first.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { representativeCents } from '@shared/money.ts';
@@ -35,12 +35,13 @@ function amountText(v: ValuationRecord): string {
 
 export function ValuationHistory({ item }: { item: PortfolioItem }) {
     const withData = OBSERVED_VALUE_TYPES.filter((t) => item.latest[t] != null);
-    const [type, setType] = useState<ObservedValueType>(withData[0] ?? 'fair_market');
+    const [selectedType, setType] = useState<ObservedValueType>(withData[0] ?? 'fair_market');
+    const type = withData.includes(selectedType) ? selectedType : withData[0] ?? 'fair_market';
     const [pendingDelete, setPendingDelete] = useState<ValuationRecord | null>(null);
     const del = useDeleteValuation(item.asset.id);
 
-    const points = useMemo(() => assetHistory(item, type), [item, type]);
-    const rows = useMemo(() => [...item.valuations].reverse(), [item.valuations]);
+    const points = assetHistory(item, type);
+    const rows = [...item.valuations].reverse();
     const cost = item.asset.purchasePriceCents;
     const rangeNote = item.latest[type] && item.latest[type]!.amountCents == null && representativeCents(item.latest[type]!) != null;
 
@@ -56,22 +57,24 @@ export function ValuationHistory({ item }: { item: PortfolioItem }) {
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <Segmented
+                {withData.length > 1 && <Segmented
                     size="sm"
                     label="Value type"
                     value={type}
                     onChange={setType}
-                    options={OBSERVED_VALUE_TYPES.map((t) => ({ value: t, label: `${VALUE_TYPE_SHORT[t]}${item.latest[t] ? '' : ' (none)'}` }))}
-                />
+                    options={withData.map((t) => ({ value: t, label: VALUE_TYPE_SHORT[t] }))}
+                />}
                 {cost != null && <span className="text-xs text-muted-foreground">Dashed line: cost basis {formatMoney(cost)}</span>}
             </div>
 
+            <p className="text-xs text-muted-foreground">Recorded estimates. The line holds each value until your next entry.</p>
             <HistoryChart points={points} baseline="auto" referenceCents={cost} referenceLabel="Cost basis" height={220} />
             {rangeNote && <p className="text-xs text-muted-foreground">Ranges are charted at their midpoint.</p>}
-            {points.length === 1 && <p className="text-xs text-muted-foreground">One recorded value so far. Record another later to see how it moves.</p>}
+            {item.valuations.filter(v => v.valueType === type).length === 1 && <p className="text-xs text-muted-foreground">One recorded value so far. Record another later to see how it moves.</p>}
 
             {rows.length > 0 && (
-                <div className="overflow-x-auto rounded-lg border">
+                <details className="rounded-lg border"><summary className="cursor-pointer px-3 py-3 text-sm font-medium">View entries ({rows.length})</summary>
+                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -107,7 +110,7 @@ export function ValuationHistory({ item }: { item: PortfolioItem }) {
                             ))}
                         </TableBody>
                     </Table>
-                </div>
+                </div></details>
             )}
 
             <AlertDialog open={pendingDelete != null} onOpenChange={(o) => !o && setPendingDelete(null)}>

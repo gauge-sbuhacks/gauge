@@ -251,6 +251,9 @@ export const CATEGORIES: CategoryDef[] = [
                     { value: 'other', label: 'Other' }
                 ]
             },
+            { key: 'game', label: 'Card game', type: 'select', options: [{ value: 'pokemon', label: 'Pokémon' }, { value: 'magic', label: 'Magic: The Gathering' }], showWhen: { key: 'kind', values: ['trading_card'] } },
+            { key: 'setCode', label: 'Magic set code', type: 'text', placeholder: 'LEA, MH3, EOE', maxLength: 8, showWhen: { key: 'game', values: ['magic'] }, help: 'The set code and collector number identify the exact printing for history.' },
+            { key: 'finish', label: 'Finish', type: 'select', options: [{ value: 'normal', label: 'Nonfoil' }, { value: 'foil', label: 'Foil' }, { value: 'etched', label: 'Etched foil' }], showWhen: { key: 'game', values: ['magic'] } },
             { key: 'setName', label: 'Set', type: 'text', placeholder: 'Base Set', showWhen: { key: 'kind', values: cardKinds } },
             { key: 'cardNumber', label: 'Card number', type: 'text', placeholder: '4/102', mono: true, showWhen: { key: 'kind', values: cardKinds } },
             { key: 'edition', label: 'Edition or printing', type: 'text', placeholder: '1st Edition, Unlimited', showWhen: { key: 'kind', values: [...cardKinds, 'comic', 'vinyl'] } },

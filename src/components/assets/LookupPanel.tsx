@@ -454,7 +454,7 @@ function CardLookups({ item, onRecord }: { item: PortfolioItem; onRecord: (initi
     const { asset } = item;
     const d = asset.details;
     const lookup = useCardPriceLookup();
-    const [game, setGame] = useState<CardGame>(() => guessGame([asset.brand, asset.model, asset.name].join(' ')));
+    const [game, setGame] = useState<CardGame>(() => asset.details.game === 'magic' || asset.details.game === 'pokemon' ? asset.details.game : guessGame([asset.brand, asset.model, asset.name].join(' ')));
     const [name, setName] = useState(() => guessCardName(asset.name));
     const [setName_, setSetName] = useState(() => str(d.setName) || asset.model || '');
     const [number, setNumber] = useState(() => str(d.cardNumber));

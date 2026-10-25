@@ -10,7 +10,6 @@ import { CONDITION_LABELS, VALUE_TYPE_LABELS, VALUE_TYPE_SHORT, VALUE_TYPES, typ
 import { CategoryBadgeIcon } from '@/components/common/CategoryIcon.tsx';
 import { CompletenessRing } from '@/components/common/CompletenessRing.tsx';
 import { ErrorPanel, LoadingBlock } from '@/components/common/QueryStates.tsx';
-import { TestDataMenu } from '@/components/common/TestDataControls.tsx';
 import { GainLoss, MoneyValue, NotEntered } from '@/components/common/ValueDisplay.tsx';
 import { EmptyState, PageHeader } from '@/components/layout/PageHeader.tsx';
 import { Badge } from '@/components/ui/badge.tsx';
@@ -221,7 +220,6 @@ export default function AssetsView() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <TestDataMenu />
                         <Button asChild>
                             <Link to="/assets/new">
                                 <Plus data-icon="inline-start" />

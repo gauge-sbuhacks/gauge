@@ -8,6 +8,7 @@ import { connectDb } from '../db/connect.js';
 import { clerkConfigured, getEnv } from '../env.js';
 import { ebayConfigured } from '../marketplace/ebay.js';
 import { rentcastConfigured } from '../lookups/rentcast.js';
+import { goldHistoryConfigured } from '../history/gold.js';
 import { vinauditConfigured } from '../lookups/vinaudit.js';
 
 export async function healthHandler(_req: Request, res: Response) {
@@ -51,6 +52,8 @@ export async function healthHandler(_req: Request, res: Response) {
 
     // ---------- data providers ----------
     const providers: HealthResponse['providers'] = [
+        { id:'gold_history', label:'Gold API history', covers:'Daily historical metal benchmarks', status:goldHistoryConfigured()?'ready':'needs_key', envVar:'GOLD_API_KEY', note:'Free: 10 history requests/hour, cached per metal for 24 hours. Load on demand.' },
+        { id:'magic_history', label:'MTGJSON history', covers:'Magic card prices by exact printing and finish', status:'ready', envVar:null, note:'Free download; no key. Run the separate history import after adding matching cards.' },
         { id: 'ebay', label: 'eBay', covers: 'Comparable active listings for US items in USD', status: ebayConfigured() ? 'ready' : 'needs_key', envVar: 'EBAY_CLIENT_ID + EBAY_CLIENT_SECRET', note: 'Production Browse API access required. Asking prices, not completed sales.' },
         {
             id: 'nhtsa_vpic',

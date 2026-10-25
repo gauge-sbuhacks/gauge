@@ -25,12 +25,14 @@ export function AllocationDonut({
     slices,
     totalCents,
     centerLabel,
-    emptyText = 'No values recorded yet'
+    emptyText = 'No values recorded yet',
+    compact = false
 }: {
     slices: Slice[];
     totalCents: number;
     centerLabel: string;
     emptyText?: string;
+    compact?: boolean;
 }) {
     const [hovered, setHovered] = useState<string | null>(null);
 
@@ -42,8 +44,8 @@ export function AllocationDonut({
     const legend = [...slices].sort((a, b) => b.valueCents - a.valueCents);
 
     return (
-        <div className="grid items-center gap-6 sm:grid-cols-[13rem_1fr]">
-            <div className="relative mx-auto aspect-square w-52 sm:w-full">
+        <div className={cn("grid items-center", compact ? "gap-3" : "gap-6 sm:grid-cols-[13rem_1fr]")}>
+            <div className={cn("relative mx-auto aspect-square", compact ? "w-36" : "w-52 sm:w-full")}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -74,7 +76,7 @@ export function AllocationDonut({
                 </div>
             </div>
 
-            <table className="w-full text-sm">
+            <table className={cn("w-full", compact ? "text-xs" : "text-sm")}>
                 <thead className="sr-only">
                     <tr>
                         <th>Group</th>
@@ -94,7 +96,7 @@ export function AllocationDonut({
                                 <span className="flex min-w-0 items-center gap-2">
                                     <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: s.color }} />
                                     <span className="truncate">{s.label}</span>
-                                    <span className="shrink-0 text-xs text-muted-foreground">{s.count}</span>
+                                    {!compact && <span className="shrink-0 text-xs text-muted-foreground">{s.count}</span>}
                                 </span>
                             </td>
                             <td className="py-1.5 pr-2 text-right tabular-nums">{formatMoney(s.valueCents)}</td>
